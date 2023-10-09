@@ -13,6 +13,8 @@ anyhow = "1.0.75"
 directories = "5.0.1"
 backtrace = "0.3.69"
 libmem = "4.2.1"
+serde = { version = "1.0.188", features = ["derive"] }
+toml = "0.8.2"
 
 # docs can be found here. different api functions require adding the relevant features
 # https://microsoft.github.io/windows-docs-rs/doc/windows/index.html

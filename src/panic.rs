@@ -7,7 +7,7 @@ use crate::backtrace::CaptureBacktrace;
 
 pub fn set_hook() {
     panic::set_hook(Box::new(move |info| {
-        #[allow(unused_assignments)]
+        #[allow(unused_assignments, unused_mut)]
         let mut message = info.to_string();
 
         // For debug mode, print entire stack trace. Stack trace doesn't really

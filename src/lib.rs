@@ -1,4 +1,5 @@
 mod backtrace;
+mod config;
 mod panic;
 mod paths;
 mod popup;
@@ -11,11 +12,15 @@ use std::{
 // See installation steps here: https://github.com/rdbo/libmem/tree/master/libmem-rs#installing
 use libmem::*;
 use log::{error, LevelFilter};
-use simplelog::{CombinedLogger, Config, WriteLogger};
+use simplelog::{CombinedLogger, Config as SimpleLogConfig, WriteLogger};
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
-use crate::popup::{display_popup, MessageBoxIcon};
+use crate::{
+    config::Config,
+    paths::get_plugins_filepath,
+    popup::{display_popup, MessageBoxIcon},
+};
 
 use self::paths::get_plugins_logs_filepath;
 
@@ -41,6 +46,14 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
                     "Plugin successfully injected",
                     MessageBoxIcon::Information,
                 );
+
+                // load a config
+                let config_path =
+                    get_plugins_filepath("my-config.toml").expect("Failed to load settings");
+                let config = Config::load(&config_path).expect("Failed to load config");
+
+                // save config
+                config.save(&config_path).expect("Failed to save config");
 
                 todo!("Implement hooking logic");
             }
@@ -87,7 +100,11 @@ fn setup_logging() -> anyhow::Result<()> {
     };
 
     // enable logging
-    CombinedLogger::init(vec![WriteLogger::new(level, Config::default(), file)])?;
+    CombinedLogger::init(vec![WriteLogger::new(
+        level,
+        SimpleLogConfig::default(),
+        file,
+    )])?;
 
     Ok(())
 }
