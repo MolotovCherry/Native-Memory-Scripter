@@ -50,10 +50,10 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
                 // load a config
                 let config_path =
                     get_plugins_filepath("my-config.toml").expect("Failed to load settings");
-                let config = Config::load(&config_path).expect("Failed to load config");
+                let config = Config::load(config_path).expect("Failed to load config");
 
                 // save config
-                config.save(&config_path).expect("Failed to save config");
+                config.save().expect("Failed to save config");
 
                 todo!("Implement hooking logic");
             }

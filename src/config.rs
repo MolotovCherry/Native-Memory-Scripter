@@ -1,5 +1,5 @@
-use std::fs;
 use std::path::Path;
+use std::{fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +7,11 @@ use serde::{Deserialize, Serialize};
 /// quicktype.io can help you by converting json to Rust
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
+    // This is not part of the config, but rather used for
+    // at runtime to remember where to save to
+    #[serde(skip)]
+    path: PathBuf,
+
     opt1: bool,
     opt2: String,
     // etc
@@ -14,15 +19,18 @@ pub struct Config {
 
 impl Config {
     pub fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let data = fs::read_to_string(path)?;
-        let instance = toml::from_str::<Self>(&data)?;
+        let data = fs::read_to_string(&path)?;
+        let mut config = toml::from_str::<Self>(&data)?;
 
-        Ok(instance)
+        // set the plugin config path
+        config.path = path.as_ref().to_owned();
+
+        Ok(config)
     }
 
-    pub fn save<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
+    pub fn save(&self) -> anyhow::Result<()> {
         let serialized = toml::to_string_pretty(self)?;
-        fs::write(path, serialized)?;
+        fs::write(&self.path, serialized)?;
 
         Ok(())
     }
