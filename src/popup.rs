@@ -19,6 +19,8 @@ impl From<MessageBoxIcon> for MESSAGEBOX_STYLE {
     }
 }
 
+/// Create a win32 popup
+/// WARNING: DO NOT display popups in production code! It will halt the game!
 pub fn display_popup(title: &str, message: &str, icon: MessageBoxIcon) {
     // these must be explicitly assigned, otherwise they will be temporary and drop
     // and create an invalid pointer, causing corruption and UB

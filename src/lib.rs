@@ -35,6 +35,7 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
                 // set up our actual log file handling
                 setup_logging().expect("Failed to setup logging");
 
+                // Show the hook was injected. DO NOT popup in production code!
                 display_popup(
                     "Success",
                     "Plugin successfully injected",
