@@ -68,7 +68,7 @@ fn entry() {
     );
 
     // load a config
-    let config_path = get_plugins_filepath("my-config.toml").expect("Failed to load settings");
+    let config_path = get_plugins_filepath("my-config.toml").expect("Failed to find config path");
     let config = Config::load(config_path).expect("Failed to load config");
 
     // save config
