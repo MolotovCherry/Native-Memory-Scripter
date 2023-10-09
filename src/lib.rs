@@ -1,28 +1,24 @@
 mod backtrace;
 mod config;
+mod logging;
 mod panic;
 mod paths;
 mod popup;
 
-use std::{
-    ffi::c_void,
-    fs::{File, OpenOptions},
-};
+use std::ffi::c_void;
 
+use log::error;
 // See installation steps here: https://github.com/rdbo/libmem/tree/master/libmem-rs#installing
-//use libmem::*;
-use log::{error, LevelFilter};
-use simplelog::{CombinedLogger, Config as SimpleLogConfig, WriteLogger};
+use libmem::*;
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 use crate::{
     config::Config,
+    logging::setup_logging,
     paths::get_plugins_filepath,
     popup::{display_popup, MessageBoxIcon},
 };
-
-use self::paths::get_plugins_logs_filepath;
 
 // Dll entry point
 #[no_mangle]
@@ -79,37 +75,4 @@ fn entry() {
     config.save().expect("Failed to save config");
 
     todo!("Implement hooking logic");
-}
-
-/// Setup logging for the plugin
-///
-/// NOTE: Have a particularly frustrating problem that you can't find EVEN with logging?
-///       Using a Windows popup might be more helpful then.
-///       DO NOT rely on popups in release mode. That will break the game!
-fn setup_logging() -> anyhow::Result<()> {
-    // get the file path to `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3\Plugins\logs\my-plugin.log`
-    let log_path = get_plugins_logs_filepath("my-plugin.log")?;
-
-    // either create log, or append to it if it already exists
-    let file = if log_path.exists() {
-        OpenOptions::new().write(true).append(true).open(log_path)?
-    } else {
-        File::create(log_path)?
-    };
-
-    // Log as debug level if compiled in debug, otherwise use info for releases
-    let level = if cfg!(debug_assertions) {
-        LevelFilter::Debug
-    } else {
-        LevelFilter::Info
-    };
-
-    // enable logging
-    CombinedLogger::init(vec![WriteLogger::new(
-        level,
-        SimpleLogConfig::default(),
-        file,
-    )])?;
-
-    Ok(())
 }
