@@ -39,9 +39,15 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
                 let _ = debugger::wait_until_attached(None);
             }
 
+            // Set up a custom panic hook so we can log all panics to logfile
+            panic::set_hook();
+
             // Note: While it's technically safe to panic across FFI with C-unwind ABI, I STRONGLY recommend to
             // catch and handle ALL panics. If you don't, you could crash the game by accident!
             let result = std::panic::catch_unwind(|| {
+                // set up our actual log file handling
+                setup_logging().expect("Failed to setup logging");
+
                 entry();
             });
 
@@ -66,12 +72,6 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
 // All of our main plugin code goes here!
 fn entry() {
     // TODO: Place all your hooking code here
-
-    // Set up a custom panic hook so we can log all panics to logfile
-    panic::set_hook();
-
-    // set up our actual log file handling
-    setup_logging().expect("Failed to setup logging");
 
     // Show the hook was injected. DO NOT popup in production code!
     display_popup(
