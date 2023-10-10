@@ -21,6 +21,8 @@ use crate::{
     popup::{display_popup, MessageBoxIcon},
 };
 
+// Declare your plugin name and description
+// This will be accessible by anyone who uses the BG3-Plugin-Lib to get the info
 declare_plugin! {
     "MyPlugin",
     "My Plugin Description"
