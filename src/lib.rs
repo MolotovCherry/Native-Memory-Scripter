@@ -8,12 +8,11 @@ mod popup;
 use std::ffi::c_void;
 
 use bg3_plugin_lib::declare_plugin;
-use bugsalot::debugger;
 use log::error;
 // See installation steps here: https://github.com/rdbo/libmem/tree/master/libmem-rs#installing
 use libmem::*;
-use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
+use windows::Win32::{Foundation::HINSTANCE, System::Diagnostics::Debug::IsDebuggerPresent};
 
 use crate::{
     config::Config,
@@ -35,8 +34,14 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
     #[allow(clippy::single_match)]
     match fdw_reason {
         DLL_PROCESS_ATTACH => {
+            // Wait for debugger if in debug mode
             if cfg!(debug_assertions) {
-                let _ = debugger::wait_until_attached(None);
+                let is_debugger_present = || unsafe { IsDebuggerPresent().as_bool() };
+
+                while !is_debugger_present() {
+                    // 60hz polling
+                    std::thread::sleep(std::time::Duration::from_millis(16));
+                }
             }
 
             // Set up a custom panic hook so we can log all panics to logfile
