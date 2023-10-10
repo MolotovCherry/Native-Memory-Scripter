@@ -8,7 +8,6 @@ mod popup;
 use std::ffi::c_void;
 
 use bg3_plugin_lib::declare_plugin;
-use log::error;
 // See installation steps here: https://github.com/rdbo/libmem/tree/master/libmem-rs#installing
 use libmem::*;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
@@ -49,25 +48,17 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
 
             // Note: While it's technically safe to panic across FFI with C-unwind ABI, I STRONGLY recommend to
             // catch and handle ALL panics. If you don't, you could crash the game by accident!
-            let result = std::panic::catch_unwind(|| {
+            //
+            // catch_unwind returns a Result with the panic info, but we actually don't need it, because
+            // we set a panic_hook up at top which will log all panics to the logfile.
+            // if for any reason we can't actually log the panic, we *could* popup a
+            // messagebox instead (for debugging use only of course)
+            _ = std::panic::catch_unwind(|| {
                 // set up our actual log file handling
                 setup_logging().expect("Failed to setup logging");
 
                 entry();
             });
-
-            // Just log the error out to the file
-            if let Err(e) = result {
-                // Note, logging this is contingent on a successful downcast!
-                // It would be better for you to handle any possible panics directly,
-                // and instead use the log macros, log::error!(), log::info!(), etc
-
-                if let Ok(message) = e.downcast::<&'static str>() {
-                    error!("{message}");
-                } else {
-                    error!("General error");
-                }
-            }
         }
 
         _ => (),
@@ -75,6 +66,9 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
 }
 
 // All of our main plugin code goes here!
+//
+// To log to the logfile, use the log macros: log::debug!(), log::info!(), log::warn!(), log::error!()
+// Recommend to catch and handle potential panics instead of panicking; log instead, it's much cleaner
 fn entry() {
     // TODO: Place all your hooking code here
 
