@@ -1,5 +1,7 @@
 # BG3 Plugin Template
 
+[Create a new plugin project from this template](https://github.com/new?template_name=BG3-Plugin-Template-Rust&template_owner=MolotovCherry)
+
 To build:
 - [Install Rust](https://rustup.rs/)
 - Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) + Build tools + Desktop development in C++ + Windows SDK
