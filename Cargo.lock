@@ -41,9 +41,9 @@ dependencies = [
 [[package]]
 name = "bg3-plugin-lib"
 version = "0.1.0"
-source = "git+https://github.com/MolotovCherry/BG3-Plugin-Lib#5d2ff74a3f0ce109e72598376c2f0e1b3cba4e93"
+source = "git+https://github.com/MolotovCherry/BG3-Plugin-Lib#0dd1b8317bab89993a77a7a7477d768bf8435e77"
 dependencies = [
- "libloading",
+ "windows",
 ]
 
 [[package]]
@@ -160,16 +160,6 @@ name = "libc"
 version = "0.2.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a08173bc88b7955d1b3145aa561539096c421ac8debde8cbc3612ec635fee29b"
-
-[[package]]
-name = "libloading"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c571b676ddfc9a8c12f1f3d3085a7b163966a8fd8098a90640953ce5f6170161"
-dependencies = [
- "cfg-if",
- "windows-sys",
-]
 
 [[package]]
 name = "libmem"
