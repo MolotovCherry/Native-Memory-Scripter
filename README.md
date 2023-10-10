@@ -5,7 +5,7 @@
 To build:
 - [Install Rust](https://rustup.rs/)
 - Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) + Build tools + Desktop development in C++ + Windows SDK
-- [Setup libmem](https://github.com/rdbo/libmem/tree/master/libmem-rs#installing)
+- Clone repo with `git clone --recurse-submodules --remote-submodules https://github.com/MolotovCherry/BG3-Plugin-Template-Rust`
 - Build with `cargo build` or `cargo build --release`
 
 [`libmem`](https://github.com/rdbo/libmem) Rust examples can be found [here](https://github.com/rdbo/libmem/tree/master/docs/examples/rust)

@@ -30,6 +30,9 @@ features = [
     "Win32_System_Diagnostics_Debug",
 ]
 
+[build-dependencies]
+cmake = "0.1.50"
+
 [profile.release]
 strip = true
 lto = true
