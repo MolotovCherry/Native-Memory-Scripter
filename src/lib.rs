@@ -9,6 +9,7 @@ use std::ffi::c_void;
 
 use log::error;
 // See installation steps here: https://github.com/rdbo/libmem/tree/master/libmem-rs#installing
+use bg3_plugin_lib::declare_plugin;
 use libmem::*;
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
@@ -19,6 +20,11 @@ use crate::{
     paths::get_plugins_filepath,
     popup::{display_popup, MessageBoxIcon},
 };
+
+declare_plugin! {
+    "MyPlugin",
+    "My Plugin Description"
+}
 
 // Dll entry point
 #[no_mangle]
