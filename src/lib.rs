@@ -7,6 +7,7 @@ mod popup;
 
 use std::ffi::c_void;
 
+use bugsalot::debugger;
 use log::error;
 // See installation steps here: https://github.com/rdbo/libmem/tree/master/libmem-rs#installing
 use bg3_plugin_lib::declare_plugin;
@@ -34,6 +35,10 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
     #[allow(clippy::single_match)]
     match fdw_reason {
         DLL_PROCESS_ATTACH => {
+            if cfg!(debug_assertions) {
+                let _ = debugger::wait_until_attached(None);
+            }
+
             // Note: While it's technically safe to panic across FFI with C-unwind ABI, I STRONGLY recommend to
             // catch and handle ALL panics. If you don't, you could crash the game by accident!
             let result = std::panic::catch_unwind(|| {
