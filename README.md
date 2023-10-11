@@ -1,11 +1,11 @@
 # BG3 Plugin Template
 
-[Create a new plugin project from this template](https://github.com/new?template_name=BG3-Plugin-Template-Rust&template_owner=MolotovCherry)
+1. [Create a new plugin project from this template](https://github.com/new?template_name=BG3-Plugin-Template-Rust&template_owner=MolotovCherry)
+2. Clone your repo with `git clone --recurse-submodules --remote-submodules https://github.com/YourUsername/YourProjectName`
 
 To build:
 - [Install Rust](https://rustup.rs/)
 - Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) + Build tools + Desktop development in C++ + Windows SDK
-- Clone repo with `git clone --recurse-submodules --remote-submodules https://github.com/MolotovCherry/BG3-Plugin-Template-Rust`
 - Build with `cargo build` or `cargo build --release`
 
 [`libmem`](https://github.com/rdbo/libmem) Rust examples can be found [here](https://github.com/rdbo/libmem/tree/master/docs/examples/rust)
