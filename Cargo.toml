@@ -31,7 +31,6 @@ features = [
 ]
 
 [build-dependencies]
-cmake = "0.1.50"
 winres = "0.1.12"
 
 [profile.release]
