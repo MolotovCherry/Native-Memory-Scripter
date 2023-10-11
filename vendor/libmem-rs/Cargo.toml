@@ -1,0 +1,38 @@
+[package]
+name = "libmem"
+version = "4.2.1"
+authors = ["rdbo"]
+edition = "2021"
+# rust-version: "1.64.0"
+description = "Advanced Game Hacking Library (Windows/Linux/FreeBSD)"
+documentation = "https://github.com/rdbo/libmem/blob/master/docs/DOCS.md"
+readme = "README.md"
+homepage = "https://github.com/rdbo/libmem"
+repository = "https://github.com/rdbo/libmem"
+license = "AGPL-3.0"
+# license-file = "LICENSE"
+keywords = ["gamehacking", "memory", "hooking", "assembler", "disassembler"]
+categories = [
+    "os",
+    "os::windows-apis",
+    "os::linux-apis",
+    "os::freebsd-apis",
+    "os::unix-apis",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "libmem"
+
+[features]
+static = []
+
+[[bin]]
+name = "tests"
+
+[dependencies]
+
+[build-dependencies]
+cmake = "0.1.50"
+winreg = "0.51.0"

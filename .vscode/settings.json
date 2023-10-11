@@ -1,0 +1,4 @@
+{
+    "rust-analyzer.cargo.buildScripts.enable": false,
+    "rust-analyzer.procMacro.enable": false
+}

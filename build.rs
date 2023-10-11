@@ -24,22 +24,4 @@ fn main() {
 "#);
 
     let _ = res.compile();
-
-    // build and link libmem
-    //
-    // build times are long! it is recommended to cache these instead, and take the build artifacts generated
-    // and hardcode this buildscript to your generated .lib / .dll file(s)
-    // note that depending on which profile you build, debug or release, you will get debug or release
-    // artifacts! make sure you cache and use the appropriate ones per profile!
-    // you don't want to accidentally link to a debug .lib/.dll for your optimized release code
-
-    let mut config = cmake::Config::new("libmem");
-
-    config.generator("NMake Makefiles");
-    config.build_target("libmem");
-
-    let dst = config.build();
-
-    println!("cargo:rustc-link-search=native={}\\build", dst.display());
-    println!("cargo:rustc-link-lib=static=libmem");
 }

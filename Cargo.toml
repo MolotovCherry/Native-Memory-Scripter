@@ -12,7 +12,7 @@ simplelog = "0.12.1"
 anyhow = "1.0.75"
 directories = "5.0.1"
 backtrace = "0.3.69"
-libmem = "4.2.1"
+libmem = { version = "4.2.1", features = ["static"] }
 serde = { version = "1.0.188", features = ["derive"] }
 toml = "0.8.2"
 bg3-plugin-lib = { git = "https://github.com/MolotovCherry/BG3-Plugin-Lib" }
@@ -45,3 +45,18 @@ codegen-units = 1
 [package.metadata.winres]
 OriginalFilename = "PROGRAM.EXE"
 LegalCopyright = "Copyright © 2023"
+
+# Wait, but why did you vendor libmem-rs with a patch?
+# that is because the build.rs file needs to be patched to build the project and link it
+# this is not possible to fix without patching
+#
+# Please see the build.rs file in vendor/libmem-rs !
+# you may want to customize it, e.g. cache the built lib, since it takes awhile to build it
+#
+# We also added an edit to the Cargo.toml for build-dependencies since we used them in build.rs
+# that's it! Those are the only edits!
+#
+# Let's hope it gets fixed soon!
+# https://github.com/rdbo/libmem/issues/142
+[patch.crates-io]
+libmem = { path = './vendor/libmem-rs' }
