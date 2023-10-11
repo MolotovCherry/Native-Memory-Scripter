@@ -1,7 +1,7 @@
 # BG3 Plugin Template
 
 1. [Create a new plugin project from this template](https://github.com/new?template_name=BG3-Plugin-Template-Rust&template_owner=MolotovCherry)
-2. Clone your repo with `git clone --recurse-submodules --remote-submodules https://github.com/YourUsername/YourProjectName`
+2. Clone your repo with `git clone --recurse-submodules --remote-submodules <YourGitUrl>`
 
 To build:
 - [Install Rust](https://rustup.rs/)
