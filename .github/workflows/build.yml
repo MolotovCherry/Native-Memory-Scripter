@@ -23,6 +23,12 @@ jobs:
         with:
             submodules: 'recursive'
 
+      - name: Set target dir
+        run: |
+          $DriveLetter = $(Get-Location).Drive.Name
+          # important. this allows us to get shorter path names
+          echo "CARGO_TARGET_DIR=${DriveLetter}:\target" >> $env:GITHUB_ENV
+
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -39,12 +45,12 @@ jobs:
         with:
           name: build
           path: |
-            target/*/*.dll
+            ${{env.CARGO_TARGET_DIR}}/*/*.dll
 
       - name: Zip files up
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path target/*/*.dll | Compress-Archive -CompressionLevel Optimal -DestinationPath "my-plugin-x64.zip"
+          Get-ChildItem -Path $env:CARGO_TARGET_DIR/*/*.dll | Compress-Archive -CompressionLevel Optimal -DestinationPath "my-plugin-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
