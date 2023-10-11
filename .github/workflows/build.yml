@@ -33,6 +33,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
+          cache-directories: "${{env.CARGO_TARGET_DIR}}"
 
       - name: Build
         env:
