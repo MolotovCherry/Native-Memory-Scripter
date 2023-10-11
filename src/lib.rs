@@ -24,6 +24,7 @@ use crate::{
 // This will be accessible by anyone who uses the BG3-Plugin-Lib to get the info
 declare_plugin! {
     "MyPlugin",
+    "Author",
     "My Plugin Description"
 }
 
