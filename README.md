@@ -10,4 +10,8 @@ To build:
 
 [`libmem`](https://github.com/rdbo/libmem) Rust examples can be found [here](https://github.com/rdbo/libmem/tree/master/docs/examples/rust)
 
-For those who want to get a plugin's name/description, use the [BG3-Plugin-Lib](https://github.com/MolotovCherry/BG3-Plugin-Lib) (also compatible with C!)
+_Note: You are not required to use `libmem`! There are other libraries that exist which can do similar things_
+
+## For mod program makers
+
+For those who want to get a plugin's name/author/description/version, use the [BG3-Plugin-Lib](https://github.com/MolotovCherry/BG3-Plugin-Lib) (also compatible with C!)
