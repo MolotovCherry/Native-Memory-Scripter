@@ -54,56 +54,12 @@ pub fn get_bg3_plugins_dir() -> anyhow::Result<PathBuf> {
     }
 }
 
-/// Get the bg3 plugins log directory
-/// `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3\Plugins\logs`
-pub fn get_bg3_plugins_logs_dir() -> anyhow::Result<PathBuf> {
-    let mut log_dir = get_bg3_plugins_dir()?;
-    log_dir.push("logs");
-
-    if !log_dir.exists() {
-        fs::create_dir(&log_dir)?;
-    }
-
-    Ok(log_dir)
-}
-
 /// Create a path to `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3\Plugins\<filename>`
 pub fn get_plugins_filepath<P: AsRef<Path>>(path: P) -> anyhow::Result<PathBuf> {
     Ok(get_bg3_plugins_dir()?.join(path))
 }
 
-/// Create a path to `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3\Plugins\logs\<filename>`
-pub fn get_plugins_logs_filepath<P: AsRef<Path>>(path: P) -> anyhow::Result<PathBuf> {
-    Ok(get_bg3_plugins_logs_dir()?.join(path))
-}
-
-/// Get path to <path_to_my_dll_folder>\<filename>
-pub fn get_dll_dir_filepath<P: AsRef<Path>>(module: HINSTANCE, path: P) -> anyhow::Result<PathBuf> {
-    Ok(get_dll_folder(module)?.join(path))
-}
-
-/// Get path to \<path_to_my_dll_folder\>\logs\\<filename\>
-pub fn get_dll_logs_filepath<P: AsRef<Path>>(
-    module: HINSTANCE,
-    path: P,
-) -> anyhow::Result<PathBuf> {
-    let logs_dir = get_dll_logs_dir(module)?;
-    Ok(logs_dir.join(path))
-}
-
-/// Get path to <path_to_my_dll_folder>\logs\
-pub fn get_dll_logs_dir(module: HINSTANCE) -> anyhow::Result<PathBuf> {
-    let mut logs_dir = get_dll_folder(module)?;
-    logs_dir.push("logs");
-
-    if !logs_dir.exists() {
-        fs::create_dir(&logs_dir)?;
-    }
-
-    Ok(logs_dir)
-}
-
-/// Get path to dll `<my_dll_folder>\myplugin.dll`
+/// Get path to dll `<dll_dir>\myplugin.dll`
 pub fn get_dll_path(module: HINSTANCE) -> anyhow::Result<PathBuf> {
     const PATH_SIZE: usize = (MAX_PATH * 2) as usize;
 
@@ -121,12 +77,40 @@ pub fn get_dll_path(module: HINSTANCE) -> anyhow::Result<PathBuf> {
     Ok(PathBuf::from(path))
 }
 
-/// Get path to dll's parent folder
-pub fn get_dll_folder(module: HINSTANCE) -> anyhow::Result<PathBuf> {
+/// Get path to dll's parent dir
+pub fn get_dll_dir(module: HINSTANCE) -> anyhow::Result<PathBuf> {
     let dll_folder = get_dll_path(module)?
         .parent()
         .ok_or(anyhow!("Failed to get parent of dll"))?
         .to_path_buf();
 
     Ok(dll_folder)
+}
+
+/// Get path to `<dll_dir>\logs\`
+/// Also creates `logs` dir if it doesn't exist
+pub fn get_dll_logs_dir(module: HINSTANCE) -> anyhow::Result<PathBuf> {
+    let mut logs_dir = get_dll_dir(module)?;
+    logs_dir.push("logs");
+
+    if !logs_dir.exists() {
+        fs::create_dir(&logs_dir)?;
+    }
+
+    Ok(logs_dir)
+}
+
+/// Get path to `<dll_dir>\<filename>`
+pub fn get_dll_dir_filepath<P: AsRef<Path>>(module: HINSTANCE, path: P) -> anyhow::Result<PathBuf> {
+    Ok(get_dll_dir(module)?.join(path))
+}
+
+/// Get path to `<dll_dir>\logs\<filename>`
+/// Also creates `logs` dir if it doesn't exist
+pub fn get_dll_logs_filepath<P: AsRef<Path>>(
+    module: HINSTANCE,
+    path: P,
+) -> anyhow::Result<PathBuf> {
+    let logs_dir = get_dll_logs_dir(module)?;
+    Ok(logs_dir.join(path))
 }
