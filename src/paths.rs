@@ -46,7 +46,7 @@ pub fn get_bg3_plugins_dir() -> anyhow::Result<PathBuf> {
 }
 
 /// Get the bg3 plugins log directory
-/// `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3\Plugins`
+/// `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3\Plugins\logs`
 pub fn get_bg3_plugins_logs_dir() -> anyhow::Result<PathBuf> {
     let mut log_dir = get_bg3_plugins_dir()?;
     log_dir.push("logs");
