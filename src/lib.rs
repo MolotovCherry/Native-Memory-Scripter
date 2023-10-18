@@ -16,7 +16,7 @@ use windows::Win32::{Foundation::HINSTANCE, System::Diagnostics::Debug::IsDebugg
 use crate::{
     config::Config,
     logging::setup_logging,
-    paths::get_plugins_filepath,
+    paths::get_dll_dir_filepath,
     popup::{display_popup, MessageBoxIcon},
 };
 
@@ -30,7 +30,7 @@ declare_plugin! {
 
 // Dll entry point
 #[no_mangle]
-extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserved: *const c_void) {
+extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: *const c_void) {
     #[allow(clippy::single_match)]
     match fdw_reason {
         DLL_PROCESS_ATTACH => {
@@ -56,9 +56,9 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
             // messagebox instead (for debugging use only of course)
             _ = std::panic::catch_unwind(|| {
                 // set up our actual log file handling
-                setup_logging().expect("Failed to setup logging");
+                setup_logging(module).expect("Failed to setup logging");
 
-                entry();
+                entry(module);
             });
         }
 
@@ -70,7 +70,7 @@ extern "C-unwind" fn DllMain(_hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserv
 //
 // To log to the logfile, use the log macros: log::debug!(), log::info!(), log::warn!(), log::error!()
 // Recommend to catch and handle potential panics instead of panicking; log instead, it's much cleaner
-fn entry() {
+fn entry(module: HINSTANCE) {
     // TODO: Place all your hooking code here
 
     // Show the hook was injected. DO NOT popup in production code!
@@ -81,7 +81,8 @@ fn entry() {
     );
 
     // load a config
-    let config_path = get_plugins_filepath("my-config.toml").expect("Failed to find config path");
+    let config_path =
+        get_dll_dir_filepath(module, "my-config.toml").expect("Failed to find config path");
     let config = Config::load(config_path).expect("Failed to load config");
 
     // save config
