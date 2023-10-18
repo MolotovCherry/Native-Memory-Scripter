@@ -10,6 +10,8 @@ To build:
 
 [`libmem`](https://github.com/rdbo/libmem) Rust examples can be found [here](https://github.com/rdbo/libmem/tree/master/docs/examples/rust)
 
+This is of course compatible with the original [native mod loader](https://www.nexusmods.com/baldursgate3/mods/944). Paths for config and logs are based off the dll's location to truly make it portable for users, regardless of loader used
+
 _Note: You are not required to use `libmem`! There are other libraries that exist which can do similar things_
 
 ## For mod program makers
