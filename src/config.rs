@@ -12,8 +12,8 @@ pub struct Config {
     #[serde(skip)]
     path: PathBuf,
 
-    opt1: bool,
-    opt2: String,
+    pub opt1: bool,
+    pub opt2: String,
     // etc
 }
 
