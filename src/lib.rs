@@ -9,7 +9,7 @@ mod popup;
 use std::ffi::c_void;
 
 use bg3_plugin_lib::declare_plugin;
-use eyre::Error;
+use eyre::{Context, Error};
 // For installation steps see README in lib folder
 use libmem::*;
 use log::{error, LevelFilter};
@@ -60,7 +60,7 @@ extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: 
                 if cfg!(debug_assertions) {
                     debug_console(LevelFilter::Trace, "BG3 Plugin Template Debug Console")?;
                 } else {
-                    setup_logging(module).expect("Failed to setup logging");
+                    setup_logging(module).context("Failed to setup logging")?;
                 }
 
                 entry(module);
