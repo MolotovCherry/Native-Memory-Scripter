@@ -1,5 +1,7 @@
 # BG3 Plugin Template
 
+[![Build](https://github.com/MolotovCherry/BG3-Plugin-Template-Rust/actions/workflows/build.yml/badge.svg?event=push)](https://github.com/MolotovCherry/BG3-Plugin-Template-Rust/actions/workflows/build.yml)
+
 1. [Create a new plugin project from this template](https://github.com/new?template_name=BG3-Plugin-Template-Rust&template_owner=MolotovCherry)
 2. Follow instructions in `lib` folder and read the README there to finish setting up `libmem`
 
