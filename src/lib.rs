@@ -1,5 +1,6 @@
 mod backtrace;
 mod config;
+mod console;
 mod logging;
 mod panic;
 mod paths;
@@ -8,17 +9,17 @@ mod popup;
 use std::ffi::c_void;
 
 use bg3_plugin_lib::declare_plugin;
+use eyre::Error;
 // For installation steps see README in lib folder
 use libmem::*;
+use log::{error, LevelFilter};
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 use windows::Win32::{Foundation::HINSTANCE, System::Diagnostics::Debug::IsDebuggerPresent};
 
-use crate::{
-    config::Config,
-    logging::setup_logging,
-    paths::get_dll_dir_filepath,
-    popup::{display_popup, MessageBoxIcon},
-};
+use config::Config;
+use logging::{debug_console, setup_logging};
+use paths::get_dll_dir_filepath;
+use popup::{display_popup, MessageBoxIcon};
 
 // Declare your plugin name and description
 // This will be accessible by anyone who uses the BG3-Plugin-Lib to get the info
@@ -54,12 +55,23 @@ extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: 
             // we set a panic_hook up at top which will log all panics to the logfile.
             // if for any reason we can't actually log the panic, we *could* popup a
             // messagebox instead (for debugging use only of course)
-            _ = std::panic::catch_unwind(|| {
+            let result = std::panic::catch_unwind(|| {
                 // set up our actual log file handling
-                setup_logging(module).expect("Failed to setup logging");
+                if cfg!(debug_assertions) {
+                    debug_console(LevelFilter::Trace, "BG3 Plugin Template Debug Console")?;
+                } else {
+                    setup_logging(module).expect("Failed to setup logging");
+                }
 
                 entry(module);
+
+                Ok::<_, Error>(())
             });
+
+            // If there was no panic, but error was bubbled up, then log the error
+            if let Ok(Err(e)) = result {
+                error!("{e}");
+            }
         }
 
         _ => (),

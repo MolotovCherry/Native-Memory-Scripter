@@ -1,17 +1,18 @@
 use std::fs::{File, OpenOptions};
 
+use eyre::Result;
 use log::LevelFilter;
-use simplelog::{CombinedLogger, Config, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode, WriteLogger};
 use windows::Win32::Foundation::HINSTANCE;
 
-use crate::paths::get_dll_logs_filepath;
+use crate::{console::alloc_console, paths::get_dll_logs_filepath};
 
 /// Setup logging for the plugin
 ///
 /// NOTE: Have a particularly frustrating problem that you can't find EVEN with logging?
-///       Using a Windows popup might be more helpful then.
+///       Using a Windows popup or debug console might be more helpful then.
 ///       DO NOT rely on popups in release mode. That will break the game!
-pub fn setup_logging(module: HINSTANCE) -> anyhow::Result<()> {
+pub fn setup_logging(module: HINSTANCE) -> Result<()> {
     // get the file path to `<path_to_my_dll_folder>\logs\my-plugin.log`
     let log_path = get_dll_logs_filepath(module, "my-plugin.log")?;
 
@@ -31,6 +32,21 @@ pub fn setup_logging(module: HINSTANCE) -> anyhow::Result<()> {
 
     // enable logging
     CombinedLogger::init(vec![WriteLogger::new(level, Config::default(), file)])?;
+
+    Ok(())
+}
+
+/// Debug console to see output on
+pub fn debug_console(level: LevelFilter, title: &str) -> Result<()> {
+    alloc_console(title)?;
+
+    // enable logging
+    TermLogger::init(
+        level,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::AlwaysAnsi,
+    )?;
 
     Ok(())
 }

@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 log = "0.4.20"
 simplelog = "0.12.1"
-anyhow = "1.0.80"
+eyre = "0.6.12"
 directories = "5.0.1"
 backtrace = "0.3.69"
 # to update this, you need to update the static lib in the lib folder
@@ -39,6 +39,8 @@ features = [
     "Win32_UI_WindowsAndMessaging",
     # for debugger
     "Win32_System_Diagnostics_Debug",
+    # for console
+    "Win32_System_Console",
 ]
 
 [build-dependencies]
