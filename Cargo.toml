@@ -16,8 +16,11 @@ backtrace = "0.3.69"
 # go to the release page to download the compiled static lib
 # https://github.com/rdbo/libmem/releases
 #
-# Look for the *-x86_64-windows-msvc-static-md version
+# Look for the *-x86_64-windows-msvc-static-mt version
 # open the archive, and in the lib folder, use the release libmem.lib
+#
+# For more info on which version to use, how to install, etc,
+# see README in lib folder
 libmem = { version = "4.4.0", features = ["static"] }
 
 serde = { version = "1.0.197", features = ["derive"] }

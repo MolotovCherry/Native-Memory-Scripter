@@ -8,7 +8,7 @@ mod popup;
 use std::ffi::c_void;
 
 use bg3_plugin_lib::declare_plugin;
-// See installation steps here: https://github.com/rdbo/libmem/tree/master/libmem-rs#installing
+// For installation steps see README in lib folder
 use libmem::*;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 use windows::Win32::{Foundation::HINSTANCE, System::Diagnostics::Debug::IsDebuggerPresent};
