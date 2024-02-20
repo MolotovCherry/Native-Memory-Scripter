@@ -17,7 +17,7 @@ pub fn setup_logging(module: HINSTANCE) -> anyhow::Result<()> {
 
     // either create log, or append to it if it already exists
     let file = if log_path.exists() {
-        OpenOptions::new().write(true).append(true).open(log_path)?
+        OpenOptions::new().append(true).open(log_path)?
     } else {
         File::create(log_path)?
     };
