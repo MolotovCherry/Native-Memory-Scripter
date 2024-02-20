@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -27,20 +27,13 @@ jobs:
           key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
 
       - name: Download libmem
-        uses: dsaltares/fetch-gh-release-asset@master
-        with:
-            repo: 'rdbo/libmem'
-            file: "libmem-.*-x86_64-windows-msvc-static-mt\\.tar\\.gz"
-            regex: true
-            target: "./"
+        run: |
+            gh release download -R rdbo/libmem --pattern "libmem-*-x86_64-windows-msvc-static-mt.tar.gz" -O libmem.tar.gz
 
       - name: Setup libmem
         run: |
-            $name = Get-ChildItem -Path *.tar.gz
-            tar -xvzf $name
-            $name = $name.ToString()
-            $name = $name.Substring(0, $name.Length - 7)
-            cd "$name/lib/release"
+            tar -xvzf libmem.tar.gz
+            cd "libmem/lib/release"
             New-Item -ItemType Directory -Force -Path "$env:ProgramFiles\libmem\lib"
             Copy-Item "libmem.lib" -Destination "$env:ProgramFiles\libmem\lib"
 
@@ -54,7 +47,7 @@ jobs:
 
       - name: Upload Artifacts
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build
           path: |
