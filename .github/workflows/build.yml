@@ -25,7 +25,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
-          cache-directories: "${{env.CARGO_TARGET_DIR}}"
 
       - name: Download libmem
         uses: dsaltares/fetch-gh-release-asset@master
@@ -59,12 +58,12 @@ jobs:
         with:
           name: build
           path: |
-            ${{env.CARGO_TARGET_DIR}}/*/*.dll
+            target/*/*.dll
 
       - name: Zip files up
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path $env:CARGO_TARGET_DIR/*/*.dll | Compress-Archive -CompressionLevel Optimal -DestinationPath "my-plugin-x64.zip"
+          Get-ChildItem -Path target/*/*.dll | Compress-Archive -CompressionLevel Optimal -DestinationPath "my-plugin-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
