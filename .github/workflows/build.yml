@@ -20,20 +20,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-            submodules: 'recursive'
-
-      - name: Set target dir
-        run: |
-          $DriveLetter = $(Get-Location).Drive.Name
-          # important. this allows us to get shorter path names
-          echo "CARGO_TARGET_DIR=${DriveLetter}:\target" >> $env:GITHUB_ENV
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
           cache-directories: "${{env.CARGO_TARGET_DIR}}"
+
+      - name: Download libmem
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+            repo: 'rdbo/libmem'
+            file: 'libmem-.+-x86_64-windows-msvc-static-mt\.tar\.gz'
+            regex: true
 
       - name: Build Release
         if: github.event_name == 'release'
