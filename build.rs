@@ -1,22 +1,4 @@
-use std::path::Path;
-
 fn main() {
-    //
-    // libmem linker stuff
-    //
-
-    let lib_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("lib")
-        .to_string_lossy()
-        .to_string();
-
-    println!("cargo:rustc-link-search={lib_dir}");
-    println!("cargo:rustc-link-lib=static=libmem");
-
-    //
-    // WINRES stuff below
-    //
-
     // stamp dll with project metadata
     let mut res = winres::WindowsResource::new();
 
