@@ -33,6 +33,7 @@ jobs:
             repo: 'rdbo/libmem'
             file: "libmem-.*-x86_64-windows-msvc-static-mt\\.tar\\.gz"
             regex: true
+            target: "./"
 
       - name: Setup libmem
         run: |
