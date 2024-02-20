@@ -32,7 +32,7 @@ jobs:
         run: |
             gh release download -R rdbo/libmem --pattern "libmem-*-x86_64-windows-msvc-static-mt.tar.gz" -O libmem.tar.gz
             tar -xvzf libmem.tar.gz
-            cd "libmem/lib/release"
+            cd "libmem*/lib/release"
             New-Item -ItemType Directory -Force -Path "$env:ProgramFiles\libmem\lib"
             Copy-Item "libmem.lib" -Destination "$env:ProgramFiles\libmem\lib"
 
