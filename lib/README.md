@@ -10,3 +10,5 @@ A note on `mt` vs `md`:
 - Use `mt` lib if rustflag `-Ctarget-feature=+crt-static` is set
 
 By default the static crt compile flag is set in `.cargo/config.toml`, so the instructions said to use `mt` version
+
+Note: Once pr [#186](https://github.com/rdbo/libmem/pull/186) is accepted, you can set env var `LIBMEM_SEARCH_PATH` in a shell to change the lib search path instead of needing to specify it in `.cargo/config.toml` like is specified above
