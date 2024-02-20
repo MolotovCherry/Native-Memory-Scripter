@@ -8,7 +8,7 @@ To build:
 - Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) + Build tools + Desktop development in C++ + Windows SDK
 - Build with `cargo build` or `cargo build --release`
 
-[`libmem`](https://github.com/rdbo/libmem) Rust examples can be found [here](https://github.com/rdbo/libmem/tree/master/docs/examples/rust)
+[`libmem`](https://github.com/rdbo/libmem) Rust examples can be found [here](https://github.com/rdbo/libmem/tree/master/docs/api/rust)
 
 Any build dll is compatible with the original [native mod loader](https://www.nexusmods.com/baldursgate3/mods/944) as well. Paths for config and logs are based off the dll's location to make it portable for users, regardless of loader used
 
