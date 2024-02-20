@@ -1,3 +1,0 @@
-[submodule "vendor/libmem-rs/libmem"]
-	path = vendor/libmem-rs/libmem
-	url = https://github.com/rdbo/libmem
