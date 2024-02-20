@@ -26,12 +26,11 @@ jobs:
         with:
           key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
 
-      - name: Download libmem
+      - name: Setup libmem
+        env:
+            GH_TOKEN: ${{ github.token }}
         run: |
             gh release download -R rdbo/libmem --pattern "libmem-*-x86_64-windows-msvc-static-mt.tar.gz" -O libmem.tar.gz
-
-      - name: Setup libmem
-        run: |
             tar -xvzf libmem.tar.gz
             cd "libmem/lib/release"
             New-Item -ItemType Directory -Force -Path "$env:ProgramFiles\libmem\lib"
