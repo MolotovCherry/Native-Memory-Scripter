@@ -18,4 +18,4 @@ _Note: You are not required to use `libmem`! There are other libraries that exis
 
 ## For mod program makers
 
-For those who want to get a plugin's name/author/description/version, use the [BG3-Plugin-Lib](https://github.com/MolotovCherry/BG3-Plugin-Lib) (also compatible with C!)
+For those who want to get a plugin's name/author/description/version, use the [Native-Plugin-Lib](https://github.com/MolotovCherry/Native-Plugin-Lib) (also compatible with C!)

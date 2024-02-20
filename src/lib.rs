@@ -8,8 +8,8 @@ mod popup;
 
 use std::ffi::c_void;
 
-use bg3_plugin_lib::declare_plugin;
 use eyre::{Context, Error};
+use native_plugin_lib::declare_plugin;
 // For installation steps see README in lib folder
 use libmem::*;
 use log::{error, LevelFilter};
