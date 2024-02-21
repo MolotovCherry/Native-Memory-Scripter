@@ -22,7 +22,7 @@ use paths::get_dll_dir_filepath;
 use popup::{display_popup, MessageBoxIcon};
 
 // Declare your plugin name and description
-// This will be accessible by anyone who uses the BG3-Plugin-Lib to get the info
+// This will be accessible by anyone who uses the Native-Plugin-Lib to get the info
 declare_plugin! {
     "MyPlugin",
     "Author",
@@ -58,7 +58,7 @@ extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: 
             let result = std::panic::catch_unwind(|| {
                 // set up our actual log file handling
                 if cfg!(debug_assertions) {
-                    debug_console(LevelFilter::Trace, "BG3 Plugin Template Debug Console")?;
+                    debug_console(LevelFilter::Trace, "Native Plugin Template Debug Console")?;
                 } else {
                     setup_logging(module).context("Failed to setup logging")?;
                 }
