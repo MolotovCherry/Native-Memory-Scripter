@@ -1,52 +1,54 @@
-use std::fs::{File, OpenOptions};
-
 use eyre::Result;
-use log::LevelFilter;
-use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode, WriteLogger};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::{
+    fmt, layer::SubscriberExt, prelude::__tracing_subscriber_Layer, util::SubscriberInitExt,
+    EnvFilter, Registry,
+};
 use windows::Win32::Foundation::HINSTANCE;
 
-use crate::{console::alloc_console, paths::get_dll_logs_filepath};
+use crate::paths::get_dll_dir;
 
 /// Setup logging for the plugin
-///
-/// NOTE: Have a particularly frustrating problem that you can't find EVEN with logging?
-///       Using a Windows popup or debug console might be more helpful then.
-///       DO NOT rely on popups in release mode. That will break the game!
 pub fn setup_logging(module: HINSTANCE) -> Result<()> {
-    // get the file path to `<path_to_my_dll_folder>\logs\my-plugin.log`
-    let log_path = get_dll_logs_filepath(module, "my-plugin.log")?;
+    // get the file path to `<path_to_my_dll_folder>\`
+    let dll_dir = get_dll_dir(module)?;
 
-    // either create log, or append to it if it already exists
-    let file = if log_path.exists() {
-        OpenOptions::new().append(true).open(log_path)?
+    let var = "NMS_LOG";
+
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .with_env_var(var)
+        .from_env_lossy();
+
+    if cfg!(debug_assertions) {
+        fmt::Subscriber::builder()
+            .with_ansi(true)
+            .without_time()
+            .with_env_filter(env_filter)
+            .init();
     } else {
-        File::create(log_path)?
-    };
+        let file_appender = tracing_appender::rolling::never(dll_dir, "native-memory-scripter.log");
 
-    // Log as debug level if compiled in debug, otherwise use info for releases
-    let level = if cfg!(debug_assertions) {
-        LevelFilter::Debug
-    } else {
-        LevelFilter::Info
-    };
+        let log_layer = tracing_subscriber::fmt::Layer::default()
+            .with_writer(file_appender)
+            .with_ansi(false)
+            .with_filter(env_filter);
 
-    // enable logging
-    CombinedLogger::init(vec![WriteLogger::new(level, Config::default(), file)])?;
+        let env_filter = EnvFilter::builder()
+            .with_default_directive(LevelFilter::INFO.into())
+            .with_env_var(var)
+            .from_env_lossy();
 
-    Ok(())
-}
+        let stdout_layer = tracing_subscriber::fmt::Layer::default()
+            .without_time()
+            .with_ansi(true)
+            .with_filter(env_filter);
 
-/// Debug console to see output on
-pub fn debug_console(level: LevelFilter, title: &str) -> Result<()> {
-    alloc_console(title)?;
-
-    // enable logging
-    TermLogger::init(
-        level,
-        Config::default(),
-        TerminalMode::Mixed,
-        ColorChoice::AlwaysAnsi,
-    )?;
+        Registry::default()
+            .with(log_layer)
+            .with(stdout_layer)
+            .init();
+    }
 
     Ok(())
 }

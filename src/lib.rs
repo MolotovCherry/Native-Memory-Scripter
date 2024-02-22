@@ -2,68 +2,54 @@ mod backtrace;
 mod config;
 mod console;
 mod logging;
+mod lua;
+mod modules;
 mod panic;
 mod paths;
-mod popup;
 
-use std::ffi::c_void;
+use std::{ffi::c_void, sync::OnceLock};
 
-use eyre::{Context, Error};
+use eyre::{Context, Error, Result};
+use mlua::prelude::*;
 use native_plugin_lib::declare_plugin;
-// For installation steps see README in lib folder
-use libmem::*;
-use log::{error, LevelFilter};
+use tracing::error;
+use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
-use windows::Win32::{Foundation::HINSTANCE, System::Diagnostics::Debug::IsDebuggerPresent};
 
 use config::Config;
-use logging::{debug_console, setup_logging};
+use logging::setup_logging;
+use lua::lua_init;
 use paths::get_dll_dir_filepath;
-use popup::{display_popup, MessageBoxIcon};
 
-// Declare your plugin name and description
-// This will be accessible by anyone who uses the Native-Plugin-Lib to get the info
+use self::console::alloc_console;
+
 declare_plugin! {
-    "MyPlugin",
-    "Author",
-    "My Plugin Description"
+    "Native-Memory-Scripter",
+    "Cherry",
+    "Allows one to use lua scripting to modify the games memory"
 }
+
+static MODULE_HANDLE: OnceLock<HINSTANCE> = OnceLock::new();
 
 // Dll entry point
 #[no_mangle]
 extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: *const c_void) {
+    _ = MODULE_HANDLE.set(module);
+
     #[allow(clippy::single_match)]
     match fdw_reason {
         DLL_PROCESS_ATTACH => {
-            // Wait for debugger if in debug mode
-            if cfg!(debug_assertions) {
-                let is_debugger_present = || unsafe { IsDebuggerPresent().as_bool() };
-
-                while !is_debugger_present() {
-                    // 60hz polling
-                    std::thread::sleep(std::time::Duration::from_millis(16));
-                }
-            }
-
-            // Set up a custom panic hook so we can log all panics to logfile
             panic::set_hook();
 
-            // Note: While it's technically safe to panic across FFI with C-unwind ABI, I STRONGLY recommend to
-            // catch and handle ALL panics. If you don't, you could crash the game by accident!
-            //
-            // catch_unwind returns a Result with the panic info, but we actually don't need it, because
-            // we set a panic_hook up at top which will log all panics to the logfile.
-            // if for any reason we can't actually log the panic, we *could* popup a
-            // messagebox instead (for debugging use only of course)
             let result = std::panic::catch_unwind(|| {
                 // set up our actual log file handling
-                if cfg!(debug_assertions) {
-                    debug_console(LevelFilter::Trace, "Native Plugin Template Debug Console")?;
-                } else {
-                    setup_logging(module).context("Failed to setup logging")?;
-                }
+                setup_logging(module).context("Failed to setup logging")?;
 
-                entry(module);
+                // always spawn debug console when in debug mode
+                #[cfg(debug_assertions)]
+                alloc_console()?;
+
+                entry(module)?;
 
                 Ok::<_, Error>(())
             });
@@ -78,27 +64,15 @@ extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: 
     }
 }
 
-// All of our main plugin code goes here!
-//
-// To log to the logfile, use the log macros: log::debug!(), log::info!(), log::warn!(), log::error!()
-// Recommend to catch and handle potential panics instead of panicking; log instead, it's much cleaner
-fn entry(module: HINSTANCE) {
-    // TODO: Place all your hooking code here
+fn entry(module: HINSTANCE) -> Result<()> {
+    let config_path = get_dll_dir_filepath(module, "native-memory-scriper.toml")?;
+    let config = Config::load(config_path)?;
 
-    // Show the hook was injected. DO NOT popup in production code!
-    display_popup(
-        "Success",
-        "Plugin successfully injected",
-        MessageBoxIcon::Information,
-    );
+    let lua = unsafe { Lua::unsafe_new() };
+    lua_init(&lua)?;
 
-    // load a config
-    let config_path =
-        get_dll_dir_filepath(module, "my-config.toml").expect("Failed to find config path");
-    let config = Config::load(config_path).expect("Failed to load config");
+    let data = std::fs::read_to_string(r"R:\Temp\rust\debug\test.lua")?;
+    lua.load(data).exec()?;
 
-    // save config
-    config.save().expect("Failed to save config");
-
-    todo!("Implement hooking logic");
+    Ok(())
 }

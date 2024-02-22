@@ -1,4 +1,8 @@
-fn main() {
+use std::error::Error;
+
+use vergen::EmitBuilder;
+
+fn main() -> Result<(), Box<dyn Error>> {
     // stamp dll with project metadata
     let mut res = winres::WindowsResource::new();
 
@@ -24,4 +28,12 @@ fn main() {
 "#);
 
     let _ = res.compile();
+
+    EmitBuilder::builder()
+        .all_build()
+        .all_cargo()
+        .all_git()
+        .emit()?;
+
+    Ok(())
 }

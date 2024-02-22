@@ -1,6 +1,6 @@
 use std::panic;
 
-use log::error;
+use tracing::error;
 
 #[cfg(debug_assertions)]
 use crate::backtrace::CaptureBacktrace;
