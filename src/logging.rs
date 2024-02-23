@@ -78,10 +78,12 @@ pub fn setup_logging(module: HINSTANCE) -> Result<()> {
     }
 
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
-        .panic_section("consider reporting the bug on github @ https://github.com/MolotovCherry/Native-Memory-Scripter").into_hooks();
+        .panic_section(
+            "consider reporting the bug @ https://github.com/MolotovCherry/Native-Memory-Scripter",
+        )
+        .into_hooks();
 
     eyre_hook.install()?;
-
     set_panic_hook(panic_hook);
 
     Ok(())
