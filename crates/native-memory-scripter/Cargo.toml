@@ -1,0 +1,60 @@
+[package]
+name = "native-memory-scripter"
+version = "0.1.0"
+edition = "2021"
+description = "Plugin to allow process memory editing through dynamic scripts"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-appender = "0.2.3"
+tracing-error = "0.2.0"
+eyre = "0.6.12"
+color-eyre = "0.6.2"
+strip-ansi-escapes = "0.2.0"
+directories = "5.0.1"
+backtrace = "0.3.69"
+serde = { version = "1.0.197", features = ["derive"] }
+toml = "0.8.10"
+native-plugin-lib = { git = "https://github.com/MolotovCherry/Native-Plugin-Lib" }
+rhai = "1.17.1"
+owo-colors = "4.0.0"
+modules = { path = "../modules" }
+
+# docs can be found here. different api functions require adding the relevant features
+# https://microsoft.github.io/windows-docs-rs/doc/windows/index.html
+[dependencies.windows]
+version = "0.53.0"
+features = [
+    "Win32_Foundation",
+    "Win32_System_SystemServices",
+    "Win32_System_LibraryLoader",
+    # for the popup
+    "Win32_UI_WindowsAndMessaging",
+    # for debugger
+    "Win32_System_Diagnostics_Debug",
+    # for console
+    "Win32_System_Console",
+]
+
+[build-dependencies]
+winres = "0.1.12"
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+debug = true
+lto = true
+codegen-units = 1
+
+# stamp dll with project metadata 😄
+# see winres for more keys to stamp your dll with
+# https://docs.rs/winres/0.1.12/winres/struct.WindowsResource.html
+[package.metadata.winres]
+OriginalFilename = "NATIVE-MEMORY-SCRIPTER.DLL"
+LegalCopyright = "Copyright Cherry © 2024"
+Comments = "For more details: https://github.com/MolotovCherry/Native-Memory-Scripter"

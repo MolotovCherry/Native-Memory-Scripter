@@ -13,6 +13,7 @@ use windows::{
 
 static ALLOCATED: AtomicBool = AtomicBool::new(false);
 
+/// Not meant to be run in production
 pub fn alloc_console() -> ::windows::core::Result<()> {
     let allocated = ALLOCATED.load(Ordering::Acquire);
     if allocated {
@@ -57,9 +58,9 @@ pub fn alloc_console() -> ::windows::core::Result<()> {
         SetConsoleTitleW(PCWSTR(title.as_ptr()))?;
     }
 
-    ALLOCATED.store(true, Ordering::Release);
-
     print_intro();
+
+    ALLOCATED.store(true, Ordering::Release);
 
     Ok(())
 }

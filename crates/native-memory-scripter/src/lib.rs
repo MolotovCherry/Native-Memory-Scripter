@@ -1,8 +1,6 @@
 mod config;
-mod console;
 mod engine;
 mod logging;
-//mod modules;
 mod paths;
 
 use std::{
@@ -20,8 +18,6 @@ use config::Config;
 //use engine::init;
 use logging::setup_logging;
 use paths::get_dll_dir_filepath;
-
-use self::console::alloc_console;
 
 declare_plugin! {
     "Native-Memory-Scripter",
@@ -44,7 +40,7 @@ extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: 
             _ = std::panic::catch_unwind(|| {
                 // always spawn debug console when in debug mode
                 #[cfg(debug_assertions)]
-                alloc_console().expect("Failed to alloc console");
+                modules::alloc_console().expect("Failed to alloc console");
 
                 // set up our actual log file handling
                 setup_logging(module).expect("Failed to setup logging");
@@ -72,5 +68,5 @@ fn get_running_script() -> String {
     RUNNING_SCRIPT
         .get()
         .map(|m| m.lock().unwrap().clone())
-        .unwrap_or_default()
+        .unwrap_or_else(|| "THIS_IS_A_BUG".to_owned())
 }

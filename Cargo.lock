@@ -177,12 +177,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6051f239ecec86fde3410901ab7860d458d160371533842974fc61f96d15879b"
 
 [[package]]
-name = "core-foundation-sys"
-version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
-
-[[package]]
 name = "crossbeam-channel"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -390,6 +384,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "modules"
+version = "0.1.0"
+dependencies = [
+ "eyre",
+ "konst",
+ "libmem",
+ "rhai",
+ "tracing",
+ "vergen",
+ "windows",
+]
+
+[[package]]
 name = "native-memory-scripter"
 version = "0.1.0"
 dependencies = [
@@ -397,7 +404,7 @@ dependencies = [
  "color-eyre",
  "directories",
  "eyre",
- "libmem",
+ "modules",
  "native-plugin-lib",
  "owo-colors 4.0.0",
  "rhai",
@@ -408,27 +415,17 @@ dependencies = [
  "tracing-appender",
  "tracing-error",
  "tracing-subscriber",
- "vergen",
- "windows 0.53.0",
+ "windows",
  "winres",
 ]
 
 [[package]]
 name = "native-plugin-lib"
 version = "0.1.0"
-source = "git+https://github.com/MolotovCherry/Native-Plugin-Lib#0b53270ef55edd75d243f423adb221878b66fec7"
+source = "git+https://github.com/MolotovCherry/Native-Plugin-Lib#2deeac062235435121d1cd7776fd0665903a531d"
 dependencies = [
  "konst",
- "windows 0.52.0",
-]
-
-[[package]]
-name = "ntapi"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8a3895c6391c39d7fe7ebc444a87eb2991b2a0bc718fdabd071eec617fc68e4"
-dependencies = [
- "winapi",
+ "windows",
 ]
 
 [[package]]
@@ -633,15 +630,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
 
 [[package]]
-name = "rustc_version"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
-dependencies = [
- "semver",
-]
-
-[[package]]
 name = "rustversion"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -752,20 +740,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "sysinfo"
-version = "0.30.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fb4f3438c8f6389c864e61221cbc97e9bca98b4daf39a5beb7bea660f528bb2"
-dependencies = [
- "cfg-if",
- "core-foundation-sys",
- "libc",
- "ntapi",
- "once_cell",
- "windows 0.52.0",
 ]
 
 [[package]]
@@ -1015,9 +989,7 @@ dependencies = [
  "cargo_metadata",
  "cfg-if",
  "regex",
- "rustc_version",
  "rustversion",
- "sysinfo",
  "time",
 ]
 
@@ -1077,31 +1049,12 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
-version = "0.52.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e48a53791691ab099e5e2ad123536d0fff50652600abaf43bbf952894110d0be"
-dependencies = [
- "windows-core 0.52.0",
- "windows-targets 0.52.2",
-]
-
-[[package]]
-name = "windows"
 version = "0.53.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "efc5cf48f83140dcaab716eeaea345f9e93d0018fb81162753a3f76c3397b538"
 dependencies = [
- "windows-core 0.53.0",
- "windows-targets 0.52.2",
-]
-
-[[package]]
-name = "windows-core"
-version = "0.52.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
-dependencies = [
- "windows-targets 0.52.2",
+ "windows-core",
+ "windows-targets 0.52.3",
 ]
 
 [[package]]
@@ -1111,7 +1064,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9dcc5b895a6377f1ab9fa55acedab1fd5ac0db66ad1e6c7f47e28a22e446a5dd"
 dependencies = [
  "windows-result",
- "windows-targets 0.52.2",
+ "windows-targets 0.52.3",
 ]
 
 [[package]]
@@ -1120,7 +1073,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd19df78e5168dfb0aedc343d1d1b8d422ab2db6756d2dc3fef75035402a3f64"
 dependencies = [
- "windows-targets 0.52.2",
+ "windows-targets 0.52.3",
 ]
 
 [[package]]
@@ -1149,17 +1102,17 @@ dependencies = [
 
 [[package]]
 name = "windows-targets"
-version = "0.52.2"
+version = "0.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d98532992affa02e52709d5b4d145a3668ae10d9081eea4a7f26f719a8476f71"
+checksum = "d380ba1dc7187569a8a9e91ed34b8ccfc33123bbacb8c0aed2d1ad7f3ef2dc5f"
 dependencies = [
- "windows_aarch64_gnullvm 0.52.1",
- "windows_aarch64_msvc 0.52.1",
- "windows_i686_gnu 0.52.1",
- "windows_i686_msvc 0.52.1",
- "windows_x86_64_gnu 0.52.1",
- "windows_x86_64_gnullvm 0.52.1",
- "windows_x86_64_msvc 0.52.1",
+ "windows_aarch64_gnullvm 0.52.3",
+ "windows_aarch64_msvc 0.52.3",
+ "windows_i686_gnu 0.52.3",
+ "windows_i686_msvc 0.52.3",
+ "windows_x86_64_gnu 0.52.3",
+ "windows_x86_64_gnullvm 0.52.3",
+ "windows_x86_64_msvc 0.52.3",
 ]
 
 [[package]]
@@ -1170,9 +1123,9 @@ checksum = "2b38e32f0abccf9987a4e3079dfb67dcd799fb61361e53e2882c3cbaf0d905d8"
 
 [[package]]
 name = "windows_aarch64_gnullvm"
-version = "0.52.1"
+version = "0.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7269c1442e75af9fa59290383f7665b828efc76c429cc0b7f2ecb33cf51ebae"
+checksum = "68e5dcfb9413f53afd9c8f86e56a7b4d86d9a2fa26090ea2dc9e40fba56c6ec6"
 
 [[package]]
 name = "windows_aarch64_msvc"
@@ -1182,9 +1135,9 @@ checksum = "dc35310971f3b2dbbf3f0690a219f40e2d9afcf64f9ab7cc1be722937c26b4bc"
 
 [[package]]
 name = "windows_aarch64_msvc"
-version = "0.52.1"
+version = "0.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f70ab2cebf332b7ecbdd98900c2da5298a8c862472fb35c75fc297eabb9d89b8"
+checksum = "8dab469ebbc45798319e69eebf92308e541ce46760b49b18c6b3fe5e8965b30f"
 
 [[package]]
 name = "windows_i686_gnu"
@@ -1194,9 +1147,9 @@ checksum = "a75915e7def60c94dcef72200b9a8e58e5091744960da64ec734a6c6e9b3743e"
 
 [[package]]
 name = "windows_i686_gnu"
-version = "0.52.1"
+version = "0.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "679f235acf6b1639408c0f6db295697a19d103b0cdc88146aa1b992c580c647d"
+checksum = "2a4e9b6a7cac734a8b4138a4e1044eac3404d8326b6c0f939276560687a033fb"
 
 [[package]]
 name = "windows_i686_msvc"
@@ -1206,9 +1159,9 @@ checksum = "8f55c233f70c4b27f66c523580f78f1004e8b5a8b659e05a4eb49d4166cca406"
 
 [[package]]
 name = "windows_i686_msvc"
-version = "0.52.1"
+version = "0.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3480ac194b55ae274a7e135c21645656825da4a7f5b6e9286291b2113c94a78b"
+checksum = "28b0ec9c422ca95ff34a78755cfa6ad4a51371da2a5ace67500cf7ca5f232c58"
 
 [[package]]
 name = "windows_x86_64_gnu"
@@ -1218,9 +1171,9 @@ checksum = "53d40abd2583d23e4718fddf1ebec84dbff8381c07cae67ff7768bbf19c6718e"
 
 [[package]]
 name = "windows_x86_64_gnu"
-version = "0.52.1"
+version = "0.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42c46bab241c121402d1cb47d028ea3680ee2f359dcc287482dcf7fdddc73363"
+checksum = "704131571ba93e89d7cd43482277d6632589b18ecf4468f591fbae0a8b101614"
 
 [[package]]
 name = "windows_x86_64_gnullvm"
@@ -1230,9 +1183,9 @@ checksum = "0b7b52767868a23d5bab768e390dc5f5c55825b6d30b86c844ff2dc7414044cc"
 
 [[package]]
 name = "windows_x86_64_gnullvm"
-version = "0.52.1"
+version = "0.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc885a4332ee1afb9a1bacf11514801011725570d35675abc229ce7e3afe4d20"
+checksum = "42079295511643151e98d61c38c0acc444e52dd42ab456f7ccfd5152e8ecf21c"
 
 [[package]]
 name = "windows_x86_64_msvc"
@@ -1242,9 +1195,9 @@ checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
 
 [[package]]
 name = "windows_x86_64_msvc"
-version = "0.52.1"
+version = "0.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e440c60457f84b0bee09208e62acc7ade264b38c4453f6312b8c9ab1613e73c"
+checksum = "0770833d60a970638e989b3fa9fd2bb1aaadcf88963d1659fd7d9990196ed2d6"
 
 [[package]]
 name = "winnow"
