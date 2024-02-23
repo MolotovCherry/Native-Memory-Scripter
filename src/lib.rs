@@ -1,24 +1,25 @@
-mod backtrace;
 mod config;
 mod console;
+mod engine;
 mod logging;
-mod lua;
-mod modules;
-mod panic;
+//mod modules;
+
 mod paths;
 
-use std::{ffi::c_void, sync::OnceLock};
+use std::{
+    ffi::c_void,
+    sync::{Mutex, OnceLock},
+};
 
-use eyre::{Context, Error, Result};
-use mlua::prelude::*;
+use eyre::{eyre, Result};
 use native_plugin_lib::declare_plugin;
 use tracing::error;
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 use config::Config;
+//use engine::init;
 use logging::setup_logging;
-use lua::lua_init;
 use paths::get_dll_dir_filepath;
 
 use self::console::alloc_console;
@@ -30,34 +31,27 @@ declare_plugin! {
 }
 
 static MODULE_HANDLE: OnceLock<HINSTANCE> = OnceLock::new();
+static RUNNING_SCRIPT: OnceLock<Mutex<String>> = OnceLock::new();
 
 // Dll entry point
 #[no_mangle]
 extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: *const c_void) {
-    _ = MODULE_HANDLE.set(module);
-
     #[allow(clippy::single_match)]
     match fdw_reason {
         DLL_PROCESS_ATTACH => {
-            panic::set_hook();
+            _ = MODULE_HANDLE.set(module);
+            _ = RUNNING_SCRIPT.set(Mutex::new(String::new()));
 
-            let result = std::panic::catch_unwind(|| {
-                // set up our actual log file handling
-                setup_logging(module).context("Failed to setup logging")?;
-
+            _ = std::panic::catch_unwind(|| {
                 // always spawn debug console when in debug mode
                 #[cfg(debug_assertions)]
-                alloc_console()?;
+                alloc_console().expect("Failed to alloc console");
 
-                entry(module)?;
+                // set up our actual log file handling
+                setup_logging(module).expect("Failed to setup logging");
 
-                Ok::<_, Error>(())
+                entry(module).expect("entry failure");
             });
-
-            // If there was no panic, but error was bubbled up, then log the error
-            if let Ok(Err(e)) = result {
-                error!("{e}");
-            }
         }
 
         _ => (),
@@ -65,14 +59,19 @@ extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: 
 }
 
 fn entry(module: HINSTANCE) -> Result<()> {
-    let config_path = get_dll_dir_filepath(module, "native-memory-scriper.toml")?;
+    let config_path =
+        get_dll_dir_filepath(module, "native-memory-scriper.toml").map_err(|e| eyre!("{e}"))?;
     let config = Config::load(config_path)?;
 
-    let lua = unsafe { Lua::unsafe_new() };
-    lua_init(&lua)?;
-
-    let data = std::fs::read_to_string(r"R:\Temp\rust\debug\test.lua")?;
-    lua.load(data).exec()?;
+    error!("bar");
+    panic!("foobar");
 
     Ok(())
+}
+
+fn get_running_script() -> String {
+    RUNNING_SCRIPT
+        .get()
+        .map(|m| m.lock().unwrap().clone())
+        .unwrap_or_default()
 }

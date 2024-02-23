@@ -1,9 +1,7 @@
 mod mem;
 mod utils;
 
-use mlua::prelude::*;
-
-pub fn register(lua: &Lua) -> LuaResult<()> {
+pub fn register(lua: &Lua) -> Result<()> {
     utils::register(lua)?;
     mem::register(lua)?;
 
