@@ -360,7 +360,8 @@ mod mem_mod {
     /// On success, it returns address, where address is a valid lm_address_t (i64). On failure, it returns unit.
     ///
     /// https://github.com/rdbo/libmem/blob/4.4.0/docs/api/rust/LM_AllocMemory.md
-    fn alloc_memory_ex(
+    #[rhai_fn(volatile, return_raw)]
+    pub fn alloc_memory_ex(
         ctx: NativeCallContext,
         pproc: lm_process_t,
         size: i64,
@@ -385,43 +386,68 @@ mod mem_mod {
     /// On success, it returns a valid inst_t containing the assembled instruction. On failure, it returns unit.
     ///
     /// https://github.com/rdbo/libmem/blob/4.4.0/docs/api/rust/LM_AllocMemory.md
-    fn assemble(code: &str) -> Dynamic {
+    #[rhai_fn(volatile)]
+    pub fn assemble(code: &str) -> Dynamic {
         LM_Assemble(code)
             .map(Dynamic::from)
             .unwrap_or(Dynamic::UNIT)
     }
 
-    // /// LM_AssembleEx(code: &str, usize, usize)
-    // /// Assembles a single instruction into machine code.
-    // ///
-    // /// Parameters:
-    // /// code: a string of the instructions to be assembled. Example: "mov eax, ebx ; jmp eax".
-    // /// bits: the bits of the architecture to be assembled. It can be 32 or 64.
-    // /// runtime_addr: the runtime address to resolve the functions (for example, relative jumps will be resolved using this address).
-    // ///
-    // /// Return:
-    // /// On success, it returns Some(instructions), where instructions is a vector of bytes containing the assembled instructions. On failure, it returns unit.
-    // ///
-    // /// https://github.com/rdbo/libmem/blob/4.4.0/docs/api/rust/LM_AllocMemory.md
-    // fn assemble_ex(lua: &Lua, args: (String, lm_size_t, lm_address_t)) -> LuaResult<Value> {
-    //     LM_AssembleEx(&args.0, args.1, args.2).into_lua(lua)
-    // }
+    /// assemble_ex(code: &str, bits: i64, runtime_addr: i64)
+    /// Assembles a single instruction into machine code.
+    ///
+    /// Parameters:
+    /// code: a string of the instructions to be assembled. Example: "mov eax, ebx ; jmp eax".
+    /// bits: the bits of the architecture to be assembled. It can be 32 or 64.
+    /// runtime_addr: the runtime address to resolve the functions (for example, relative jumps will be resolved using this address).
+    ///
+    /// Return:
+    /// On success, it returns a blob containing the assembled instructions. On failure, it returns unit.
+    ///
+    /// https://github.com/rdbo/libmem/blob/4.4.0/docs/api/rust/LM_AllocMemory.md
+    #[rhai_fn(volatile, return_raw)]
+    pub fn assemble_ex(
+        ctx: NativeCallContext,
+        code: &str,
+        bits: i64,
+        runtime_addr: i64,
+    ) -> Result<Dynamic, Box<EvalAltResult>> {
+        let bits = into_usize(bits, ctx.position())?;
+        let runtime_addr = into_usize(runtime_addr, ctx.position())?;
 
-    // /// LM_CodeLength(usize, usize)
-    // /// Gets the minimum instruction aligned length for minlength bytes from code in the calling process.
-    // ///
-    // /// Parameters:
-    // /// code: virtual address of the code to get the minimum aligned length from.
-    // /// minlength: the minimum length to align to an instruction length.
-    // ///
-    // /// Return:
-    // /// On success, it returns Some(length), where length is an lm_size_t containing the minimum instruction aligned
-    // /// length for minlength bytes from code. On failure, it returns None.
-    // fn code_length(lua: &Lua, args: (lm_address_t, lm_size_t)) -> LuaResult<Value> {
-    //     // SAFETY: All on scripters end. Read the documentation!
-    //     let result = unsafe { LM_CodeLength(args.0, args.1).into_lua(lua)? };
-    //     Ok(result)
-    // }
+        let dynamic = LM_AssembleEx(code, bits, runtime_addr)
+            .map(Dynamic::from)
+            .unwrap_or(Dynamic::UNIT);
+
+        Ok(dynamic)
+    }
+
+    /// code_length(code: i64, min_length: i64)
+    /// Gets the minimum instruction aligned length for minlength bytes from code in the calling process.
+    ///
+    /// Parameters:
+    /// code: virtual address of the code to get the minimum aligned length from.
+    /// minlength: the minimum length to align to an instruction length.
+    ///
+    /// Return:
+    /// On success, it returns length, where length is an i64 containing the minimum instruction aligned
+    /// length for minlength bytes from code. On failure, it returns unit.
+    #[rhai_fn(return_raw)]
+    pub fn code_length(
+        ctx: NativeCallContext,
+        code: i64,
+        min_length: i64,
+    ) -> Result<Dynamic, Box<EvalAltResult>> {
+        let code = into_usize(code, ctx.position())?;
+        let min_length = into_usize(min_length, ctx.position())?;
+
+        let length = unsafe { LM_CodeLength(code, min_length) };
+        let length: Option<i64> = length
+            .map(|l| l.try_into().into_rhai_pos(ctx.position()))
+            .transpose()?;
+
+        Ok(length.map(Dynamic::from).unwrap_or(Dynamic::UNIT))
+    }
 
     // /// LM_CodeLengthEx
     // /// Gets the minimum instruction aligned length for minlength bytes from code in a remote process.
