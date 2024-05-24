@@ -92,7 +92,7 @@ pub fn setup_logging(module: HINSTANCE, log_level: &str) -> Result<()> {
 fn set_panic_hook(hook: PanicHook) {
     // this panic hook makes sure that eyre panic hook gets sent to all tracing layers
     std::panic::set_hook(Box::new(move |info| {
-        let panic = hook.panic_report(info).to_string();
+        let panic = hook.panic_report(info);
         error!("{panic}");
     }))
 }
