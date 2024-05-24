@@ -1,5 +1,4 @@
 use std::{
-    error::Error,
     ffi::OsString,
     fs,
     os::windows::prelude::OsStringExt,
@@ -7,15 +6,50 @@ use std::{
 };
 
 use directories::BaseDirs;
-use windows::Win32::{
-    Foundation::{GetLastError, HINSTANCE, MAX_PATH},
-    System::LibraryLoader::GetModuleFileNameW,
+use windows::{
+    core::HRESULT,
+    Win32::{
+        Foundation::{GetLastError, HINSTANCE, MAX_PATH, WIN32_ERROR},
+        System::LibraryLoader::GetModuleFileNameW,
+    },
 };
+
+#[derive(Debug, thiserror::Error)]
+pub enum PathError {
+    #[error("failed to instantiate BaseDirs")]
+    BaseDirsError,
+    #[error("{0} dir not found")]
+    NotFound(String),
+    #[error("{0}")]
+    Windows(HRESULT),
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+}
+
+trait ToError {
+    fn into_err(self) -> Result<(), HRESULT>;
+}
+
+impl ToError for WIN32_ERROR {
+    fn into_err(self) -> Result<(), HRESULT> {
+        if self.is_err() {
+            Err(self.to_hresult())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl From<HRESULT> for PathError {
+    fn from(value: HRESULT) -> Self {
+        Self::Windows(value)
+    }
+}
 
 /// Get the larian local directory
 /// `C:\Users\<user>\AppData\Local\Larian Studios`
-pub fn get_larian_local_dir() -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
-    let local = BaseDirs::new().ok_or("Failed to instantiate BaseDirs")?;
+pub fn get_larian_local_dir() -> Result<PathBuf, PathError> {
+    let local = BaseDirs::new().ok_or(PathError::BaseDirsError)?;
 
     let mut local = local.data_local_dir().to_owned();
 
@@ -23,13 +57,13 @@ pub fn get_larian_local_dir() -> Result<PathBuf, Box<dyn Error + Send + Sync + '
     if local.exists() {
         Ok(local)
     } else {
-        Err("Larian local appdata directory does not exist".into())
+        Err(PathError::NotFound("Larian appdata".into()))
     }
 }
 
 /// Get the BG3 local directory
 /// `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3`
-pub fn get_bg3_local_dir() -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
+pub fn get_bg3_local_dir() -> Result<PathBuf, PathError> {
     let mut local = get_larian_local_dir()?;
 
     local.push("Baldur's Gate 3");
@@ -37,32 +71,30 @@ pub fn get_bg3_local_dir() -> Result<PathBuf, Box<dyn Error + Send + Sync + 'sta
     if local.exists() {
         Ok(local)
     } else {
-        Err("Bg3 local appdata directory does not exist".into())
+        Err(PathError::NotFound("Bg3 appdata".into()))
     }
 }
 
 /// Get the bg3 plugins directory
 /// `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3\Plugins`
-pub fn get_bg3_plugins_dir() -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
+pub fn get_bg3_plugins_dir() -> Result<PathBuf, PathError> {
     let mut plugins_dir = get_bg3_local_dir()?;
     plugins_dir.push("Plugins");
 
     if plugins_dir.exists() {
         Ok(plugins_dir)
     } else {
-        Err("BG3 Plugins dir not found".into())
+        Err(PathError::NotFound("BG3 Plugins".into()))
     }
 }
 
 /// Create a path to `C:\Users\<user>\AppData\Local\Larian Studios\Baldur's Gate 3\Plugins\<filename>`
-pub fn get_plugins_filepath<P: AsRef<Path>>(
-    path: P,
-) -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
+pub fn get_plugins_filepath<P: AsRef<Path>>(path: P) -> Result<PathBuf, PathError> {
     Ok(get_bg3_plugins_dir()?.join(path))
 }
 
 /// Get path to dll `<dll_dir>\myplugin.dll`
-pub fn get_dll_path(module: HINSTANCE) -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
+pub fn get_dll_path(module: HINSTANCE) -> Result<PathBuf, PathError> {
     const PATH_SIZE: usize = (MAX_PATH * 2) as usize;
 
     // create pre-allocated stack array of correct size
@@ -72,7 +104,7 @@ pub fn get_dll_path(module: HINSTANCE) -> Result<PathBuf, Box<dyn Error + Send +
 
     // bubble up error if there was any, for example, ERROR_INSUFFICIENT_BUFFER
     unsafe {
-        GetLastError()?;
+        GetLastError().into_err()?;
     }
 
     let path = OsString::from_wide(&path[..written_len]);
@@ -80,10 +112,10 @@ pub fn get_dll_path(module: HINSTANCE) -> Result<PathBuf, Box<dyn Error + Send +
 }
 
 /// Get path to dll's parent dir
-pub fn get_dll_dir(module: HINSTANCE) -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
+pub fn get_dll_dir(module: HINSTANCE) -> Result<PathBuf, PathError> {
     let dll_folder = get_dll_path(module)?
         .parent()
-        .ok_or("Failed to get parent of dll")?
+        .ok_or_else(|| PathError::NotFound("parent".into()))?
         .to_path_buf();
 
     Ok(dll_folder)
@@ -91,9 +123,7 @@ pub fn get_dll_dir(module: HINSTANCE) -> Result<PathBuf, Box<dyn Error + Send + 
 
 /// Get path to `<dll_dir>\logs\`
 /// Also creates `logs` dir if it doesn't exist
-pub fn get_dll_logs_dir(
-    module: HINSTANCE,
-) -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
+pub fn get_dll_logs_dir(module: HINSTANCE) -> Result<PathBuf, PathError> {
     let mut logs_dir = get_dll_dir(module)?;
     logs_dir.push("logs");
 
@@ -108,7 +138,7 @@ pub fn get_dll_logs_dir(
 pub fn get_dll_dir_filepath<P: AsRef<Path>>(
     module: HINSTANCE,
     path: P,
-) -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
+) -> Result<PathBuf, PathError> {
     Ok(get_dll_dir(module)?.join(path))
 }
 
@@ -117,7 +147,7 @@ pub fn get_dll_dir_filepath<P: AsRef<Path>>(
 pub fn get_dll_logs_filepath<P: AsRef<Path>>(
     module: HINSTANCE,
     path: P,
-) -> Result<PathBuf, Box<dyn Error + Send + Sync + 'static>> {
+) -> Result<PathBuf, PathError> {
     let logs_dir = get_dll_logs_dir(module)?;
     Ok(logs_dir.join(path))
 }

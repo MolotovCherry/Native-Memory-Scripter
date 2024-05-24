@@ -1,16 +1,13 @@
 mod config;
+mod console;
 mod engine;
 mod logging;
 mod paths;
 
-use std::{
-    ffi::c_void,
-    sync::{Mutex, OnceLock},
-};
+use std::{ffi::c_void, sync::OnceLock};
 
-use eyre::{eyre, Result};
+use eyre::Result;
 use native_plugin_lib::declare_plugin;
-use tracing::error;
 use windows::Win32::Foundation::HINSTANCE;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
@@ -20,13 +17,12 @@ use logging::setup_logging;
 use paths::get_dll_dir_filepath;
 
 declare_plugin! {
-    "Native-Memory-Scripter",
+    "Native Memory Scripter",
     "Cherry",
-    "Allows one to use lua scripting to modify the games memory"
+    "Easily edit process memory with dynamic scripts"
 }
 
 static MODULE_HANDLE: OnceLock<HINSTANCE> = OnceLock::new();
-static RUNNING_SCRIPT: OnceLock<Mutex<String>> = OnceLock::new();
 
 // Dll entry point
 #[no_mangle]
@@ -35,15 +31,23 @@ extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: 
     match fdw_reason {
         DLL_PROCESS_ATTACH => {
             _ = MODULE_HANDLE.set(module);
-            _ = RUNNING_SCRIPT.set(Mutex::new(String::new()));
 
             _ = std::panic::catch_unwind(|| {
                 // always spawn debug console when in debug mode
                 #[cfg(debug_assertions)]
-                modules::alloc_console().expect("Failed to alloc console");
+                console::alloc_console().expect("failed to alloc console");
+
+                let config_path = get_dll_dir_filepath(module, "native-memory-scripter.toml")
+                    .expect("failed to get dir path");
+                let config = Config::load(config_path).expect("failed to load config");
+
+                #[cfg(not(debug_assertions))]
+                if config.console {
+                    console::alloc_console().expect("Failed to alloc console");
+                }
 
                 // set up our actual log file handling
-                setup_logging(module).expect("Failed to setup logging");
+                setup_logging(module, &config.log_level).expect("Failed to setup logging");
 
                 entry(module).expect("entry failure");
             });
@@ -54,19 +58,5 @@ extern "C-unwind" fn DllMain(module: HINSTANCE, fdw_reason: u32, _lpv_reserved: 
 }
 
 fn entry(module: HINSTANCE) -> Result<()> {
-    let config_path =
-        get_dll_dir_filepath(module, "native-memory-scriper.toml").map_err(|e| eyre!("{e}"))?;
-    let config = Config::load(config_path)?;
-
-    error!("bar");
-    panic!("foobar");
-
     Ok(())
-}
-
-fn get_running_script() -> String {
-    RUNNING_SCRIPT
-        .get()
-        .map(|m| m.lock().unwrap().clone())
-        .unwrap_or_else(|| "THIS_IS_A_BUG".to_owned())
 }

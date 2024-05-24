@@ -4,8 +4,6 @@ use std::{fs, path::PathBuf};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 
-/// Need to figure out how to make a proper config?
-/// quicktype.io can help you by converting json to Rust
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     // This is not part of the config, but rather used for
@@ -13,9 +11,12 @@ pub struct Config {
     #[serde(skip)]
     path: PathBuf,
 
-    pub opt1: bool,
-    pub opt2: String,
-    // etc
+    /// show the developer console
+    pub console: bool,
+    /// show dev mode tools
+    pub dev_mode: bool,
+    /// configure logger level
+    pub log_level: String,
 }
 
 impl Config {
@@ -41,7 +42,7 @@ impl Config {
         let mut config = toml::from_str::<Self>(&data)?;
 
         // set the plugin config path
-        config.path = path.to_owned();
+        path.clone_into(&mut config.path);
 
         Ok(config)
     }

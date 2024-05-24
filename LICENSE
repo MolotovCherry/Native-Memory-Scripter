@@ -1,0 +1,55 @@
+Native Memory Scripter License Agreement
+This Native Memory Scripter License Agreement (the "Agreement") is a legal agreement between you (either an individual or a single entity, referred to herein as "Licensee") and Cherry (the "Licensor") for the use of the Native Memory Scripter software (the "Software").
+
+By using the Software, Licensee agrees to be bound by the terms of this Agreement.
+
+1. Grant of License
+Licensor grants Licensee a non-exclusive, non-transferable, limited license to:
+
+1.1 Use the Software in its unmodified form for personal use only.
+
+1.2 Compile the Software from its source code for personal use only.
+
+1.3 Create forks of the Software, provided that all forks are subject to the restrictions and obligations set forth in this Agreement.
+
+2. Restrictions
+Licensee shall not:
+
+2.1 Modify, adapt, translate, or create derivative works of the Software, except as explicitly permitted in Section 3 below.
+
+2.2 Sell, distribute, sublicense, or otherwise transfer the Software or any portion thereof to any third party.
+
+2.3 Use the Software for any commercial purposes.
+
+2.4 Remove or alter any proprietary notices, labels, or marks on the Software.
+
+2.5 Use the Software for any purpose other than as expressly permitted under this License.
+
+3. Contribution of Modifications
+3.1 Licensee may modify the Software only under the condition that such modifications are submitted back to the Licensor in the form of a pull request to the main repository managed by the Licensor.
+
+3.2 Any modifications contributed back must be accompanied by a written or electronic notice detailing the changes made.
+
+3.3 Licensee grants Licensor an irrevocable, perpetual, royalty-free right to incorporate such modifications into the Software and to use, distribute, and sublicense such modifications.
+
+4. Intellectual Property
+The Software is protected by copyright laws and international copyright treaties, as well as other intellectual property laws and treaties. All title and intellectual property rights in and to the Software are owned by Licensor.
+
+5. Termination
+This Agreement will terminate automatically if Licensee fails to comply with any of the terms and conditions of this Agreement. Upon termination, Licensee must cease all use of the Software and destroy all copies of the Software in their possession.
+
+6. Disclaimer of Warranties
+The Software is provided "AS IS" without warranty of any kind, either express or implied, including, but not limited to, the implied warranties of merchantability, fitness for a particular purpose, or non-infringement.
+
+7. Limitation of Liability
+In no event shall Licensor be liable for any damages (including, without limitation, lost profits, business interruption, or lost information) arising out of Licensee's use of or inability to use the Software, even if Licensor has been advised of the possibility of such damages.
+
+8. General
+8.1 This Agreement constitutes the entire agreement between the parties with respect to the use of the Software and supersedes all prior or contemporaneous understandings regarding such subject matter.
+
+8.2 This Agreement shall be governed by and construed in accordance with the laws of [Your Jurisdiction], without regard to its conflict of laws principles.
+
+8.3 If any provision of this Agreement is found to be invalid or unenforceable, the remaining provisions will remain in full force and effect.
+
+9. Waiver
+9.1 Should any of the terms of this Agreement be unsatisfactory to the Licensee, the Licensee may submit a request to the Licensor for a waiver of specific conditions. The Licensor reserves the right to grant (in the form of explicit written permission) or deny such waivers at its sole discretion.

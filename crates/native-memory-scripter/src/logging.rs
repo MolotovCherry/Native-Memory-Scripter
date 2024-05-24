@@ -1,5 +1,5 @@
 use color_eyre::config::PanicHook;
-use eyre::{eyre, Result};
+use eyre::Result;
 use strip_ansi_escapes::Writer;
 use tracing::error;
 use tracing_appender::rolling::RollingFileAppender;
@@ -28,15 +28,15 @@ impl<'a> MakeWriter<'a> for StripAnsiWriter {
 }
 
 /// Setup logging for the plugin
-pub fn setup_logging(module: HINSTANCE) -> Result<()> {
+pub fn setup_logging(module: HINSTANCE, log_level: &str) -> Result<()> {
     // get the file path to `<path_to_my_dll_folder>\`
-    let dll_dir = get_dll_dir(module).map_err(|e| eyre!("{e}"))?;
+    let dll_dir = get_dll_dir(module)?;
 
     let var = "NMS_LOG";
 
     let env_filter = EnvFilter::try_from_env(var)
-        .or_else(|_| EnvFilter::try_new("info"))
-        .unwrap();
+        .or_else(|_| EnvFilter::try_new(log_level))
+        .unwrap_or_else(|_| EnvFilter::try_from_env("info").unwrap());
 
     if cfg!(debug_assertions) {
         let stdout_layer = tracing_subscriber::fmt::Layer::default()

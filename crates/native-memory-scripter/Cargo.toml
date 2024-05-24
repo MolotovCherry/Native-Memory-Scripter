@@ -13,21 +13,35 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing-appender = "0.2.3"
 tracing-error = "0.2.0"
 eyre = "0.6.12"
-color-eyre = "0.6.2"
+color-eyre = "0.6.3"
 strip-ansi-escapes = "0.2.0"
 directories = "5.0.1"
-backtrace = "0.3.69"
-serde = { version = "1.0.197", features = ["derive"] }
-toml = "0.8.10"
+backtrace = "0.3.71"
+serde = { version = "1.0.202", features = ["derive"] }
+toml = "0.8.13"
 native-plugin-lib = { git = "https://github.com/MolotovCherry/Native-Plugin-Lib" }
-rhai = "1.17.1"
 owo-colors = "4.0.0"
-modules = { path = "../modules" }
+thiserror = "1.0.61"
+rustpython = { version = "0.3.1", features = ["stdlib", "freeze-stdlib"] }
+rustpython-vm = { version = "0.3.1", features = ["freeze-stdlib"] }
+
+# to update this, you need to update the static lib in the lib folder
+# go to the release page to download the compiled static lib
+# https://github.com/rdbo/libmem/releases
+#
+# Look for the *-x86_64-windows-msvc-static-mt version
+# open the archive, and in the lib folder, use the release libmem.lib
+#
+# For more info on which version to use, how to install, etc,
+# see README in lib folder
+[dependencies.libmem]
+version = "4.4.0"
+features = ["static"]
 
 # docs can be found here. different api functions require adding the relevant features
 # https://microsoft.github.io/windows-docs-rs/doc/windows/index.html
 [dependencies.windows]
-version = "0.53.0"
+version = "0.56.0"
 features = [
     "Win32_Foundation",
     "Win32_System_SystemServices",
@@ -42,6 +56,7 @@ features = [
 
 [build-dependencies]
 winres = "0.1.12"
+vergen = { version = "8.3.1", features = ["build", "cargo", "git", "gitcl"] }
 
 [profile.dev]
 opt-level = 1

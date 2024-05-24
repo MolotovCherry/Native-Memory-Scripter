@@ -1,6 +1,19 @@
 use std::error::Error;
 
+use vergen::EmitBuilder;
+
 fn main() -> Result<(), Box<dyn Error>> {
+    if !cfg!(target_os = "windows") {
+        panic!("This program only works on Windows");
+    }
+
+    // some useful info about git and the environment
+    EmitBuilder::builder()
+        .all_build()
+        .all_cargo()
+        .all_git()
+        .emit()?;
+
     // stamp dll with project metadata
     let mut res = winres::WindowsResource::new();
 
