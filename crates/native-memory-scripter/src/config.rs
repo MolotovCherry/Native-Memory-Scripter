@@ -11,17 +11,24 @@ pub struct Config {
     #[serde(skip)]
     path: PathBuf,
 
-    pub core: Core,
+    pub dev: Dev,
+    pub log: Log,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Core {
+pub struct Dev {
     /// show the developer console
     pub console: bool,
     /// show dev mode tools
     pub dev_mode: bool,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Log {
     /// configure logger level
-    pub log_level: String,
+    pub level: String,
+    /// whether to display log targets
+    pub targets: bool,
 }
 
 impl Config {
@@ -36,7 +43,14 @@ impl Config {
         if !path.exists() {
             let config = Self {
                 path: path.to_owned(),
-                ..Default::default()
+                dev: Dev {
+                    console: false,
+                    dev_mode: false,
+                },
+                log: Log {
+                    level: "info".to_owned(),
+                    targets: false,
+                },
             };
 
             config.save()?;

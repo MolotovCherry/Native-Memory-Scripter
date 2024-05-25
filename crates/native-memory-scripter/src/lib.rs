@@ -72,12 +72,12 @@ fn pre_init(module: HINSTANCE) -> Result<()> {
     let config = Config::load(config_path).context("failed to load config")?;
 
     #[cfg(not(debug_assertions))]
-    if config.core.console {
+    if config.dev.console {
         console::alloc_console().context("Failed to alloc console")?;
     }
 
     // set up our actual log file handling
-    setup_logging(module, &config.core.log_level).context("failed to setup logging")?;
+    setup_logging(module, &config).context("failed to setup logging")?;
 
     Ok(())
 }

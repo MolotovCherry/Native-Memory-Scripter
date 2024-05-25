@@ -11,7 +11,7 @@ use tracing_subscriber::{
 };
 use windows::Win32::Foundation::HINSTANCE;
 
-use crate::paths::get_dll_dir;
+use crate::{config::Config, paths::get_dll_dir};
 
 struct StripAnsiWriter((String, String));
 
@@ -30,21 +30,21 @@ impl<'a> MakeWriter<'a> for StripAnsiWriter {
 }
 
 /// Setup logging for the plugin
-pub fn setup_logging(module: HINSTANCE, log_level: &str) -> Result<()> {
+pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
     // get the file path to `<path_to_my_dll_folder>\`
     let dll_dir = get_dll_dir(module)?;
 
     let var = "NMS_LOG";
 
     let env_filter = EnvFilter::try_from_env(var)
-        .or_else(|_| EnvFilter::try_new(log_level))
+        .or_else(|_| EnvFilter::try_new(&config.log.level))
         .unwrap_or_else(|_| EnvFilter::try_new("info").unwrap());
 
     if cfg!(debug_assertions) {
         let stdout_layer = tracing_subscriber::fmt::Layer::default()
             .without_time()
             .with_ansi(true)
-            .with_target(true)
+            .with_target(config.log.targets)
             .with_filter(env_filter);
 
         Registry::default()
@@ -59,17 +59,17 @@ pub fn setup_logging(module: HINSTANCE, log_level: &str) -> Result<()> {
         let log_layer = tracing_subscriber::fmt::Layer::default()
             .with_writer(log_writer)
             .with_ansi(false)
-            .with_target(true)
+            .with_target(config.log.targets)
             .with_filter(env_filter);
 
         let env_filter = EnvFilter::try_from_env(var)
-            .or_else(|_| EnvFilter::try_new(log_level))
+            .or_else(|_| EnvFilter::try_new(&config.log.level))
             .unwrap_or_else(|_| EnvFilter::try_new("info").unwrap());
 
         let stdout_layer = tracing_subscriber::fmt::Layer::default()
             .without_time()
             .with_ansi(true)
-            .with_target(true)
+            .with_target(config.log.targets)
             .with_filter(env_filter);
 
         Registry::default()
