@@ -1,16 +1,11 @@
+use std::fs;
 use std::path::Path;
-use std::{fs, path::PathBuf};
 
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
-    // This is not part of the config, but rather used for
-    // at runtime to remember where to save to
-    #[serde(skip)]
-    path: PathBuf,
-
     pub dev: Dev,
     pub log: Log,
 }
@@ -42,7 +37,6 @@ impl Config {
         // save it, and return it
         if !path.exists() {
             let config = Self {
-                path: path.to_owned(),
                 dev: Dev {
                     console: false,
                     dev_mode: false,
@@ -53,23 +47,14 @@ impl Config {
                 },
             };
 
-            config.save()?;
+            let serialized = toml::to_string_pretty(&config)?;
+            fs::write(path, serialized)?;
             return Ok(config);
         }
 
         let data = fs::read_to_string(path)?;
-        let mut config = toml::from_str::<Self>(&data)?;
-
-        // set the plugin config path
-        path.clone_into(&mut config.path);
+        let config = toml::from_str::<Self>(&data)?;
 
         Ok(config)
-    }
-
-    pub fn save(&self) -> Result<()> {
-        let serialized = toml::to_string_pretty(self)?;
-        fs::write(&self.path, serialized)?;
-
-        Ok(())
     }
 }
