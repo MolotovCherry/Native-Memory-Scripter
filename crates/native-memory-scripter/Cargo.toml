@@ -2,6 +2,7 @@
 name = "native-memory-scripter"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/MolotovCherry/Native-Memory-Scripter"
 description = "Plugin to allow process memory editing through dynamic scripts"
 
 [lib]
@@ -13,7 +14,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing-appender = "0.2.3"
 tracing-error = "0.2.0"
 eyre = "0.6.12"
-color-eyre = "0.6.3"
+color-eyre = { version = "0.6.3", features = ["issue-url"] }
 strip-ansi-escapes = "0.2.0"
 directories = "5.0.1"
 backtrace = "0.3.71"
@@ -24,6 +25,7 @@ owo-colors = "4.0.0"
 thiserror = "1.0.61"
 rustpython = { version = "0.3.1", features = ["stdlib", "freeze-stdlib"] }
 rustpython-vm = { version = "0.3.1", features = ["freeze-stdlib"] }
+walkdir = "2.5.0"
 
 # to update this, you need to update the static lib in the lib folder
 # go to the release page to download the compiled static lib

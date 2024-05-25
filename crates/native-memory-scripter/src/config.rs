@@ -11,6 +11,11 @@ pub struct Config {
     #[serde(skip)]
     path: PathBuf,
 
+    pub core: Core,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Core {
     /// show the developer console
     pub console: bool,
     /// show dev mode tools

@@ -1,3 +1,5 @@
+use std::panic;
+
 use color_eyre::config::PanicHook;
 use eyre::Result;
 use strip_ansi_escapes::Writer;
@@ -36,13 +38,13 @@ pub fn setup_logging(module: HINSTANCE, log_level: &str) -> Result<()> {
 
     let env_filter = EnvFilter::try_from_env(var)
         .or_else(|_| EnvFilter::try_new(log_level))
-        .unwrap_or_else(|_| EnvFilter::try_from_env("info").unwrap());
+        .unwrap_or_else(|_| EnvFilter::try_new("info").unwrap());
 
     if cfg!(debug_assertions) {
         let stdout_layer = tracing_subscriber::fmt::Layer::default()
             .without_time()
             .with_ansi(true)
-            .with_target(false)
+            .with_target(true)
             .with_filter(env_filter);
 
         Registry::default()
@@ -57,17 +59,17 @@ pub fn setup_logging(module: HINSTANCE, log_level: &str) -> Result<()> {
         let log_layer = tracing_subscriber::fmt::Layer::default()
             .with_writer(log_writer)
             .with_ansi(false)
-            .with_target(false)
+            .with_target(true)
             .with_filter(env_filter);
 
         let env_filter = EnvFilter::try_from_env(var)
-            .or_else(|_| EnvFilter::try_new("info"))
-            .unwrap();
+            .or_else(|_| EnvFilter::try_new(log_level))
+            .unwrap_or_else(|_| EnvFilter::try_new("info").unwrap());
 
         let stdout_layer = tracing_subscriber::fmt::Layer::default()
             .without_time()
             .with_ansi(true)
-            .with_target(false)
+            .with_target(true)
             .with_filter(env_filter);
 
         Registry::default()
@@ -78,9 +80,8 @@ pub fn setup_logging(module: HINSTANCE, log_level: &str) -> Result<()> {
     }
 
     let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
-        .panic_section(
-            "consider reporting the bug @ https://github.com/MolotovCherry/Native-Memory-Scripter",
-        )
+        .issue_url(concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/new"))
+        .add_issue_metadata("version", env!("CARGO_PKG_VERSION"))
         .into_hooks();
 
     eyre_hook.install()?;
@@ -91,7 +92,7 @@ pub fn setup_logging(module: HINSTANCE, log_level: &str) -> Result<()> {
 
 fn set_panic_hook(hook: PanicHook) {
     // this panic hook makes sure that eyre panic hook gets sent to all tracing layers
-    std::panic::set_hook(Box::new(move |info| {
+    panic::set_hook(Box::new(move |info| {
         let panic = hook.panic_report(info);
         error!("{panic}");
     }))
