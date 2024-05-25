@@ -1,5 +1,3 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-
 use windows::{
     core::PCWSTR,
     Win32::System::Console::{
@@ -11,15 +9,8 @@ use windows::{
     },
 };
 
-static ALLOCATED: AtomicBool = AtomicBool::new(false);
-
 /// Not meant to be run in production
 pub fn alloc_console() -> ::windows::core::Result<()> {
-    let allocated = ALLOCATED.load(Ordering::Acquire);
-    if allocated {
-        return Ok(());
-    }
-
     unsafe {
         AllocConsole()?;
     }
@@ -60,22 +51,13 @@ pub fn alloc_console() -> ::windows::core::Result<()> {
 
     print_intro();
 
-    ALLOCATED.store(true, Ordering::Release);
-
     Ok(())
 }
 
 pub fn free_console() -> ::windows::core::Result<()> {
-    let allocated = ALLOCATED.load(Ordering::Acquire);
-    if !allocated {
-        return Ok(());
-    }
-
     unsafe {
         FreeConsole()?;
     }
-
-    ALLOCATED.store(false, Ordering::Release);
 
     Ok(())
 }
