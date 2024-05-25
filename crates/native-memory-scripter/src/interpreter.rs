@@ -82,8 +82,7 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
                                 error!("\n{data}");
                             }
                         });
-                    })
-                    .join();
+                    });
                 }
 
                 // subfolders - the file inside must be named main.py
@@ -159,53 +158,31 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         .interpreter()
         .enter(|vm| {
             vm.sys_module
-                .set_attr("stdout", make_stdout(vm), vm)
+                .set_attr("stdout", make_stdio(IoType::StdOut, vm), vm)
                 .unwrap();
 
             vm.sys_module
-                .set_attr("stderr", make_stderr(vm), vm)
+                .set_attr("stderr", make_stdio(IoType::StdErr, vm), vm)
                 .unwrap();
 
             enter(vm)
         })
 }
 
-fn make_stdout(vm: &VirtualMachine) -> PyObjectRef {
-    let ctx = &vm.ctx;
-
-    let cls = PyRef::leak(py_class!(
-        ctx,
-        "PluginStdout",
-        vm.ctx.types.object_type.to_owned(),
-        {}
-    ));
-
-    let write_method = vm.new_method(
-        "write",
-        cls,
-        move |_self: PyObjectRef, data: PyStrRef, _vm: &VirtualMachine| {
-            let data = data.as_str();
-            if !data.trim().is_empty() {
-                info!("{data}");
-            }
-        },
-    );
-
-    let flush_method = vm.new_method("flush", cls, |_self: PyObjectRef| {});
-    extend_class!(ctx, cls, {
-        "write" => write_method,
-        "flush" => flush_method,
-    });
-
-    ctx.new_base_object(cls.to_owned(), None)
+enum IoType {
+    StdOut,
+    StdErr,
 }
 
-fn make_stderr(vm: &VirtualMachine) -> PyObjectRef {
+fn make_stdio(io: IoType, vm: &VirtualMachine) -> PyObjectRef {
     let ctx = &vm.ctx;
 
     let cls = PyRef::leak(py_class!(
         ctx,
-        "PluginStderr",
+        match io {
+            IoType::StdOut => "PluginStdOut",
+            IoType::StdErr => "PluginStdErr",
+        },
         vm.ctx.types.object_type.to_owned(),
         {}
     ));
@@ -216,7 +193,10 @@ fn make_stderr(vm: &VirtualMachine) -> PyObjectRef {
         move |_self: PyObjectRef, data: PyStrRef, _vm: &VirtualMachine| {
             let data = data.as_str();
             if !data.trim().is_empty() {
-                error!("{data}");
+                match io {
+                    IoType::StdOut => info!("{data}"),
+                    IoType::StdErr => error!("{data}"),
+                }
             }
         },
     );
