@@ -227,7 +227,9 @@ fn make_stdio(io: IoType, vm: &VirtualMachine) -> PyObjectRef {
             let data = data.as_str();
 
             buffer.push_str(data);
-            let pos = buffer.chars().position(|x| x == '\n');
+            let pos: Vec<char> = buffer.chars().collect();
+            let pos = pos.iter().rposition(|x| *x == '\n');
+
             if let Some(pos) = pos {
                 let slice = buffer.drain(..=pos).collect::<String>();
                 let slice = slice.trim_end_matches(|x| x == '\r' || x == '\n');
