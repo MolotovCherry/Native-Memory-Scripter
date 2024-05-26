@@ -15,8 +15,7 @@ pub mod info {
         Version
     }
 
-    #[pyattr]
-    #[pyclass(name)]
+    #[pyclass(no_attr, name)]
     #[derive(Debug, PyPayload)]
     struct Version;
 
