@@ -1,4 +1,9 @@
-use std::{fs, path::Path, thread};
+use std::{
+    fs,
+    path::Path,
+    sync::{Mutex, OnceLock},
+    thread,
+};
 
 use eyre::{Context, Result};
 use rustpython::InterpreterConfig;
@@ -169,20 +174,21 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
 
             let scope = vm.new_scope_with_builtins();
 
-            let mem_py = py_compile!(file = "src/modules/mem.py");
-            let res = vm.run_code_obj(vm.ctx.new_code(mem_py), scope);
+            let bootstrap = py_compile!(file = "src/modules/bootstrap.py");
+            let res = vm.run_code_obj(vm.ctx.new_code(bootstrap), scope);
 
             if let Err(exc) = res {
                 let mut data = String::new();
                 vm.write_exception(&mut data, &exc).unwrap();
                 let data = data.trim();
-                error!("This is a bug!\n{data}");
+                error!("Bootstrap error! This is a bug!\n{data}");
             }
 
             enter(vm)
         })
 }
 
+#[derive(Copy, Clone)]
 enum IoType {
     StdOut,
     StdErr,
@@ -201,21 +207,57 @@ fn make_stdio(io: IoType, vm: &VirtualMachine) -> PyObjectRef {
         {}
     ));
 
+    static STDOUT_BUFFER: OnceLock<Mutex<String>> = OnceLock::new();
+    static STDERR_BUFFER: OnceLock<Mutex<String>> = OnceLock::new();
+
+    STDOUT_BUFFER.get_or_init(|| Mutex::new(String::new()));
+    STDERR_BUFFER.get_or_init(|| Mutex::new(String::new()));
+
     let write_method = vm.new_method(
         "write",
         cls,
         move |_self: PyObjectRef, data: PyStrRef, _vm: &VirtualMachine| {
+            let buffer = match io {
+                IoType::StdOut => STDOUT_BUFFER.get().unwrap(),
+                IoType::StdErr => STDERR_BUFFER.get().unwrap(),
+            };
+
+            let mut buffer = buffer.lock().unwrap();
+
             let data = data.as_str();
-            if !data.trim().is_empty() {
+
+            buffer.push_str(data);
+            let pos = buffer.chars().position(|x| x == '\n');
+            if let Some(pos) = pos {
+                let slice = buffer.drain(..=pos).collect::<String>();
+                let slice = slice.trim_end_matches(|x| x == '\r' || x == '\n');
                 match io {
-                    IoType::StdOut => info!("{data}"),
-                    IoType::StdErr => error!("{data}"),
+                    IoType::StdOut => info!("{slice}"),
+                    IoType::StdErr => error!("{slice}"),
                 }
             }
         },
     );
 
-    let flush_method = vm.new_method("flush", cls, |_self: PyObjectRef| {});
+    let flush_method = vm.new_method("flush", cls, move |_self: PyObjectRef| {
+        let buffer = match io {
+            IoType::StdOut => STDOUT_BUFFER.get().unwrap(),
+            IoType::StdErr => STDERR_BUFFER.get().unwrap(),
+        };
+
+        let mut buffer = buffer.lock().unwrap();
+
+        let data = buffer.drain(..).collect::<String>();
+        let slice = data.trim_end_matches(|x| x == '\r' || x == '\n');
+
+        if !slice.is_empty() {
+            match io {
+                IoType::StdOut => info!("{slice}"),
+                IoType::StdErr => error!("{slice}"),
+            }
+        }
+    });
+
     extend_class!(ctx, cls, {
         "write" => write_method,
         "flush" => flush_method,

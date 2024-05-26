@@ -19,12 +19,11 @@ class lm_prot_t(IntEnum):
     # Executable + Read + Write
     XRW = 0b111
 
-# Get the current global symbol table
-g = dict(globals())
-
-skip = ["mem", "IntEnum"]
+# set in mem module
+mem_attrs = [
+    ("lm_prot_t", lm_prot_t)
+]
 
 # Set the attributes of mem
-for name, obj in g.items():
-    if name not in skip:
-        setattr(mem, name, obj)
+for (name, obj) in mem_attrs:
+    setattr(mem, name, obj)

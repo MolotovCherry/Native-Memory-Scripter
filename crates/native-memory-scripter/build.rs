@@ -7,7 +7,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         panic!("This program only works on Windows");
     }
 
-    println!("cargo::rerun-if-changed=src/modules");
+    println!("cargo::rerun-if-changed=src/modules/bootstrap.py");
 
     // some useful info about git and the environment
     EmitBuilder::builder()
