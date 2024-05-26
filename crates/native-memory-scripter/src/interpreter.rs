@@ -158,9 +158,10 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         .settings(settings)
         .init_stdlib()
         .init_hook(Box::new(|vm| {
-            use crate::modules::mem::mem as mem_mod;
+            use crate::modules::{info::info, mem::mem};
 
-            vm.add_native_module("mem".to_owned(), Box::new(mem_mod::make_module));
+            vm.add_native_module("mem".to_owned(), Box::new(mem::make_module));
+            vm.add_native_module("info".to_owned(), Box::new(info::make_module));
         }))
         .interpreter()
         .enter(|vm| {

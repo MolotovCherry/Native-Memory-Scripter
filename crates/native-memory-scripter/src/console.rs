@@ -68,6 +68,7 @@ fn print_intro() {
     let sha = &env!("VERGEN_GIT_SHA")[..8];
     let built = env!("VERGEN_BUILD_DATE");
     let debug = cfg!(debug_assertions);
+    let repo = env!("CARGO_PKG_REPOSITORY");
 
     println!(
         r#"
@@ -76,6 +77,8 @@ fn print_intro() {
 *                     Native Memory Scripter Debug Console                     *
 *                                                                              *
 ********************************************************************************
+
+>> {repo} <<
 
 Version {version}@{sha} (debug: {debug}) built on {built}
 "#

@@ -1080,6 +1080,7 @@ dependencies = [
  "color-eyre",
  "directories",
  "eyre",
+ "konst",
  "libmem",
  "native-plugin-lib",
  "owo-colors 4.0.0",
