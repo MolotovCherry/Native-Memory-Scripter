@@ -1,5 +1,15 @@
 use rustpython_vm::pymodule;
 
+use libmem::{lm_address_t, lm_byte_t, lm_size_t};
+
+// TODO: Remove and replace with libmem-sys once it comes out
+#[link(name = "libmem", kind = "static")]
+extern "C" {
+    fn LM_ReadMemory(src: lm_address_t, dst: *mut lm_byte_t, size: lm_size_t) -> lm_size_t;
+
+    fn LM_WriteMemory(dst: lm_address_t, src: *const lm_byte_t, size: lm_size_t) -> lm_size_t;
+}
+
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod mem {
@@ -20,7 +30,7 @@ pub mod mem {
         function::FuncArgs,
         prelude::{VirtualMachine, *},
         pyclass,
-        types::{Constructor, DefaultConstructor},
+        types::Constructor,
         PyPayload, TryFromBorrowedObject,
     };
 
@@ -48,7 +58,12 @@ pub mod mem {
         unsafe { LM_DataScan(&data, addr, scansize) }
     }
 
-    // TODO: Deep_pointer
+    // TODO: Implement when new version comes out
+    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DeepPointer.md
+    // #[pyfunction]
+    // fn deep_pointer(base: lm_address_t, offsets: Vec<lm_address_t>) -> Option<lm_address_t> {
+    //     unsafe { LM_DeepPointer::<()>(base, offsets) }
+    // }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DemangleSymbol.md
     #[pyfunction]
@@ -258,7 +273,28 @@ pub mod mem {
             .transpose()
     }
 
-    // TODO: ReadMemory
+    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_ReadMemory.md
+    #[pyfunction]
+    fn read_memory(
+        src: lm_address_t,
+        size: lm_size_t,
+        vm: &VirtualMachine,
+    ) -> Option<PyRef<PyByteArray>> {
+        let mut data: Vec<u8> = Vec::with_capacity(size);
+
+        let dst = data.as_mut_ptr() as *mut lm_byte_t;
+
+        if unsafe { super::LM_ReadMemory(src, dst, size) } == size {
+            unsafe {
+                data.set_len(size);
+            }
+
+            let bytes = PyByteArray::new_ref(data, &vm.ctx);
+            Some(bytes)
+        } else {
+            None
+        }
+    }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_SetMemory.md
     #[pyfunction]
@@ -285,7 +321,13 @@ pub mod mem {
         LM_UnloadModule(module).is_some()
     }
 
-    // TODO: WriteMemory
+    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_WriteMemory.md
+    #[pyfunction]
+    fn write_memory(dst: lm_address_t, src: Vec<u8>) -> bool {
+        let size = src.len();
+        let written = unsafe { super::LM_WriteMemory(dst, src.as_ptr(), size) };
+        written == size
+    }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/VMT.md
     #[allow(non_camel_case_types)]
