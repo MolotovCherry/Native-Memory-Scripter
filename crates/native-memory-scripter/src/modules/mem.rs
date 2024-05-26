@@ -7,8 +7,8 @@ pub mod mem {
 
     use libmem::{
         lm_address_t, lm_byte_t, lm_inst_t, lm_module_t, lm_page_t, lm_pid_t, lm_process_t,
-        lm_prot_t, lm_size_t, lm_symbol_t, lm_thread_t, lm_tid_t, LM_AllocMemory, LM_Assemble,
-        LM_CodeLength, LM_DataScan, LM_DemangleSymbol, LM_Disassemble, LM_EnumModules,
+        lm_prot_t, lm_size_t, lm_symbol_t, lm_thread_t, lm_tid_t, lm_vmt_t, LM_AllocMemory,
+        LM_Assemble, LM_CodeLength, LM_DataScan, LM_DemangleSymbol, LM_Disassemble, LM_EnumModules,
         LM_EnumPages, LM_EnumProcesses, LM_EnumSymbols, LM_EnumSymbolsDemangled, LM_EnumThreads,
         LM_FindModule, LM_FindProcess, LM_FindSymbolAddress, LM_FindSymbolAddressDemangled,
         LM_FreeMemory, LM_GetPage, LM_GetProcess, LM_GetSystemBits, LM_GetThread,
@@ -16,10 +16,12 @@ pub mod mem {
         LM_ProtMemory, LM_SetMemory, LM_SigScan, LM_UnhookCode, LM_UnloadModule,
     };
     use rustpython_vm::{
-        builtins::PyByteArray,
+        builtins::{PyByteArray, PyTypeRef},
         function::FuncArgs,
         prelude::{VirtualMachine, *},
-        pyclass, PyPayload, TryFromBorrowedObject,
+        pyclass,
+        types::{Constructor, DefaultConstructor},
+        PyPayload, TryFromBorrowedObject,
     };
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_AllocMemory.md
@@ -285,7 +287,74 @@ pub mod mem {
 
     // TODO: WriteMemory
 
-    // TODO: VMT
+    /// https://github.com/rdbo/libmem/blob/master/docs/rust/VMT.md
+    #[allow(non_camel_case_types)]
+    #[pyattr]
+    #[pyclass(name = "Vmt")]
+    #[derive(Debug, PyPayload)]
+    struct Vmt(Opaque);
+
+    impl Constructor for Vmt {
+        type Args = lm_address_t;
+
+        fn py_new(_cls: PyTypeRef, args: Self::Args, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+            let ptr = args as *mut lm_address_t;
+            let vmt = lm_vmt_t::new(ptr);
+            let slf = Self(Opaque::new(vmt)).into_ref(&vm.ctx).into();
+            Ok(slf)
+        }
+    }
+
+    #[pyclass(with(Constructor))]
+    impl Vmt {
+        #[pymethod]
+        fn hook(&self, index: lm_size_t, dst: lm_address_t) {
+            let this: &mut lm_vmt_t = unsafe { self.0.as_mut() };
+            unsafe {
+                this.hook(index, dst);
+            }
+        }
+
+        #[pymethod]
+        fn unhook(&self, index: lm_size_t) {
+            let this: &mut lm_vmt_t = unsafe { self.0.as_mut() };
+            unsafe {
+                this.unhook(index);
+            }
+        }
+
+        #[pymethod]
+        fn get_original(&self, index: lm_size_t) -> Option<lm_address_t> {
+            let this: &lm_vmt_t = unsafe { self.0.as_ref() };
+            unsafe { this.get_original(index) }
+        }
+
+        #[pymethod]
+        fn reset(&self) {
+            let this: &mut lm_vmt_t = unsafe { self.0.as_mut() };
+            unsafe {
+                this.reset();
+            }
+        }
+
+        #[pymethod(magic)]
+        fn repr(&self) -> String {
+            let data: &lm_vmt_t = unsafe { self.0.as_ref() };
+            format!("{data}")
+        }
+
+        #[pymethod(magic)]
+        fn str(&self) -> String {
+            let data: &lm_vmt_t = unsafe { self.0.as_ref() };
+            format!("{data}")
+        }
+    }
+
+    impl Drop for Vmt {
+        fn drop(&mut self) {
+            unsafe { self.0.drop::<lm_vmt_t>() }
+        }
+    }
 
     #[allow(non_camel_case_types)]
     #[pyattr]
@@ -638,7 +707,7 @@ pub mod mem {
         }
 
         /// SAFETY: No other unique or shared refs can exist anywhere when you call this
-        unsafe fn as_mut<T>(&mut self) -> &mut T {
+        unsafe fn as_mut<'a, T>(&self) -> &'a mut T {
             let ptr: *mut T = self.0.as_ptr().cast();
             unsafe { &mut *ptr }
         }
