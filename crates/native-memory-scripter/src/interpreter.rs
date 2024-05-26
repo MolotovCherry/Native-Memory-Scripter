@@ -48,90 +48,92 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
 
         trace!(path = %path.display(), "walking over entry");
 
-        if path.is_file() {
-            let (script, source, mut settings) = match entry.depth() {
-                // immediate descendants - file can be named anything
-                1 if path
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("py")) =>
-                {
-                    let script = path.file_stem().unwrap().to_string_lossy().to_string();
-
-                    let source = match fs::read_to_string(path) {
-                        Ok(s) => s,
-                        Err(error) => {
-                            error!(%error, script, "failed to read script");
-                            continue;
-                        }
-                    };
-
-                    let settings = Settings::default();
-
-                    (script, source, settings)
-                }
-
-                // subfolders - the file inside must be named main.py
-                2 if path
-                    .file_name()
-                    .is_some_and(|f| f.eq_ignore_ascii_case("main.py")) =>
-                {
-                    let parent = path.parent().unwrap().to_path_buf();
-                    let script = parent.file_name().unwrap().to_string_lossy().to_string();
-
-                    let source = match fs::read_to_string(path) {
-                        Ok(s) => s,
-                        Err(error) => {
-                            error!(%error, name = script, "failed to read script");
-                            continue;
-                        }
-                    };
-
-                    let mut settings = Settings::default();
-
-                    // add current directory to module path
-                    settings
-                        .path_list
-                        .push(parent.to_string_lossy().to_string());
-
-                    (script, source, settings)
-                }
-
-                _ => continue,
-            };
-
-            // add packages dir to module path
-            settings
-                .path_list
-                .push(packages_dir.to_string_lossy().to_string());
-
-            thread::spawn(move || {
-                info!("starting script `{script}`");
-
-                let span = info_span!("script", name = script);
-                let _guard = span.enter();
-
-                run_interpreter(settings, |vm| {
-                    let result = (|| {
-                        let scope = vm.new_scope_with_builtins();
-
-                        let code_obj = vm
-                            .compile(&source, compiler::Mode::Exec, "<main>".to_owned())
-                            .map_err(|err| vm.new_syntax_error(&err, Some(&source)))?;
-
-                        vm.run_code_obj(code_obj, scope)?;
-
-                        PyResult::Ok(())
-                    })();
-
-                    if let Err(error) = result {
-                        let mut data = String::new();
-                        vm.write_exception(&mut data, &error).unwrap();
-                        let data = data.trim();
-                        error!("\n{data}");
-                    }
-                });
-            });
+        if !path.is_file() {
+            continue;
         }
+
+        let (script, source, mut settings) = match entry.depth() {
+            // immediate descendants - file can be named anything
+            1 if path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("py")) =>
+            {
+                let script = path.file_stem().unwrap().to_string_lossy().to_string();
+
+                let source = match fs::read_to_string(path) {
+                    Ok(s) => s,
+                    Err(error) => {
+                        error!(%error, script, "failed to read script");
+                        continue;
+                    }
+                };
+
+                let settings = Settings::default();
+
+                (script, source, settings)
+            }
+
+            // subfolders - the file inside must be named main.py
+            2 if path
+                .file_name()
+                .is_some_and(|f| f.eq_ignore_ascii_case("main.py")) =>
+            {
+                let parent = path.parent().unwrap().to_path_buf();
+                let script = parent.file_name().unwrap().to_string_lossy().to_string();
+
+                let source = match fs::read_to_string(path) {
+                    Ok(s) => s,
+                    Err(error) => {
+                        error!(%error, name = script, "failed to read script");
+                        continue;
+                    }
+                };
+
+                let mut settings = Settings::default();
+
+                // add current directory to module path
+                settings
+                    .path_list
+                    .push(parent.to_string_lossy().to_string());
+
+                (script, source, settings)
+            }
+
+            _ => continue,
+        };
+
+        // add packages dir to module path
+        settings
+            .path_list
+            .push(packages_dir.to_string_lossy().to_string());
+
+        thread::spawn(move || {
+            info!("starting script `{script}`");
+
+            let span = info_span!("script", name = script);
+            let _guard = span.enter();
+
+            run_interpreter(settings, |vm| {
+                let result = (|| {
+                    let scope = vm.new_scope_with_builtins();
+
+                    let code_obj = vm
+                        .compile(&source, compiler::Mode::Exec, "<main>".to_owned())
+                        .map_err(|err| vm.new_syntax_error(&err, Some(&source)))?;
+
+                    vm.run_code_obj(code_obj, scope)?;
+
+                    PyResult::Ok(())
+                })();
+
+                if let Err(error) = result {
+                    let mut data = String::new();
+                    vm.write_exception(&mut data, &error).unwrap();
+                    let data = data.trim();
+                    error!("\n{data}");
+                }
+            });
+        });
     }
 
     Ok(())
