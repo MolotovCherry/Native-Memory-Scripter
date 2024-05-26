@@ -2,7 +2,10 @@ use std::{fs, path::Path, thread};
 
 use eyre::{Context, Result};
 use rustpython::InterpreterConfig;
-use rustpython_vm::{builtins::PyStrRef, compiler, extend_class, prelude::*, py_class, Settings};
+use rustpython_vm::{
+    builtins::PyStrRef, compiler, convert::ToPyObject, extend_class, prelude::*, py_class,
+    py_compile, Settings,
+};
 use tracing::{error, info, info_span, trace};
 use walkdir::WalkDir;
 
@@ -117,6 +120,12 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
                 let result = (|| {
                     let scope = vm.new_scope_with_builtins();
 
+                    scope.globals.set_item(
+                        "__name__",
+                        vm.ctx.new_str("__main__").as_object().to_pyobject(vm),
+                        vm,
+                    )?;
+
                     let code_obj = vm
                         .compile(&source, compiler::Mode::Exec, "<main>".to_owned())
                         .map_err(|err| vm.new_syntax_error(&err, Some(&source)))?;
@@ -143,11 +152,10 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
     InterpreterConfig::new()
         .settings(settings)
         .init_stdlib()
-        .init_hook(Box::new(|_vm| {
-            // vm.add_native_module(
-            //     "your_module_name".to_owned(),
-            //     Box::new(your_module::make_module),
-            // );
+        .init_hook(Box::new(|vm| {
+            use crate::modules::mem::mem as mem_mod;
+
+            vm.add_native_module("mem".to_owned(), Box::new(mem_mod::make_module));
         }))
         .interpreter()
         .enter(|vm| {
@@ -158,6 +166,18 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
             vm.sys_module
                 .set_attr("stderr", make_stdio(IoType::StdErr, vm), vm)
                 .unwrap();
+
+            let scope = vm.new_scope_with_builtins();
+
+            let mem_py = py_compile!(file = "src/modules/mem.py");
+            let res = vm.run_code_obj(vm.ctx.new_code(mem_py), scope);
+
+            if let Err(exc) = res {
+                let mut data = String::new();
+                vm.write_exception(&mut data, &exc).unwrap();
+                let data = data.trim();
+                error!("This is a bug!\n{data}");
+            }
 
             enter(vm)
         })
