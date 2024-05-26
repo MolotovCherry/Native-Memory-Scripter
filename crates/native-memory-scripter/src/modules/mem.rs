@@ -754,10 +754,6 @@ pub mod mem {
             unsafe { &mut *ptr }
         }
 
-        unsafe fn into<T>(self) -> Box<T> {
-            unsafe { Box::from_raw(self.0.as_ptr().cast()) }
-        }
-
         /// SAFETY: There must be no calls to any other functions after this
         ///         as the inside pointer is no longer valid
         unsafe fn drop<T>(&mut self) {
