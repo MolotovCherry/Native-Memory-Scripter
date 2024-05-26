@@ -8,15 +8,21 @@ use walkdir::WalkDir;
 
 pub fn run_scripts(dll_dir: &Path) -> Result<()> {
     let scripts_dir = dll_dir.join("native-scripts");
+    let packages_dir = scripts_dir.join("_packages");
 
-    if !scripts_dir.exists() {
-        info!("creating native-scripts dir");
-        fs::create_dir(&scripts_dir).context("failed to create scripts dir")?;
-    }
+    for dir in [&scripts_dir, &packages_dir, &packages_dir.join("libs")] {
+        let name = dir.file_name().unwrap().to_string_lossy();
 
-    if !scripts_dir.is_dir() {
-        error!("native-scripts dir is not a directory. please manually fix this");
-        return Ok(());
+        if !dir.exists() {
+            info!("creating {name} dir",);
+
+            fs::create_dir(dir).context("failed to create dir")?;
+        }
+
+        if !dir.is_dir() {
+            error!("{name} dir is not a directory. please manually fix this");
+            return Ok(());
+        }
     }
 
     let walk_dir = WalkDir::new(scripts_dir)
@@ -33,12 +39,17 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
             }
         };
 
+        // skip all packages directory paths
+        if entry.path().starts_with(&packages_dir) {
+            continue;
+        }
+
         let path = entry.path();
 
         trace!(path = %path.display(), "walking over entry");
 
         if path.is_file() {
-            match entry.depth() {
+            let (script, source, mut settings) = match entry.depth() {
                 // immediate descendants - file can be named anything
                 1 if path
                     .extension()
@@ -54,35 +65,9 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
                         }
                     };
 
-                    _ = thread::spawn(move || {
-                        info!("starting script `{script}`");
+                    let settings = Settings::default();
 
-                        let span = info_span!("script", name = script);
-                        let _guard = span.enter();
-
-                        let settings = Settings::default();
-
-                        run_interpreter(settings, |vm| {
-                            let result = (|| {
-                                let scope = vm.new_scope_with_builtins();
-
-                                let code_obj = vm
-                                    .compile(&source, compiler::Mode::Exec, "<main>".to_owned())
-                                    .map_err(|err| vm.new_syntax_error(&err, Some(&source)))?;
-
-                                vm.run_code_obj(code_obj, scope)?;
-
-                                PyResult::Ok(())
-                            })();
-
-                            if let Err(error) = result {
-                                let mut data = String::new();
-                                vm.write_exception(&mut data, &error).unwrap();
-                                let data = data.trim();
-                                error!("\n{data}");
-                            }
-                        });
-                    });
+                    (script, source, settings)
                 }
 
                 // subfolders - the file inside must be named main.py
@@ -101,44 +86,51 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
                         }
                     };
 
-                    thread::spawn(move || {
-                        info!("starting script `{script}`");
+                    let mut settings = Settings::default();
 
-                        let span = info_span!("script", name = script);
-                        let _guard = span.enter();
+                    // add current directory to module path
+                    settings
+                        .path_list
+                        .push(parent.to_string_lossy().to_string());
 
-                        let mut settings = Settings::default();
-
-                        // add current directory to module path
-                        settings
-                            .path_list
-                            .push(parent.to_string_lossy().to_string());
-
-                        run_interpreter(settings, |vm| {
-                            let result = (|| {
-                                let scope = vm.new_scope_with_builtins();
-
-                                let code_obj = vm
-                                    .compile(&source, compiler::Mode::Exec, "<main>".to_owned())
-                                    .map_err(|err| vm.new_syntax_error(&err, Some(&source)))?;
-
-                                vm.run_code_obj(code_obj, scope)?;
-
-                                PyResult::Ok(())
-                            })();
-
-                            if let Err(error) = result {
-                                let mut data = String::new();
-                                vm.write_exception(&mut data, &error).unwrap();
-                                let data = data.trim();
-                                error!("\n{data}");
-                            }
-                        });
-                    });
+                    (script, source, settings)
                 }
 
-                _ => (),
-            }
+                _ => continue,
+            };
+
+            // add packages dir to module path
+            settings
+                .path_list
+                .push(packages_dir.to_string_lossy().to_string());
+
+            thread::spawn(move || {
+                info!("starting script `{script}`");
+
+                let span = info_span!("script", name = script);
+                let _guard = span.enter();
+
+                run_interpreter(settings, |vm| {
+                    let result = (|| {
+                        let scope = vm.new_scope_with_builtins();
+
+                        let code_obj = vm
+                            .compile(&source, compiler::Mode::Exec, "<main>".to_owned())
+                            .map_err(|err| vm.new_syntax_error(&err, Some(&source)))?;
+
+                        vm.run_code_obj(code_obj, scope)?;
+
+                        PyResult::Ok(())
+                    })();
+
+                    if let Err(error) = result {
+                        let mut data = String::new();
+                        vm.write_exception(&mut data, &error).unwrap();
+                        let data = data.trim();
+                        error!("\n{data}");
+                    }
+                });
+            });
         }
     }
 
