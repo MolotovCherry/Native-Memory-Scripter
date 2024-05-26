@@ -1,8 +1,16 @@
-import mem
+
 from enum import IntEnum
 
-class lm_prot_t(IntEnum):
+#
+# Start mem
+#
+
+import mem
+
+# Formally `lm_prot_t`
+class Prot(IntEnum):
     '''Protection flags'''
+    # None
     NONE = 0b000
     # Executable
     X = 0b001
@@ -19,11 +27,21 @@ class lm_prot_t(IntEnum):
     # Executable + Read + Write
     XRW = 0b111
 
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return self.name
+
 # set in mem module
 mem_attrs = [
-    ("lm_prot_t", lm_prot_t)
+    ("Prot", Prot)
 ]
 
 # Set the attributes of mem
 for (name, obj) in mem_attrs:
     setattr(mem, name, obj)
+
+#
+# End mem
+#
