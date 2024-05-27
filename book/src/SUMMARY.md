@@ -52,7 +52,6 @@
     - [unload_module](./mem/unload_module.md)
     - [write_memory](./mem/write_memory.md)
     - [Vmt](./mem/Vmt.md)
-        - [new](./mem/Vmt_new.md)
         - [hook](./mem/Vmt_hook.md)
         - [unhook](./mem/Vmt_unhook.md)
         - [get_original](./mem/Vmt_get_original.md)
