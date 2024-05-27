@@ -1,0 +1,9 @@
+.mocha :is(.admonition) {
+  background-color: var(--sidebar-bg);
+}
+.macchiato :is(.admonition) {
+  background-color: var(--sidebar-bg);
+}
+.frappe :is(.admonition) {
+  background-color: var(--sidebar-bg);
+}
