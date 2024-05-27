@@ -27,17 +27,16 @@ pub mod mem {
     };
     use rustpython_vm::{
         builtins::{PyByteArray, PyTypeRef},
-        function::FuncArgs,
         prelude::{VirtualMachine, *},
-        pyclass,
+        pyclass, pymodule,
         types::Constructor,
-        PyPayload, TryFromBorrowedObject,
+        PyPayload,
     };
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_AllocMemory.md
     #[pyfunction]
-    fn alloc_memory(size: lm_size_t, prot: py_lm_prot_t) -> Option<lm_address_t> {
-        LM_AllocMemory(size, prot.0)
+    fn alloc_memory(size: lm_size_t, prot: PyRef<PyProt>) -> Option<lm_address_t> {
+        LM_AllocMemory(size, prot.0.into())
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_Assemble.md
@@ -261,16 +260,10 @@ pub mod mem {
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_ProtMemory.md
     #[pyfunction]
-    fn prot_memory(
-        addr: lm_address_t,
-        size: lm_size_t,
-        prot: py_lm_prot_t,
-        vm: &VirtualMachine,
-    ) -> PyResult<Option<PyObjectRef>> {
-        let prot = unsafe { LM_ProtMemory(addr, size, prot.0) };
+    fn prot_memory(addr: lm_address_t, size: lm_size_t, prot: PyRef<PyProt>) -> Option<PyProt> {
+        let prot = unsafe { LM_ProtMemory(addr, size, prot.0.into()) };
 
-        prot.map(|prot| py_lm_prot_t::to_pyobject(prot, vm))
-            .transpose()
+        prot.map(|prot| PyProt(prot.into()))
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_ReadMemory.md
@@ -332,7 +325,7 @@ pub mod mem {
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/VMT.md
     #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name = "Vmt")]
+    #[pyclass(name)]
     #[derive(Debug, PyPayload)]
     struct Vmt(Opaque);
 
@@ -521,11 +514,11 @@ pub mod mem {
         }
 
         #[pygetset]
-        fn prot(&self, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+        fn prot(&self) -> PyProt {
             let data: &lm_page_t = unsafe { self.0.as_ref() };
             let prot = data.get_prot();
 
-            py_lm_prot_t::to_pyobject(prot, vm)
+            PyProt(prot.into())
         }
 
         #[pymethod(magic)]
@@ -691,41 +684,93 @@ pub mod mem {
         }
     }
 
-    #[allow(non_camel_case_types)]
-    struct py_lm_prot_t(lm_prot_t);
+    #[pyclass(no_attr, name = "Prot")]
+    #[derive(Debug, Copy, Clone, PyPayload)]
+    struct PyProt(Prot);
 
-    impl py_lm_prot_t {
-        fn to_pyobject(prot: lm_prot_t, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
-            let mem = vm.import("mem", 0)?;
-            let prot_cls = mem.get_attr("Prot", vm)?;
-            let mut args = FuncArgs::default();
-            args.prepend_arg(vm.ctx.new_int(prot as u8).into());
+    #[derive(Debug, Copy, Clone)]
+    enum Prot {
+        None,
+        X,
+        R,
+        W,
+        XR,
+        XW,
+        RW,
+        #[allow(clippy::upper_case_acronyms)]
+        XRW,
+    }
 
-            let prot = prot_cls.call_with_args(args, vm)?;
+    #[pyclass()]
+    impl PyProt {
+        #[pymethod(magic)]
+        fn repr(&self) -> String {
+            format!("Prot.{:?}", self.0)
+        }
 
-            Ok(prot)
+        #[pymethod(magic)]
+        fn str(&self) -> String {
+            format!("Prot.{:?}", self.0)
         }
     }
 
-    impl<'a> TryFromBorrowedObject<'a> for py_lm_prot_t {
-        fn try_from_borrowed_object(vm: &VirtualMachine, obj: &'a PyObject) -> PyResult<Self> {
-            let value: u8 = obj.try_int(vm)?.try_to_primitive(vm)?;
-
-            let prot = match value {
-                0b000 => lm_prot_t::LM_PROT_NONE,
-                0b001 => lm_prot_t::LM_PROT_X,
-                0b010 => lm_prot_t::LM_PROT_R,
-                0b100 => lm_prot_t::LM_PROT_W,
-                0b011 => lm_prot_t::LM_PROT_XR,
-                0b101 => lm_prot_t::LM_PROT_XW,
-                0b110 => lm_prot_t::LM_PROT_RW,
-                0b111 => lm_prot_t::LM_PROT_XRW,
-
-                _ => return Err(vm.new_value_error(format!("{value} is not a valid `prot`"))),
-            };
-
-            Ok(Self(prot))
+    impl From<lm_prot_t> for Prot {
+        fn from(prot: lm_prot_t) -> Self {
+            match prot {
+                lm_prot_t::LM_PROT_NONE => Self::None,
+                lm_prot_t::LM_PROT_X => Self::X,
+                lm_prot_t::LM_PROT_R => Self::R,
+                lm_prot_t::LM_PROT_W => Self::W,
+                lm_prot_t::LM_PROT_XR => Self::XR,
+                lm_prot_t::LM_PROT_XW => Self::XW,
+                lm_prot_t::LM_PROT_RW => Self::RW,
+                lm_prot_t::LM_PROT_XRW => Self::XRW,
+            }
         }
+    }
+
+    impl From<Prot> for lm_prot_t {
+        fn from(prot: Prot) -> Self {
+            match prot {
+                Prot::None => Self::LM_PROT_NONE,
+                Prot::X => Self::LM_PROT_X,
+                Prot::R => Self::LM_PROT_R,
+                Prot::W => Self::LM_PROT_W,
+                Prot::XR => Self::LM_PROT_XR,
+                Prot::XW => Self::LM_PROT_XW,
+                Prot::RW => Self::LM_PROT_RW,
+                Prot::XRW => Self::LM_PROT_XRW,
+            }
+        }
+    }
+
+    #[pymodule(name = "Prot")]
+    pub mod _prot {
+        use super::{Prot, PyProt};
+
+        #[pyattr]
+        const NONE: PyProt = PyProt(Prot::None);
+
+        #[pyattr]
+        const X: PyProt = PyProt(Prot::X);
+
+        #[pyattr]
+        const R: PyProt = PyProt(Prot::R);
+
+        #[pyattr]
+        const W: PyProt = PyProt(Prot::W);
+
+        #[pyattr]
+        const XR: PyProt = PyProt(Prot::XR);
+
+        #[pyattr]
+        const XW: PyProt = PyProt(Prot::XW);
+
+        #[pyattr]
+        const RW: PyProt = PyProt(Prot::RW);
+
+        #[pyattr]
+        const XRW: PyProt = PyProt(Prot::XRW);
     }
 
     /// An Opaque pointer which can be casted back to the original data type

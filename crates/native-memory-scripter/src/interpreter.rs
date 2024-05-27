@@ -122,30 +122,21 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
             let _guard = span.enter();
 
             run_interpreter(settings, |vm| {
-                let result = (|| {
-                    let scope = vm.new_scope_with_builtins();
+                let scope = vm.new_scope_with_builtins();
 
-                    scope.globals.set_item(
-                        "__name__",
-                        vm.ctx.new_str("__main__").as_object().to_pyobject(vm),
-                        vm,
-                    )?;
+                scope.globals.set_item(
+                    "__name__",
+                    vm.ctx.new_str("__main__").as_object().to_pyobject(vm),
+                    vm,
+                )?;
 
-                    let code_obj = vm
-                        .compile(&source, compiler::Mode::Exec, "<main>".to_owned())
-                        .map_err(|err| vm.new_syntax_error(&err, Some(&source)))?;
+                let code_obj = vm
+                    .compile(&source, compiler::Mode::Exec, "<main>".to_owned())
+                    .map_err(|err| vm.new_syntax_error(&err, Some(&source)))?;
 
-                    vm.run_code_obj(code_obj, scope)?;
+                vm.run_code_obj(code_obj, scope)?;
 
-                    PyResult::Ok(())
-                })();
-
-                if let Err(error) = result {
-                    let mut data = String::new();
-                    vm.write_exception(&mut data, &error).unwrap();
-                    let data = data.trim();
-                    error!("\n{data}");
-                }
+                Ok(())
             });
         });
     }
@@ -153,8 +144,8 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) -> R) -> R {
-    InterpreterConfig::new()
+fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) -> PyResult<R>) {
+    let interp = InterpreterConfig::new()
         .settings(settings)
         .init_stdlib()
         .init_hook(Box::new(|vm| {
@@ -163,30 +154,58 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
             vm.add_native_module("mem".to_owned(), Box::new(mem::make_module));
             vm.add_native_module("info".to_owned(), Box::new(info::make_module));
         }))
-        .interpreter()
-        .enter(|vm| {
-            vm.sys_module
-                .set_attr("stdout", make_stdio(IoType::StdOut, vm), vm)
-                .unwrap();
+        .interpreter();
 
-            vm.sys_module
-                .set_attr("stderr", make_stdio(IoType::StdErr, vm), vm)
-                .unwrap();
+    let res = interp.enter(|vm| {
+        let mem = vm.import("mem", 0)?;
+        let prot = crate::modules::mem::mem::_prot::make_module(vm);
+        mem.set_attr("Prot", prot, vm)?;
 
-            let scope = vm.new_scope_with_builtins();
+        vm.sys_module
+            .set_attr("stdout", make_stdio(IoType::StdOut, vm), vm)?;
 
-            let bootstrap = py_compile!(file = "src/modules/bootstrap.py");
-            let res = vm.run_code_obj(vm.ctx.new_code(bootstrap), scope);
+        vm.sys_module
+            .set_attr("stderr", make_stdio(IoType::StdErr, vm), vm)?;
 
-            if let Err(exc) = res {
-                let mut data = String::new();
-                vm.write_exception(&mut data, &exc).unwrap();
-                let data = data.trim();
-                error!("Bootstrap error! This is a bug!\n{data}");
+        let scope = vm.new_scope_with_builtins();
+
+        let bootstrap = py_compile!(file = "src/modules/bootstrap.py");
+        let res = vm.run_code_obj(vm.ctx.new_code(bootstrap), scope);
+
+        if let Err(exc) = res {
+            let mut data = String::new();
+            vm.write_exception(&mut data, &exc)
+                .map_err(|e| vm.new_runtime_error(e.to_string()))?;
+            let data = data.trim();
+            error!("Bootstrap error! This is a bug!\n{data}");
+        }
+
+        if let Err(error) = enter(vm) {
+            let mut data = String::new();
+            if let Err(e) = vm.write_exception(&mut data, &error) {
+                error!("failed to write error: {e}");
+                return Ok(());
             }
 
-            enter(vm)
-        })
+            let data = data.trim();
+            error!("\n{data}");
+        }
+
+        PyResult::Ok(())
+    });
+
+    if let Err(error) = res {
+        interp.enter(|vm| {
+            let mut data = String::new();
+            if let Err(e) = vm.write_exception(&mut data, &error) {
+                error!("Interpreter enter error: failed to write error: {e}");
+                return;
+            }
+
+            let data = data.trim();
+            error!("Interpreter enter error:\n{data}");
+        });
+    }
 }
 
 #[derive(Copy, Clone)]
