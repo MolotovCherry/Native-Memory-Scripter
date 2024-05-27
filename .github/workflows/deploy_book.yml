@@ -1,4 +1,4 @@
-name: Publish book
+name: Deploy book
 
 on:
   workflow_dispatch:
