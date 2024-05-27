@@ -6,7 +6,7 @@
 
 - [Configuration](./configuration.md)
 
-- [Project Layout](./project-layout.md)
+- [Project Layout and Setup](./project-layout-and-setup.md)
 
 - [Best Practices](./best-practices.md)
 
@@ -29,9 +29,6 @@
         - [Prot](./mem/objects-prot.md)
         - [inst](./mem/objects-inst.md)
         - [module](./mem/objects-module.md)
-
-- [plugin](./plugin/plugin.md)
-    - [objects](./plugin/objects.md)
 
 # Final notes
 - [Examples](./examples.md)
