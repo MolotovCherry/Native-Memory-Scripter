@@ -1,12 +1,12 @@
 # Vmt
 APIs to interact with Virtual Method Tables (VMTs) from OOP objects.
 
-# Constructor
+## Constructor
 
 Creates a new VMT manager from the VMT at `vtable`.
 
 ```admonish success title=""
-This function is safe
+This constructor is safe
 ```
 
 ### Parameters
