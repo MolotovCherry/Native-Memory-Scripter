@@ -2,6 +2,9 @@
 
 Native Memory Scripter is a plugin which allows you to create a native plugin by writing Python scripts. This saves a lot of time and makes the process of native plugin dev a lot easier.
 
+# Modders
+If you'd like to write a native mod script, see the documentation [here](https://molotovcherry.github.io/Native-Memory-Scripter/)
+
 # Building
 
 1. Follow instructions in `lib` folder and read the README there to finish setting up `libmem`
