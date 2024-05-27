@@ -6,7 +6,7 @@ Welcome modder!
 
 You can find all the information you need in this technical document. If there are any api's missing or things that you feel can/should be improved, don't hesitate to make an issue report or even a pr.
 
-// TODO: Place link to nexusmods
+<!-- // TODO: Place link to nexusmods -->
 
 # License
 This software has a source-available non-open source license.

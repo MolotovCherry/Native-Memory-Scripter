@@ -11,7 +11,7 @@ In the same directory `native-memory-scripter.dll` is inside, the directory layo
     ├───script
     │       plugin.toml
     │       main.py
-    │       module.py
+    │       module1.py
     │
     └───_packages
         └───libs
@@ -25,14 +25,14 @@ Plugin folder names can be named anything, but it's strongly recommended to stic
 
 #### Native Plugin Scripts
 
-Each native plugin script must be placed in a folder, along with a `plugin.toml` describing the plugin and a `main.py` which is the plugin's entry point. Each plugin is concurrently run _in a separate python interpreter_. Scripts in a directory may import any local module from their own directory, e.g. `import module`.
+Each native plugin script must be placed in a folder, along with a `plugin.toml` describing the plugin and a `main.py` which is the plugin's entry point. Each plugin is concurrently run _in a separate python interpreter_. Scripts may import any local module from their own directory, e.g. `import module1`.
 
 #### Plugin details
-Every plugin must provide a `plugin.toml` detailing the plugin details
+Every plugin must provide a `plugin.toml` that describes the plugin
 ```toml
 [plugin]
 name = "My Plugin Name"
-author = "My Plugin Author"
+author = "Plugin Author"
 description = "Description of my plugin"
 version = "0.1.0"
 ```

@@ -7,7 +7,7 @@ This function is safe
 ```
 
 ### Parameters
-- `vtable: int` - the address where teh vtable is located.
+- `vtable: int` - the address where the vtable is located.
 
 
 ### Return Value
