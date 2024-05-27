@@ -19,10 +19,10 @@ after = ["links"]
 
 [output.html]
 additional-css = [
-    '.\theme\catppuccin.css',
-    '.\theme\catppuccin-admonish.css',
-    '.\theme\mdbook-admonish.css',
-    '.\theme\custom.css',
+    './theme/catppuccin.css',
+    './theme/catppuccin-admonish.css',
+    './theme/mdbook-admonish.css',
+    './theme/custom.css',
 ]
 default-theme = "latte"
 preferred-dark-theme = "mocha"
