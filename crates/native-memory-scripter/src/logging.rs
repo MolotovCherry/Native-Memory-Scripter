@@ -3,7 +3,7 @@ use std::panic;
 use color_eyre::config::PanicHook;
 use eyre::Result;
 use strip_ansi_escapes::Writer;
-use tracing::error;
+use tracing::{error, level_filters::LevelFilter};
 use tracing_appender::rolling::RollingFileAppender;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{
@@ -36,9 +36,11 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
 
     let var = "NMS_LOG";
 
-    let env_filter = EnvFilter::try_from_env(var)
-        .or_else(|_| EnvFilter::try_new(&config.log.level))
-        .unwrap_or_else(|_| EnvFilter::try_new("info").unwrap());
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .with_env_var(var)
+        .with_regex(false)
+        .parse(&config.log.level)?;
 
     if cfg!(debug_assertions) {
         let stdout_layer = tracing_subscriber::fmt::Layer::default()
@@ -62,9 +64,11 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
             .with_target(config.log.targets)
             .with_filter(env_filter);
 
-        let env_filter = EnvFilter::try_from_env(var)
-            .or_else(|_| EnvFilter::try_new(&config.log.level))
-            .unwrap_or_else(|_| EnvFilter::try_new("info").unwrap());
+        let env_filter = EnvFilter::builder()
+            .with_default_directive(LevelFilter::INFO.into())
+            .with_env_var(var)
+            .with_regex(false)
+            .parse(&config.log.level)?;
 
         let stdout_layer = tracing_subscriber::fmt::Layer::default()
             .without_time()
