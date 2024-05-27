@@ -11,8 +11,23 @@ use rustpython_vm::{
     builtins::PyStrRef, compiler, convert::ToPyObject, extend_class, prelude::*, py_class,
     py_compile, Settings,
 };
+use serde::Deserialize;
 use tracing::{error, info, info_span, trace};
 use walkdir::WalkDir;
+
+#[derive(Debug, Deserialize)]
+struct Plugin {
+    plugin: PluginDetails,
+}
+
+#[allow(unused)]
+#[derive(Debug, Deserialize)]
+struct PluginDetails {
+    name: String,
+    author: String,
+    description: String,
+    version: String,
+}
 
 pub fn run_scripts(dll_dir: &Path) -> Result<()> {
     let scripts_dir = dll_dir.join("native-scripts");
@@ -34,7 +49,7 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
     }
 
     let walk_dir = WalkDir::new(scripts_dir)
-        .min_depth(1)
+        .min_depth(2)
         .max_depth(2)
         .follow_links(true);
 
@@ -60,39 +75,34 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
             continue;
         }
 
-        let (script, source, mut settings) = match entry.depth() {
-            // immediate descendants - file can be named anything
-            1 if path
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("py")) =>
-            {
-                let script = path.file_stem().unwrap().to_string_lossy().to_string();
-
-                let source = match fs::read_to_string(path) {
-                    Ok(s) => s,
-                    Err(error) => {
-                        error!(%error, script, "failed to read script");
-                        continue;
-                    }
-                };
-
-                let settings = Settings::default();
-
-                (script, source, settings)
-            }
-
+        let (plugin, source, mut settings) = match entry.depth() {
             // subfolders - the file inside must be named main.py
             2 if path
                 .file_name()
                 .is_some_and(|f| f.eq_ignore_ascii_case("main.py")) =>
             {
                 let parent = path.parent().unwrap().to_path_buf();
-                let script = parent.file_name().unwrap().to_string_lossy().to_string();
+                let folder = parent.file_name().unwrap().to_string_lossy().to_string();
 
                 let source = match fs::read_to_string(path) {
                     Ok(s) => s,
                     Err(error) => {
-                        error!(%error, name = script, "failed to read script");
+                        error!(%error, folder, "failed to read script");
+                        continue;
+                    }
+                };
+
+                let plugin_info = match fs::read_to_string(parent.join("plugin.toml")) {
+                    Ok(v) => match toml::from_str::<Plugin>(&v) {
+                        Ok(v) => v,
+                        Err(error) => {
+                            error!(%error, folder, "failed to deserialize plugin details");
+                            continue;
+                        }
+                    },
+
+                    Err(error) => {
+                        error!(%error, folder, "unable to load plugin");
                         continue;
                     }
                 };
@@ -104,7 +114,7 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
                     .path_list
                     .push(parent.to_string_lossy().to_string());
 
-                (script, source, settings)
+                (plugin_info, source, settings)
             }
 
             _ => continue,
@@ -116,9 +126,12 @@ pub fn run_scripts(dll_dir: &Path) -> Result<()> {
             .push(packages_dir.to_string_lossy().to_string());
 
         thread::spawn(move || {
-            info!("starting script `{script}`");
+            info!(
+                "starting plugin: {} v{}",
+                plugin.plugin.name, plugin.plugin.version
+            );
 
-            let span = info_span!("script", name = script);
+            let span = info_span!("script", name = plugin.plugin.name);
             let _guard = span.enter();
 
             run_interpreter(settings, |vm| {
