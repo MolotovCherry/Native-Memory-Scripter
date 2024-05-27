@@ -4,28 +4,28 @@ The protection flags.
 
 ## Properties
 
-#### `NONE: Prot`
+#### NONE: Prot
 No protection flags
 
-#### `X: Prot`
+#### X: Prot
 Executable flag
 
-#### `R: Prot`
+#### R: Prot
 Read flag
 
-#### `W: Prot`
+#### W: Prot
 Write flag
 
-#### `XR: Prot`
+#### XR: Prot
 Executable + Read flag
 
-#### `XW: Prot`
+#### XW: Prot
 Executable + Write flag
 
-#### `RW: Prot`
+#### RW: Prot
 Read + Write flag
 
-#### `XRW: Prot`
+#### XRW: Prot
 Executable + Read + Write flag
 
 ## Example
