@@ -8,8 +8,7 @@ use std::{
 use eyre::{Context, Result};
 use rustpython::InterpreterConfig;
 use rustpython_vm::{
-    builtins::PyStrRef, compiler, convert::ToPyObject, extend_class, prelude::*, py_class,
-    py_compile, Settings,
+    builtins::PyStrRef, compiler, convert::ToPyObject, extend_class, prelude::*, py_class, Settings,
 };
 use serde::Deserialize;
 use tracing::{error, info, info_span, trace};
@@ -180,18 +179,18 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         vm.sys_module
             .set_attr("stderr", make_stdio(IoType::StdErr, vm), vm)?;
 
-        let scope = vm.new_scope_with_builtins();
+        // let scope = vm.new_scope_with_builtins();
 
-        let bootstrap = py_compile!(file = "src/modules/bootstrap.py");
-        let res = vm.run_code_obj(vm.ctx.new_code(bootstrap), scope);
+        // let bootstrap = py_compile!(file = "src/modules/bootstrap.py");
+        // let res = vm.run_code_obj(vm.ctx.new_code(bootstrap), scope);
 
-        if let Err(exc) = res {
-            let mut data = String::new();
-            vm.write_exception(&mut data, &exc)
-                .map_err(|e| vm.new_runtime_error(e.to_string()))?;
-            let data = data.trim();
-            error!("Bootstrap error! This is a bug!\n{data}");
-        }
+        // if let Err(exc) = res {
+        //     let mut data = String::new();
+        //     vm.write_exception(&mut data, &exc)
+        //         .map_err(|e| vm.new_runtime_error(e.to_string()))?;
+        //     let data = data.trim();
+        //     error!("Bootstrap error! This is a bug!\n{data}");
+        // }
 
         if let Err(error) = enter(vm) {
             let mut data = String::new();
