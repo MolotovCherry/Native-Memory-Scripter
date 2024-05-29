@@ -40,7 +40,7 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
     // ignore this cause it always spits out errors we don't want
     let targets = Targets::new()
         .with_target("rustpython_vm::frame", LevelFilter::ERROR)
-        .with_default(LevelFilter::INFO);
+        .with_default(LevelFilter::TRACE);
 
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
