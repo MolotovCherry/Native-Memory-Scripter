@@ -7,7 +7,8 @@ use tracing::{error, level_filters::LevelFilter};
 use tracing_appender::rolling::RollingFileAppender;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::{
-    fmt::MakeWriter, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry,
+    filter::Targets, fmt::MakeWriter, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
+    Registry,
 };
 use windows::Win32::Foundation::HINSTANCE;
 
@@ -36,6 +37,11 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
 
     let var = "NMS_LOG";
 
+    // ignore this cause it always spits out errors we don't want
+    let targets = Targets::new()
+        .with_target("rustpython_vm::frame", LevelFilter::ERROR)
+        .with_default(LevelFilter::INFO);
+
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
         .with_env_var(var)
@@ -46,12 +52,13 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
         let stdout_layer = tracing_subscriber::fmt::Layer::default()
             .without_time()
             .with_ansi(true)
-            .with_target(config.log.targets)
-            .with_filter(env_filter);
+            .with_target(config.log.targets);
 
         Registry::default()
             .with(stdout_layer)
             .with(ErrorLayer::default())
+            .with(targets)
+            .with(env_filter)
             .init();
     } else {
         // a log writer which also strips ansi, because panic hook unfortunately outputs ansi into the normal stream
@@ -61,25 +68,19 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
         let log_layer = tracing_subscriber::fmt::Layer::default()
             .with_writer(log_writer)
             .with_ansi(false)
-            .with_target(config.log.targets)
-            .with_filter(env_filter);
-
-        let env_filter = EnvFilter::builder()
-            .with_default_directive(LevelFilter::INFO.into())
-            .with_env_var(var)
-            .with_regex(false)
-            .parse(&config.log.level)?;
+            .with_target(config.log.targets);
 
         let stdout_layer = tracing_subscriber::fmt::Layer::default()
             .without_time()
             .with_ansi(true)
-            .with_target(config.log.targets)
-            .with_filter(env_filter);
+            .with_target(config.log.targets);
 
         Registry::default()
             .with(stdout_layer)
             .with(log_layer)
             .with(ErrorLayer::default())
+            .with(targets)
+            .with(env_filter)
             .init();
     }
 
