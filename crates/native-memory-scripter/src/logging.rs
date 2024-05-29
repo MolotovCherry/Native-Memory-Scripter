@@ -57,8 +57,8 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
         Registry::default()
             .with(stdout_layer)
             .with(ErrorLayer::default())
-            .with(targets)
             .with(env_filter)
+            .with(targets)
             .init();
     } else {
         // a log writer which also strips ansi, because panic hook unfortunately outputs ansi into the normal stream
@@ -79,8 +79,8 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
             .with(stdout_layer)
             .with(log_layer)
             .with(ErrorLayer::default())
-            .with(targets)
             .with(env_filter)
+            .with(targets)
             .init();
     }
 
