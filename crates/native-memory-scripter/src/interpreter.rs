@@ -161,10 +161,11 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         .settings(settings)
         .init_stdlib()
         .init_hook(Box::new(|vm| {
-            use crate::modules::{info::info, mem::mem};
+            use crate::modules::{cffi::cffi, info::info, mem::mem};
 
             vm.add_native_module("mem".to_owned(), Box::new(mem::make_module));
             vm.add_native_module("info".to_owned(), Box::new(info::make_module));
+            vm.add_native_module("cffi".to_owned(), Box::new(cffi::make_module));
         }))
         .interpreter();
 
