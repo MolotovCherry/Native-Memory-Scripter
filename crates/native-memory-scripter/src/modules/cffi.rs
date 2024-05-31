@@ -1,5 +1,10 @@
 use rustpython_vm::pymodule;
 
+#[derive(Debug)]
+struct Sendable<T: std::fmt::Debug>(*mut T);
+unsafe impl<T: std::fmt::Debug> Send for Sendable<T> {}
+unsafe impl<T: std::fmt::Debug> Sync for Sendable<T> {}
+
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod cffi {
@@ -13,13 +18,14 @@ pub mod cffi {
     use rustpython_vm::{
         builtins::PyTypeRef,
         function::FuncArgs,
-        prelude::{PyRefExact, *},
+        prelude::{PyRefExact, VirtualMachine, *},
         pyclass, pymodule,
         types::Constructor,
         vm::thread::ThreadedVirtualMachine,
         PyPayload,
     };
-    use tracing::warn;
+
+    use super::Sendable;
 
     #[allow(non_camel_case_types)]
     #[pyattr]
@@ -30,6 +36,10 @@ pub mod cffi {
         vm: Arc<Mutex<PyThreadedVirtualMachine>>,
         obj: PyObjectRef,
         jit: Arc<Mutex<Option<JITWrapper>>>,
+        // Args, Ret types
+        params: Arc<(Vec<CType>, CType)>,
+        // leaked memory for the callback
+        leaked: Arc<Mutex<Option<Sendable<Self>>>>,
     }
 
     impl Clone for Callable {
@@ -39,6 +49,8 @@ pub mod cffi {
                 vm: self.vm.clone(),
                 obj: self.obj.clone(),
                 jit: self.jit.clone(),
+                params: self.params.clone(),
+                leaked: self.leaked.clone(),
             }
         }
     }
@@ -54,7 +66,7 @@ pub mod cffi {
 
             let calling_conv = args
                 .1
-                .get_kwarg("conv", _call_conv::WindowsFastCall.into_ref(&vm.ctx).into());
+                .get_kwarg("conv", _call_conv::WindowsFastcall.into_ref(&vm.ctx).into());
 
             let calling_conv = calling_conv
                 .downcast_exact::<PyCallConv>(vm)
@@ -84,15 +96,9 @@ pub mod cffi {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let threaded_vm = vm.new_thread();
+            let callable = jit_c_wrapper(&name, fn_args, ***ret, calling_conv.0, vm)?;
 
-            let slf = Self {
-                name,
-                vm: Arc::new(Mutex::new(PyThreadedVirtualMachine(threaded_vm))),
-                obj: args.0,
-            };
-
-            todo!()
+            Ok(callable.into_pyobject(vm))
         }
     }
 
@@ -108,6 +114,11 @@ pub mod cffi {
                 unsafe {
                     jit.0.free_memory();
                 }
+            }
+
+            let mut lock = self.leaked.lock().unwrap();
+            if let Some(callable) = lock.take() {
+                _ = unsafe { Box::from_raw(callable.0) };
             }
         }
     }
@@ -202,7 +213,7 @@ pub mod cffi {
                 | Type::Char(t)
                 | Type::WChar(t) => t,
 
-                _ => panic!("this type is invalid"),
+                _ => unreachable!("invalid type"),
             }
         }
     }
@@ -210,9 +221,7 @@ pub mod cffi {
     #[allow(non_upper_case_globals)]
     #[pymodule(name = "Type")]
     pub mod _type {
-        use cranelift::prelude::*;
-
-        use super::{PyType, Type};
+        use super::*;
 
         #[pyattr]
         const Void: PyType = PyType(Type::Void);
@@ -265,46 +274,33 @@ pub mod cffi {
 
     #[pyclass(no_attr, name = "CallConv")]
     #[derive(Debug, Copy, Clone, PyPayload)]
-    struct PyCallConv(RCallConv);
-
-    #[derive(Debug, Copy, Clone)]
-    enum RCallConv {
-        WindowsFastCall,
-    }
-
-    impl From<RCallConv> for CallConv {
-        fn from(val: RCallConv) -> Self {
-            match val {
-                RCallConv::WindowsFastCall => CallConv::WindowsFastcall,
-            }
-        }
-    }
+    struct PyCallConv(CallConv);
 
     #[pyclass()]
     impl PyCallConv {
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            format!("CallConv.{:?}", self.0)
+            format!("{:?}", self.0)
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            format!("CallConv.{:?}", self.0)
+            format!("{:?}", self.0)
         }
     }
 
     #[allow(non_upper_case_globals)]
     #[pymodule(name = "CallConv")]
     pub mod _call_conv {
-        use super::{PyCallConv, RCallConv};
+        use super::*;
 
-        /// defaults to WindowsFastCall
+        /// defaults to WindowsFastcall
         #[pyattr]
-        pub(super) const C: PyCallConv = PyCallConv(RCallConv::WindowsFastCall);
+        pub(super) const C: PyCallConv = PyCallConv(CallConv::WindowsFastcall);
 
         /// same as cdecl on Windows
         #[pyattr]
-        pub(super) const WindowsFastCall: PyCallConv = PyCallConv(RCallConv::WindowsFastCall);
+        pub(super) const WindowsFastcall: PyCallConv = PyCallConv(CallConv::WindowsFastcall);
     }
 
     struct JITWrapper(JITModule);
@@ -315,7 +311,13 @@ pub mod cffi {
     }
 
     // generate a c wrapper according to specs
-    fn jit_c_wrapper(name: &str, args: Vec<PyRefExact<PyType>>, ret: PyType, call_conv: RCallConv) {
+    fn jit_c_wrapper(
+        name: &str,
+        args: Vec<PyRefExact<PyType>>,
+        ret: PyType,
+        call_conv: CallConv,
+        vm: &VirtualMachine,
+    ) -> PyResult<Callable> {
         use cranelift_codegen::ir::UserFuncName;
         use cranelift_jit::{JITBuilder, JITModule};
         use cranelift_module::{default_libcall_names, Linkage, Module};
@@ -329,9 +331,11 @@ pub mod cffi {
             .set("enable_llvm_abi_extensions", "true")
             .unwrap();
         flag_builder.set("enable_jump_tables", "true").unwrap();
+        flag_builder.set("opt_level", "speed").unwrap();
 
-        let isa_builder =
-            cranelift_native::builder().unwrap_or_else(|_| unsafe { unreachable_unchecked() });
+        // SAFETY: We are always on a supported platform. Win x64;
+        let isa_builder = cranelift_native::builder_with_options(true)
+            .unwrap_or_else(|_| unsafe { unreachable_unchecked() });
 
         let isa = isa_builder
             .finish(settings::Flags::new(flag_builder))
@@ -343,12 +347,11 @@ pub mod cffi {
 
         let mut sig_fn = module.make_signature();
 
-        sig_fn.call_conv = call_conv.into();
+        sig_fn.call_conv = call_conv;
 
         for arg in args {
             if matches!(ret.0, Type::Void) {
-                warn!("Void is not a valid argument type; skipping");
-                continue;
+                return Err(vm.new_type_error("Void is not a valid argument type".to_owned()));
             }
 
             sig_fn.params.push(AbiParam::new(arg.0.into()));
@@ -394,5 +397,7 @@ pub mod cffi {
         let res = ptr_b();
 
         println!("{res}");
+
+        todo!()
     }
 }
