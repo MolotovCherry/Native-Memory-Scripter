@@ -40,7 +40,11 @@ impl DerefMut for JITWrapper {
 }
 
 extern "fastcall" fn __jit_cb(args: *const (), data: &Callable) {
-    println!("called callback!");
+    let iter = data.layout.iter(args);
+    for arg in iter {
+        println!("got arg {arg:?}");
+    }
+
     todo!()
 }
 
@@ -103,7 +107,7 @@ pub fn jit_py_wrapper(
     let mut cb_sig_fn = module.make_signature();
     cb_sig_fn.call_conv = CallConv::WindowsFastcall;
     cb_sig_fn.params.push(AbiParam::new(types::R64));
-    cb_sig_fn.params.push(AbiParam::new(types::R64));
+    cb_sig_fn.params.push(AbiParam::new(types::I64));
 
     if !matches!(args.1, Type::Void) {
         cb_sig_fn.returns.push(AbiParam::new(ret.into())); // same return type as wrapped fn
@@ -111,7 +115,7 @@ pub fn jit_py_wrapper(
 
     // declare and import link to static_fucntion
     let jit_callback = module
-        .declare_function("__jit_cb", Linkage::Import, &sig_fn)
+        .declare_function("__jit_cb", Linkage::Import, &cb_sig_fn)
         .unwrap();
 
     //
@@ -189,11 +193,11 @@ pub fn jit_py_wrapper(
             bcx.ins().stack_store(val, slot, offset as i32);
         }
 
+        let leaked_addr = bcx.ins().iconst(types::I64, leaked_data as *const _ as i64);
         let stack_addr = bcx.ins().stack_addr(types::R64, slot, 0);
-        let callable_ptr = bcx.ins().iconst(types::R64, leaked_data as *const _ as i64);
 
         let cb = module.declare_func_in_func(jit_callback, bcx.func);
-        let params = &[stack_addr, callable_ptr];
+        let params = &[stack_addr, leaked_addr];
         let call = bcx.ins().call(cb, params);
         let res = bcx.inst_results(call).to_vec();
 
