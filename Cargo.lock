@@ -372,7 +372,7 @@ dependencies = [
 [[package]]
 name = "cranelift"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "cranelift-codegen 0.109.0",
  "cranelift-frontend 0.109.0",
@@ -391,7 +391,7 @@ dependencies = [
 [[package]]
 name = "cranelift-bforest"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "cranelift-entity 0.109.0",
 ]
@@ -418,7 +418,7 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "bumpalo",
  "cranelift-bforest 0.109.0",
@@ -448,7 +448,7 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen-meta"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "cranelift-codegen-shared 0.109.0",
 ]
@@ -462,12 +462,12 @@ checksum = "e7c940133198426d26128f08be2b40b0bd117b84771fd36798969c4d712d81fc"
 [[package]]
 name = "cranelift-codegen-shared"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 
 [[package]]
 name = "cranelift-control"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "arbitrary",
 ]
@@ -481,7 +481,7 @@ checksum = "87a0f1b2fdc18776956370cf8d9b009ded3f855350c480c1c52142510961f352"
 [[package]]
 name = "cranelift-entity"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 
 [[package]]
 name = "cranelift-frontend"
@@ -498,7 +498,7 @@ dependencies = [
 [[package]]
 name = "cranelift-frontend"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "cranelift-codegen 0.109.0",
  "log",
@@ -515,7 +515,7 @@ checksum = "1b2629a569fae540f16a76b70afcc87ad7decb38dc28fa6c648ac73b51e78470"
 [[package]]
 name = "cranelift-isle"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 
 [[package]]
 name = "cranelift-jit"
@@ -538,7 +538,7 @@ dependencies = [
 [[package]]
 name = "cranelift-jit"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "anyhow",
  "cranelift-codegen 0.109.0",
@@ -567,7 +567,7 @@ dependencies = [
 [[package]]
 name = "cranelift-module"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "anyhow",
  "cranelift-codegen 0.109.0",
@@ -588,7 +588,7 @@ dependencies = [
 [[package]]
 name = "cranelift-native"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "cranelift-codegen 0.109.0",
  "libc",
@@ -1263,9 +1263,9 @@ dependencies = [
 
 [[package]]
 name = "malachite"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07b7d9a19f361ff1702218089fe80d8b94ef170d50585e9b62bfd0763a70a3ea"
+checksum = "af3113d205e637ffd179dcf060a4e6ae68b5be8ffacfdc46edde605d0a6b59ca"
 dependencies = [
  "malachite-base",
  "malachite-nz",
@@ -1274,9 +1274,9 @@ dependencies = [
 
 [[package]]
 name = "malachite-base"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c1189508294c7720b50c652670cd0fab596873482f57d31dc2737a02a7bbc34"
+checksum = "b061827ec0e6deed7e957ba7441fdad939f166e8ae20e309b16c5566f24f326a"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools",
@@ -1299,9 +1299,9 @@ dependencies = [
 
 [[package]]
 name = "malachite-nz"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95a3eed175b73b3ee4a4e19f4e7ffcc9d6d5c8c485a067d220670da7ba33c365"
+checksum = "1dff0adc9a7036d11a2ad7ef1bf38e165916dcaa6f258b732a78c754342130cb"
 dependencies = [
  "itertools",
  "libm",
@@ -1310,9 +1310,9 @@ dependencies = [
 
 [[package]]
 name = "malachite-q"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e0a3652adf704b95a1a8fae715ecf9b001e9e32f015448cec73fe0d84c56943"
+checksum = "0bea622213a3a8233c8f5e1024bb9a257caf17205ca64b0af5d5502b4c0e1df2"
 dependencies = [
  "itertools",
  "malachite-base",
@@ -3281,7 +3281,7 @@ checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
 [[package]]
 name = "wasmtime-jit-icache-coherence"
 version = "22.0.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#01f50d813d4097f7af2b431b874fd0bc8da19a70"
+source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
 dependencies = [
  "anyhow",
  "cfg-if",
