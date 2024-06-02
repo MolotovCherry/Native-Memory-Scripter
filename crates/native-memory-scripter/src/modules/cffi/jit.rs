@@ -136,6 +136,7 @@ pub fn jit_py_wrapper(
         leaked: Arc::new(Mutex::new(None)),
         // dangling pointer until we fill this with real pointer
         fn_addr: RawSendable(NonNull::dangling()),
+        code_size: 0,
     };
 
     // since we cloned this, we clone the dangling pointer, but we don't need this address anyways
@@ -204,6 +205,7 @@ pub fn jit_py_wrapper(
     }
 
     module.define_function(func, &mut ctx).unwrap();
+    let code_size = ctx.compiled_code().unwrap().code_info().total_size;
     module.clear_context(&mut ctx);
 
     //
@@ -217,6 +219,7 @@ pub fn jit_py_wrapper(
     let code = module.get_finalized_function(func);
 
     data.fn_addr = RawSendable(NonNull::new(code as *const _ as *mut _).unwrap());
+    data.code_size = code_size;
 
     Ok(data)
 }

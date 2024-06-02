@@ -46,6 +46,7 @@ pub mod cffi {
         // leaked memory for the callback
         pub leaked: Arc<Mutex<Option<super::RawSendable<Self>>>>,
         pub fn_addr: super::RawSendable<()>,
+        pub code_size: u32,
     }
 
     impl Constructor for Callable {
@@ -102,6 +103,11 @@ pub mod cffi {
         #[pygetset]
         fn addr(&self) -> usize {
             self.fn_addr.0.as_ptr() as _
+        }
+
+        #[pygetset]
+        fn code_size(&self) -> u32 {
+            self.code_size
         }
 
         /// SAFETY:
