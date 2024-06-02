@@ -128,7 +128,11 @@ pub fn jit_py_wrapper(
 
     let params = (
         args.0.into_iter().map(|ty| ty.into()).collect(),
-        args.1.into(),
+        if !matches!(args.1, Type::Void) {
+            Some(args.1.into())
+        } else {
+            None
+        },
     );
 
     let mut data = Callable {

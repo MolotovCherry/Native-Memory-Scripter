@@ -41,7 +41,7 @@ pub mod cffi {
         pub py_cb: PyObjectRef,
         pub jit: Arc<Mutex<Option<JITWrapper>>>,
         // Args, Ret types
-        pub params: Arc<(Vec<CType>, CType)>,
+        pub params: Arc<(Vec<CType>, Option<CType>)>,
         pub layout: ArgLayout,
         // leaked memory for the callback
         pub leaked: Arc<Mutex<Option<super::RawSendable<Self>>>>,
