@@ -1055,16 +1055,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "junction"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c9c415a9b7b1e86cd5738f39d34c9e78c765da7fb1756dbd7d31b3b0d2e7afa"
-dependencies = [
- "scopeguard",
- "windows-sys 0.52.0",
-]
-
-[[package]]
 name = "keccak"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1191,9 +1181,9 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.28.0"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c10584274047cb335c23d3e61bcef8e323adae7c5c8c760540f73610177fc3f"
+checksum = "29f835d03d717946d28b1d1ed632eb6f0e24a299388ee623d0c23118d3e8a7fa"
 dependencies = [
  "cc",
  "pkg-config",
@@ -1207,6 +1197,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c15da26e5af7e25c90b37a2d75cdbf940cf4a55316de9d84c679c9b8bfabf82e"
 dependencies = [
  "cc",
+ "libc",
  "pkg-config",
  "vcpkg",
 ]
@@ -1953,7 +1944,7 @@ dependencies = [
 [[package]]
 name = "rustpython"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "atty",
  "cfg-if",
@@ -1973,7 +1964,7 @@ dependencies = [
 [[package]]
 name = "rustpython-ast"
 version = "0.3.1"
-source = "git+https://github.com/RustPython/Parser.git?rev=51b5f80ae3080dfec2db815a299a69873fb9ca65#51b5f80ae3080dfec2db815a299a69873fb9ca65"
+source = "git+https://github.com/RustPython/Parser.git?rev=a95045bc627b2fbf84caf4f010e521846be7b37f#a95045bc627b2fbf84caf4f010e521846be7b37f"
 dependencies = [
  "is-macro",
  "malachite-bigint",
@@ -1985,7 +1976,7 @@ dependencies = [
 [[package]]
 name = "rustpython-codegen"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "ahash",
  "bitflags 2.5.0",
@@ -2002,7 +1993,7 @@ dependencies = [
 [[package]]
 name = "rustpython-common"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "ascii",
  "bitflags 2.5.0",
@@ -2024,13 +2015,12 @@ dependencies = [
  "siphasher",
  "volatile",
  "widestring",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
 name = "rustpython-compiler"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "rustpython-codegen",
  "rustpython-compiler-core",
@@ -2040,7 +2030,7 @@ dependencies = [
 [[package]]
 name = "rustpython-compiler-core"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "bitflags 2.5.0",
  "itertools",
@@ -2053,7 +2043,7 @@ dependencies = [
 [[package]]
 name = "rustpython-derive"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "rustpython-compiler",
  "rustpython-derive-impl",
@@ -2063,7 +2053,7 @@ dependencies = [
 [[package]]
 name = "rustpython-derive-impl"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "itertools",
  "maplit",
@@ -2089,7 +2079,7 @@ dependencies = [
 [[package]]
 name = "rustpython-format"
 version = "0.3.1"
-source = "git+https://github.com/RustPython/Parser.git?rev=51b5f80ae3080dfec2db815a299a69873fb9ca65#51b5f80ae3080dfec2db815a299a69873fb9ca65"
+source = "git+https://github.com/RustPython/Parser.git?rev=a95045bc627b2fbf84caf4f010e521846be7b37f#a95045bc627b2fbf84caf4f010e521846be7b37f"
 dependencies = [
  "bitflags 2.5.0",
  "itertools",
@@ -2101,7 +2091,7 @@ dependencies = [
 [[package]]
 name = "rustpython-jit"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "cranelift 0.88.2",
  "cranelift-jit 0.88.2",
@@ -2115,7 +2105,7 @@ dependencies = [
 [[package]]
 name = "rustpython-literal"
 version = "0.3.1"
-source = "git+https://github.com/RustPython/Parser.git?rev=51b5f80ae3080dfec2db815a299a69873fb9ca65#51b5f80ae3080dfec2db815a299a69873fb9ca65"
+source = "git+https://github.com/RustPython/Parser.git?rev=a95045bc627b2fbf84caf4f010e521846be7b37f#a95045bc627b2fbf84caf4f010e521846be7b37f"
 dependencies = [
  "hexf-parse",
  "is-macro",
@@ -2127,7 +2117,7 @@ dependencies = [
 [[package]]
 name = "rustpython-parser"
 version = "0.3.1"
-source = "git+https://github.com/RustPython/Parser.git?rev=51b5f80ae3080dfec2db815a299a69873fb9ca65#51b5f80ae3080dfec2db815a299a69873fb9ca65"
+source = "git+https://github.com/RustPython/Parser.git?rev=a95045bc627b2fbf84caf4f010e521846be7b37f#a95045bc627b2fbf84caf4f010e521846be7b37f"
 dependencies = [
  "anyhow",
  "is-macro",
@@ -2150,7 +2140,7 @@ dependencies = [
 [[package]]
 name = "rustpython-parser-core"
 version = "0.3.1"
-source = "git+https://github.com/RustPython/Parser.git?rev=51b5f80ae3080dfec2db815a299a69873fb9ca65#51b5f80ae3080dfec2db815a299a69873fb9ca65"
+source = "git+https://github.com/RustPython/Parser.git?rev=a95045bc627b2fbf84caf4f010e521846be7b37f#a95045bc627b2fbf84caf4f010e521846be7b37f"
 dependencies = [
  "is-macro",
  "memchr",
@@ -2160,7 +2150,7 @@ dependencies = [
 [[package]]
 name = "rustpython-parser-vendored"
 version = "0.3.1"
-source = "git+https://github.com/RustPython/Parser.git?rev=51b5f80ae3080dfec2db815a299a69873fb9ca65#51b5f80ae3080dfec2db815a299a69873fb9ca65"
+source = "git+https://github.com/RustPython/Parser.git?rev=a95045bc627b2fbf84caf4f010e521846be7b37f#a95045bc627b2fbf84caf4f010e521846be7b37f"
 dependencies = [
  "memchr",
  "once_cell",
@@ -2169,7 +2159,7 @@ dependencies = [
 [[package]]
 name = "rustpython-pylib"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "glob",
  "rustpython-compiler-core",
@@ -2179,7 +2169,7 @@ dependencies = [
 [[package]]
 name = "rustpython-sre_engine"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "bitflags 2.5.0",
  "num_enum",
@@ -2189,7 +2179,7 @@ dependencies = [
 [[package]]
 name = "rustpython-stdlib"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "adler32",
  "ahash",
@@ -2206,9 +2196,7 @@ dependencies = [
  "flate2",
  "gethostname",
  "hex",
- "indexmap",
  "itertools",
- "junction",
  "libc",
  "libsqlite3-sys",
  "libz-sys",
@@ -2240,7 +2228,6 @@ dependencies = [
  "socket2",
  "system-configuration",
  "termios",
- "thread_local",
  "ucd",
  "unic-char-property",
  "unic-normal",
@@ -2260,7 +2247,7 @@ dependencies = [
 [[package]]
 name = "rustpython-vm"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#dc4f8c5fcecb94b4dfe9ab744e99aa7ce3a06198"
+source = "git+https://github.com/MolotovCherry/RustPython#09dbd4063258f7e476bf40455a2952189b1c83af"
 dependencies = [
  "ahash",
  "ascii",
@@ -2279,7 +2266,6 @@ dependencies = [
  "indexmap",
  "is-macro",
  "itertools",
- "junction",
  "libc",
  "log",
  "malachite-bigint",

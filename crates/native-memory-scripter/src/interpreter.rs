@@ -174,6 +174,12 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         let prot = crate::modules::mem::mem::_prot::make_module(vm);
         mem.set_attr("Prot", prot, vm)?;
 
+        let cffi = vm.import("cffi", 0)?;
+        let _type = crate::modules::cffi::cffi::_type::make_module(vm);
+        cffi.set_attr("Type", _type, vm)?;
+        let call_conv = crate::modules::cffi::cffi::_call_conv::make_module(vm);
+        cffi.set_attr("CallConv", call_conv, vm)?;
+
         vm.sys_module
             .set_attr("stdout", make_stdio(IoType::StdOut, vm), vm)?;
 

@@ -701,7 +701,7 @@ pub mod mem {
         XRW,
     }
 
-    #[pyclass()]
+    #[pyclass]
     impl PyProt {
         #[pymethod(magic)]
         fn repr(&self) -> String {
