@@ -39,7 +39,6 @@ cranelift = { git = "https://github.com/MolotovCherry/wasmtime" }
 # workaround for jitmodule not being send for now
 cranelift-jit = { git = "https://github.com/MolotovCherry/wasmtime" }
 cranelift-module = { git = "https://github.com/MolotovCherry/wasmtime" }
-cranelift-codegen = { git = "https://github.com/MolotovCherry/wasmtime" }
 cranelift-native = { git = "https://github.com/MolotovCherry/wasmtime" }
 
 # to update this, you need to update the static lib in the lib folder

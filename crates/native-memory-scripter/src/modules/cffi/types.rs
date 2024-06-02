@@ -13,14 +13,12 @@ pub enum Type {
     U16(CType),
     U32(CType),
     U64(CType),
-    U128(CType),
 
     // Integers
     I8(CType),
     I16(CType),
     I32(CType),
     I64(CType),
-    I128(CType),
 
     // Pointer
     Ptr(CType),
@@ -63,12 +61,10 @@ impl From<Type> for CType {
             | Type::U16(t)
             | Type::U32(t)
             | Type::U64(t)
-            | Type::U128(t)
             | Type::I8(t)
             | Type::I16(t)
             | Type::I32(t)
             | Type::I64(t)
-            | Type::I128(t)
             | Type::Ptr(t)
             | Type::Bool(t)
             | Type::CStr(t)

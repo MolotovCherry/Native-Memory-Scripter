@@ -1390,7 +1390,6 @@ dependencies = [
  "backtrace",
  "color-eyre",
  "cranelift 0.109.0",
- "cranelift-codegen 0.109.0",
  "cranelift-jit 0.109.0",
  "cranelift-module 0.109.0",
  "cranelift-native 0.109.0",

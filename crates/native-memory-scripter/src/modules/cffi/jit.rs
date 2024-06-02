@@ -6,16 +6,15 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use cranelift::prelude::{isa::CallConv, *};
-use cranelift_codegen::ir::UserFuncName;
+use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
+use rustpython_vm::function::FuncArgs;
 use rustpython_vm::prelude::*;
 use tracing::error;
 
-use crate::modules::cffi::vm::PyThreadedVirtualMachine;
-
 use super::{cffi::Callable, types::Type, RawSendable};
+use crate::modules::cffi::vm::PyThreadedVirtualMachine;
 
 pub struct JITWrapper(pub JITModule);
 
@@ -39,13 +38,25 @@ impl DerefMut for JITWrapper {
     }
 }
 
-extern "fastcall" fn __jit_cb(args: *const (), data: &Callable) {
-    let iter = data.layout.iter(args);
-    for arg in iter {
-        println!("got arg {arg:?}");
-    }
+extern "fastcall" fn __jit_cb(args: *const (), data: &Callable, ret: &mut Ret) {
+    let vm = &*data.vm.lock().unwrap();
 
-    todo!()
+    let result = vm.0.shared_run(|vm| {
+        let mut iter = unsafe { data.layout.iter(args) };
+
+        let mut py_args = FuncArgs::default();
+
+        let first = iter.next().unwrap().as_u8();
+        let second = iter.next().unwrap().as_u64();
+
+        py_args.prepend_arg(vm.new_pyobj(second));
+        py_args.prepend_arg(vm.new_pyobj(first));
+
+        let res = data.py_cb.call_with_args(py_args, vm).unwrap();
+        9u32
+    });
+
+    *ret = Ret { u32: result };
 }
 
 // generate a c wrapper according to specs
@@ -108,10 +119,7 @@ pub fn jit_py_wrapper(
     cb_sig_fn.call_conv = CallConv::WindowsFastcall;
     cb_sig_fn.params.push(AbiParam::new(types::R64));
     cb_sig_fn.params.push(AbiParam::new(types::I64));
-
-    if !matches!(args.1, Type::Void) {
-        cb_sig_fn.returns.push(AbiParam::new(ret.into())); // same return type as wrapped fn
-    }
+    cb_sig_fn.params.push(AbiParam::new(types::R64));
 
     // declare and import link to static_fucntion
     let jit_callback = module
@@ -197,16 +205,33 @@ pub fn jit_py_wrapper(
             bcx.ins().stack_store(val, slot, offset as i32);
         }
 
+        let slot_data = StackSlotData::new(StackSlotKind::ExplicitSlot, 8, 8);
+        let ret_slot = bcx.create_sized_stack_slot(slot_data);
+        let ret_addr = bcx.ins().stack_addr(types::R64, ret_slot, 0);
+
         let leaked_addr = bcx.ins().iconst(types::I64, leaked_data as *const _ as i64);
         let stack_addr = bcx.ins().stack_addr(types::R64, slot, 0);
 
         let cb = module.declare_func_in_func(jit_callback, bcx.func);
-        let params = &[stack_addr, leaked_addr];
+        let params = &[stack_addr, leaked_addr, ret_addr];
         let call = bcx.ins().call(cb, params);
-        let res = bcx.inst_results(call).to_vec();
 
-        // return fn with same data as cb
-        bcx.ins().return_(&res);
+        bcx.inst_results(call);
+
+        if matches!(args.1, Type::Void) {
+            // no data returned
+            // return fn with same data as cb
+            bcx.ins().return_(&[]);
+        } else {
+            // load data from return stack as the return type we wanted
+            let val = bcx
+                .ins()
+                .load(args.1.into(), MemFlags::trusted(), ret_addr, 0);
+
+            // data is returned
+            // return fn with same data as cb
+            bcx.ins().return_(&[val]);
+        }
 
         bcx.seal_all_blocks();
         bcx.finalize();
@@ -232,7 +257,28 @@ pub fn jit_py_wrapper(
     Ok(data)
 }
 
-#[derive(Debug, Clone)]
+#[allow(non_snake_case)]
+#[repr(C)]
+union Ret {
+    void: (),
+
+    f32: f32,
+    f64: f64,
+
+    u8: u8,
+    u16: u16,
+    u32: u32,
+    u64: u64,
+
+    i8: i8,
+    i16: i16,
+    i32: i32,
+    i64: i64,
+
+    ptr: i64,
+}
+
+#[derive(Debug, Copy, Clone)]
 enum Arg {
     // Floats
     F32(f32),
@@ -243,14 +289,12 @@ enum Arg {
     U16(u16),
     U32(u32),
     U64(u64),
-    U128(u128),
 
     // Integers
     I8(i8),
     I16(i16),
     I32(i32),
     I64(i64),
-    I128(i128),
 
     // Pointer
     Ptr(*const ()),
@@ -265,10 +309,124 @@ enum Arg {
     WStr(*const u16),
 
     // Characters
-    // i8
+    // u8
     Char(char),
-    // i16
+    // u16
     WChar(char),
+}
+
+impl Arg {
+    fn as_f32(&self) -> f32 {
+        match self {
+            Self::F32(f) => *f,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_f64(&self) -> f64 {
+        match self {
+            Self::F64(f) => *f,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_u8(&self) -> u8 {
+        match self {
+            Self::U8(u) => *u,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_u16(&self) -> u16 {
+        match self {
+            Self::U16(u) => *u,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_u32(&self) -> u32 {
+        match self {
+            Self::U32(u) => *u,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_u64(&self) -> u64 {
+        match self {
+            Self::U64(u) => *u,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_i8(&self) -> i8 {
+        match self {
+            Self::I8(i) => *i,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_i16(&self) -> i16 {
+        match self {
+            Self::I16(i) => *i,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_i32(&self) -> i32 {
+        match self {
+            Self::I32(i) => *i,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_i64(&self) -> i64 {
+        match self {
+            Self::I64(i) => *i,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_ptr(&self) -> *const () {
+        match self {
+            Self::Ptr(p) => *p,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_bool(&self) -> bool {
+        match self {
+            Self::Bool(b) => *b,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_cstr(&self) -> *const i8 {
+        match self {
+            Self::CStr(c) => *c,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_wstr(&self) -> *const u16 {
+        match self {
+            Self::WStr(w) => *w,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_char(&self) -> char {
+        match self {
+            Self::Char(c) => *c as char,
+            _ => unreachable!(),
+        }
+    }
+
+    fn as_wchar(&self) -> char {
+        match self {
+            Self::WChar(c) => *c,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -380,11 +538,6 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
                 Arg::U64(arg)
             }
 
-            Type::U128(_) => {
-                let arg = unsafe { *self.ptr.cast::<u128>().byte_add(offset) };
-                Arg::U128(arg)
-            }
-
             Type::I8(_) => {
                 let arg = unsafe { *self.ptr.cast::<i8>().byte_add(offset) };
                 Arg::I8(arg)
@@ -403,11 +556,6 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
             Type::I64(_) => {
                 let arg = unsafe { *self.ptr.cast::<i64>().byte_add(offset) };
                 Arg::I64(arg)
-            }
-
-            Type::I128(_) => {
-                let arg = unsafe { *self.ptr.cast::<i128>().byte_add(offset) };
-                Arg::I128(arg)
             }
 
             Type::Ptr(_) => {

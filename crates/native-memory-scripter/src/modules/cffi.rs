@@ -178,8 +178,6 @@ pub mod cffi {
         const U32: PyType = PyType(Type::U32(types::I32));
         #[pyattr]
         const U64: PyType = PyType(Type::U64(types::I64));
-        #[pyattr]
-        const U128: PyType = PyType(Type::U128(types::I128));
 
         #[pyattr]
         const I8: PyType = PyType(Type::I8(types::I8));
@@ -189,8 +187,6 @@ pub mod cffi {
         const I32: PyType = PyType(Type::I32(types::I32));
         #[pyattr]
         const I64: PyType = PyType(Type::I64(types::I64));
-        #[pyattr]
-        const I128: PyType = PyType(Type::I128(types::I128));
 
         #[pyattr]
         const Ptr: PyType = PyType(Type::Ptr(types::R64));
