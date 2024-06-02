@@ -317,7 +317,9 @@ impl ArgLayout {
         Ok((layout.pad_to_align(), offsets))
     }
 
-    fn iter(&self, ptr: *const ()) -> ArgLayoutIterator {
+    /// SAFETY:
+    /// ptr must be valid for type+offset reads for anything in self.offsets and self.args
+    unsafe fn iter(&self, ptr: *const ()) -> ArgLayoutIterator {
         ArgLayoutIterator {
             ptr,
             layout: self,
