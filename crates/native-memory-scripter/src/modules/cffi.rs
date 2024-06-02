@@ -7,14 +7,18 @@ use std::ptr::NonNull;
 
 use rustpython_vm::pymodule;
 
-#[derive(Debug)]
-pub struct RawSendable<T: std::fmt::Debug>(NonNull<*mut T>);
-unsafe impl<T: std::fmt::Debug> Send for RawSendable<T> {}
+#[derive(Debug, Copy, Clone)]
+pub struct RawSendable<T: Debug>(NonNull<T>);
+unsafe impl<T: Debug> Send for RawSendable<T> {}
+unsafe impl<T: Debug> Sync for RawSendable<T> {}
 
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod cffi {
-    use std::sync::{Arc, Mutex};
+    use std::{
+        ops::Deref,
+        sync::{Arc, Mutex},
+    };
 
     use cranelift::prelude::{isa::CallConv, types::Type as CType, *};
     use rustpython_vm::{
@@ -23,7 +27,7 @@ pub mod cffi {
     };
 
     use super::{
-        jit::{ArgLayout, JITWrapper},
+        jit::{jit_py_wrapper, ArgLayout, JITWrapper},
         types::Type,
         vm::PyThreadedVirtualMachine,
     };
@@ -41,6 +45,7 @@ pub mod cffi {
         pub layout: ArgLayout,
         // leaked memory for the callback
         pub leaked: Arc<Mutex<Option<super::RawSendable<Self>>>>,
+        pub fn_addr: super::RawSendable<()>,
     }
 
     impl Constructor for Callable {
@@ -56,9 +61,10 @@ pub mod cffi {
                 .1
                 .get_kwarg("conv", _call_conv::WindowsFastcall.into_ref(&vm.ctx).into());
 
-            let calling_conv = calling_conv
+            let call_conv = calling_conv
                 .downcast_exact::<PyCallConv>(vm)
                 .map_err(|_| vm.new_type_error("conv expected CallConv".to_owned()))?;
+            let calling_conv = ****call_conv;
 
             let ret = args
                 .1
@@ -67,6 +73,7 @@ pub mod cffi {
             let ret = ret
                 .downcast_exact::<PyType>(vm)
                 .map_err(|_| vm.new_type_error("ret expected Type".to_owned()))?;
+            let ret = (***ret).0;
 
             let name = args.0.class().__name__(vm).to_string();
 
@@ -75,7 +82,7 @@ pub mod cffi {
                 .args
                 .into_iter()
                 .map(|a| {
-                    a.downcast_exact::<PyType>(vm).map_err(|s| {
+                    a.downcast_exact::<PyType>(vm).map(|t| ****t).map_err(|s| {
                         vm.new_type_error(format!(
                             "expected Type, found {}",
                             s.class().__name__(vm)
@@ -84,16 +91,19 @@ pub mod cffi {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            todo!()
+            let callable = jit_py_wrapper(&name, args.0, (fn_args, ret), calling_conv, vm)?;
 
-            // let callable = jit_c_wrapper(&name, fn_args, ***ret, calling_conv.0, vm)?;
-
-            // Ok(callable.into_pyobject(vm))
+            Ok(callable.into_pyobject(vm))
         }
     }
 
     #[pyclass(with(Constructor))]
     impl Callable {
+        #[pygetset]
+        fn addr(&self) -> usize {
+            self.fn_addr.0.as_ptr() as _
+        }
+
         /// SAFETY:
         /// Ensure that no C code will ever call this function ever again
         /// Never calling this will leak memory
@@ -120,6 +130,13 @@ pub mod cffi {
     #[pyclass(no_attr, name = "Type")]
     #[derive(Debug, Copy, Clone, PyPayload)]
     struct PyType(Type);
+
+    impl Deref for PyType {
+        type Target = Type;
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
 
     #[pyclass]
     impl PyType {
@@ -193,6 +210,13 @@ pub mod cffi {
     #[pyclass(no_attr, name = "CallConv")]
     #[derive(Debug, Copy, Clone, PyPayload)]
     struct PyCallConv(CallConv);
+
+    impl Deref for PyCallConv {
+        type Target = CallConv;
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
 
     #[pyclass()]
     impl PyCallConv {

@@ -2,6 +2,7 @@ use std::{
     alloc::{Layout, LayoutError},
     hint::unreachable_unchecked,
     ops::{Deref, DerefMut},
+    ptr::NonNull,
     sync::{Arc, Mutex},
 };
 
@@ -14,7 +15,7 @@ use tracing::error;
 
 use crate::modules::cffi::vm::PyThreadedVirtualMachine;
 
-use super::{cffi::Callable, types::Type};
+use super::{cffi::Callable, types::Type, RawSendable};
 
 pub struct JITWrapper(pub JITModule);
 
@@ -44,7 +45,7 @@ extern "fastcall" fn __jit_cb(args: *const (), data: &Callable) {
 }
 
 // generate a c wrapper according to specs
-fn jit_c_wrapper(
+pub fn jit_py_wrapper(
     name: &str,
     obj: PyObjectRef,
     args: (Vec<Type>, Type),
@@ -126,17 +127,30 @@ fn jit_c_wrapper(
         args.1.into(),
     );
 
-    let data = Callable {
+    let mut data = Callable {
         vm: Arc::new(Mutex::new(PyThreadedVirtualMachine(vm.new_thread()))),
         py_cb: obj,
         jit: module.clone(),
         params: Arc::new(params),
         layout: args_layout.clone(),
         leaked: Arc::new(Mutex::new(None)),
+        // dangling pointer until we fill this with real pointer
+        fn_addr: RawSendable(NonNull::dangling()),
     };
+
+    // since we cloned this, we clone the dangling pointer, but we don't need this address anyways
+    let leaked_data = Box::leak(Box::new(data.clone()));
+
+    // leak callback and set a pointer to it inside callable so it can be freed later
+    {
+        let mut lock = data.leaked.lock().unwrap();
+        *lock = Some(RawSendable(NonNull::new(leaked_data).unwrap()));
+    }
 
     let mut module = module.lock().unwrap();
     let module = module.as_mut().unwrap();
+
+    let leaked_data = &*leaked_data;
 
     //
     // jit function
@@ -175,8 +189,15 @@ fn jit_c_wrapper(
         }
 
         let stack_addr = bcx.ins().stack_addr(types::R64, slot, 0);
+        let callable_ptr = bcx.ins().iconst(types::R64, leaked_data as *const _ as i64);
 
         let cb = module.declare_func_in_func(jit_callback, bcx.func);
+        let params = &[stack_addr, callable_ptr];
+        let call = bcx.ins().call(cb, params);
+        let res = bcx.inst_results(call).to_vec();
+
+        // return fn with same data as cb
+        bcx.ins().return_(&res);
 
         bcx.seal_all_blocks();
         bcx.finalize();
@@ -194,6 +215,8 @@ fn jit_c_wrapper(
 
     // Get a raw pointer to the generated code.
     let code = module.get_finalized_function(func);
+
+    data.fn_addr = RawSendable(NonNull::new(code as *const _ as *mut _).unwrap());
 
     Ok(data)
 }
