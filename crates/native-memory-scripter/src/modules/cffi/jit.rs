@@ -269,11 +269,13 @@ union Ret {
     u16: u16,
     u32: u32,
     u64: u64,
+    u128: u128,
 
     i8: i8,
     i16: i16,
     i32: i32,
     i64: i64,
+    i128: i128,
 
     ptr: i64,
 }
@@ -289,12 +291,14 @@ enum Arg {
     U16(u16),
     U32(u32),
     U64(u64),
+    U128(u128),
 
     // Integers
     I8(i8),
     I16(i16),
     I32(i32),
     I64(i64),
+    I128(i128),
 
     // Pointer
     Ptr(*const ()),
@@ -538,6 +542,11 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
                 Arg::U64(arg)
             }
 
+            Type::U128(_) => {
+                let arg = unsafe { *self.ptr.cast::<u128>().byte_add(offset) };
+                Arg::U128(arg)
+            }
+
             Type::I8(_) => {
                 let arg = unsafe { *self.ptr.cast::<i8>().byte_add(offset) };
                 Arg::I8(arg)
@@ -556,6 +565,11 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
             Type::I64(_) => {
                 let arg = unsafe { *self.ptr.cast::<i64>().byte_add(offset) };
                 Arg::I64(arg)
+            }
+
+            Type::I128(_) => {
+                let arg = unsafe { *self.ptr.cast::<i128>().byte_add(offset) };
+                Arg::I128(arg)
             }
 
             Type::Ptr(_) => {
