@@ -336,8 +336,11 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
     type Item = Arg;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ty = self.layout.args.get(self.pos)?;
-        let offset = self.layout.offsets[self.pos];
+        let pos = self.pos;
+        self.pos += 1;
+
+        let ty = self.layout.args.get(pos)?;
+        let offset = self.layout.offsets[pos];
 
         let arg = match ty {
             Type::Void => {
@@ -346,92 +349,92 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
             }
 
             Type::F32(_) => {
-                let arg = unsafe { *self.ptr.cast::<f32>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<f32>().byte_add(offset) };
                 Arg::F32(arg)
             }
 
             Type::F64(_) => {
-                let arg = unsafe { *self.ptr.cast::<f64>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<f64>().byte_add(offset) };
                 Arg::F64(arg)
             }
 
             Type::U8(_) => {
-                let arg = unsafe { *self.ptr.cast::<u8>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<u8>().byte_add(offset) };
                 Arg::U8(arg)
             }
 
             Type::U16(_) => {
-                let arg = unsafe { *self.ptr.cast::<u16>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<u16>().byte_add(offset) };
                 Arg::U16(arg)
             }
 
             Type::U32(_) => {
-                let arg = unsafe { *self.ptr.cast::<u32>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<u32>().byte_add(offset) };
                 Arg::U32(arg)
             }
 
             Type::U64(_) => {
-                let arg = unsafe { *self.ptr.cast::<u64>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<u64>().byte_add(offset) };
                 Arg::U64(arg)
             }
 
             Type::U128(_) => {
-                let arg = unsafe { *self.ptr.cast::<u128>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<u128>().byte_add(offset) };
                 Arg::U128(arg)
             }
 
             Type::I8(_) => {
-                let arg = unsafe { *self.ptr.cast::<i8>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<i8>().byte_add(offset) };
                 Arg::I8(arg)
             }
 
             Type::I16(_) => {
-                let arg = unsafe { *self.ptr.cast::<i16>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<i16>().byte_add(offset) };
                 Arg::I16(arg)
             }
 
             Type::I32(_) => {
-                let arg = unsafe { *self.ptr.cast::<i32>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<i32>().byte_add(offset) };
                 Arg::I32(arg)
             }
 
             Type::I64(_) => {
-                let arg = unsafe { *self.ptr.cast::<i64>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<i64>().byte_add(offset) };
                 Arg::I64(arg)
             }
 
             Type::I128(_) => {
-                let arg = unsafe { *self.ptr.cast::<i128>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<i128>().byte_add(offset) };
                 Arg::I128(arg)
             }
 
             Type::Ptr(_) => {
-                let arg = unsafe { *self.ptr.cast::<*const ()>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<*const ()>().byte_add(offset) };
                 Arg::Ptr(arg)
             }
 
             Type::Bool(_) => {
-                let arg = unsafe { *self.ptr.cast::<bool>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<bool>().byte_add(offset) };
                 Arg::Bool(arg)
             }
 
             Type::CStr(_) => {
-                let ptr = unsafe { *self.ptr.cast::<*const i8>().add(offset) };
+                let ptr = unsafe { *self.ptr.cast::<*const i8>().byte_add(offset) };
                 Arg::CStr(ptr)
             }
 
             Type::WStr(_) => {
-                let ptr = unsafe { *self.ptr.cast::<*const u16>().add(offset) };
+                let ptr = unsafe { *self.ptr.cast::<*const u16>().byte_add(offset) };
                 Arg::WStr(ptr)
             }
 
             Type::Char(_) => {
-                let arg = unsafe { *self.ptr.cast::<u8>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<u8>().byte_add(offset) };
                 Arg::Char(arg as char)
             }
 
             Type::WChar(_) => {
-                let arg = unsafe { *self.ptr.cast::<u16>().add(offset) };
+                let arg = unsafe { *self.ptr.cast::<u16>().byte_add(offset) };
                 Arg::WChar(unsafe { char::from_u32_unchecked(arg as u32) })
             }
         };
