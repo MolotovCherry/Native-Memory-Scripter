@@ -3,10 +3,13 @@ use rustpython_vm::pymodule;
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod mem {
-    use std::{fmt::Debug, sync::Mutex};
+    use std::{
+        fmt::{Debug, Display},
+        sync::Mutex,
+    };
 
     use libmem::{
-        Address, Inst, Module, Pid, Process, Prot, Segment, Symbol, Thread, Tid, Time, Vmt,
+        Address, Arch, Inst, Module, Pid, Process, Prot, Segment, Symbol, Thread, Tid, Time, Vmt,
     };
     use libmem_sys::{lm_byte_t, LM_DataScan, LM_ReadMemory, LM_WriteMemory, LM_ADDRESS_BAD};
     use rustpython_vm::{
@@ -158,16 +161,33 @@ pub mod mem {
         libmem::find_symbol_address_demangled(&module.0, &demangled_symbol_name)
     }
 
+    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindSymbolAddressDemangled.md
+    #[pyfunction]
+    fn find_segment(address: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
+        libmem::find_segment(address).map(|segment| PySegment(segment).into_ref(&vm.ctx).into())
+    }
+
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FreeMemory.md
     #[pyfunction]
     fn free_memory(alloc: Address, size: usize) {
         unsafe { libmem::free_memory(alloc, size) }
     }
 
+    #[pyfunction]
+    fn get_architecture() -> String {
+        ArchDisplay(libmem::get_architecture()).to_string()
+    }
+
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetProcess.md
     #[pyfunction]
     fn get_process() -> Option<PyProcess> {
         libmem::get_process().map(PyProcess)
+    }
+
+    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetSystemBits.md
+    #[pyfunction]
+    fn get_bits() -> usize {
+        libmem::get_bits().into()
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetSystemBits.md
@@ -488,8 +508,7 @@ pub mod mem {
 
         #[pygetset]
         fn arch(&self) -> String {
-            // this is the only one we support, so..
-            "X64".to_owned()
+            ArchDisplay(self.0.arch).to_string()
         }
 
         #[pygetset]
@@ -667,5 +686,38 @@ pub mod mem {
 
         #[pyattr]
         const XRW: PyProt = PyProt(Prot::XRW);
+    }
+
+    struct ArchDisplay(Arch);
+    impl Display for ArchDisplay {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let arch = match self.0 {
+                Arch::ARMV7 => "ARMV7",
+                Arch::ARMV8 => "ARMV8",
+                Arch::THUMBV7 => "THUMBV7",
+                Arch::THUMBV8 => "THUMBV8",
+                Arch::ARMV7EB => "ARMV7EB",
+                Arch::THUMBV7EB => "THUMBV7EB",
+                Arch::ARMV8EB => "ARMV8EB",
+                Arch::THUMBV8EB => "THUMBV8EB",
+                Arch::AARCH64 => "AARCH64",
+                Arch::MIPS => "MIPS",
+                Arch::MIPS64 => "MIPS64",
+                Arch::MIPSEL => "MIPSEL",
+                Arch::MIPSEL64 => "MIPSEL64",
+                Arch::X86_16 => "X86_16",
+                Arch::X86 => "X86",
+                Arch::X64 => "X64",
+                Arch::PPC32 => "PPC32",
+                Arch::PPC64 => "PPC64",
+                Arch::PPC64LE => "PPC64LE",
+                Arch::SPARC => "SPARC",
+                Arch::SPARC64 => "SPARC64",
+                Arch::SPARCEL => "SPARCEL",
+                Arch::SYSZ => "SYSZ",
+            };
+
+            write!(f, "{arch}")
+        }
     }
 }
