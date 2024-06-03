@@ -40,6 +40,7 @@ cranelift = { git = "https://github.com/MolotovCherry/wasmtime" }
 cranelift-jit = { git = "https://github.com/MolotovCherry/wasmtime" }
 cranelift-module = { git = "https://github.com/MolotovCherry/wasmtime" }
 cranelift-native = { git = "https://github.com/MolotovCherry/wasmtime" }
+libmem-sys = { git = "https://github.com/rdbo/libmem.git", ref = "e365941" }
 
 # to update this, you need to update the static lib in the lib folder
 # go to the release page to download the compiled static lib
@@ -51,7 +52,8 @@ cranelift-native = { git = "https://github.com/MolotovCherry/wasmtime" }
 # For more info on which version to use, how to install, etc,
 # see README in lib folder
 [dependencies.libmem]
-version = "4.4.0"
+git = "https://github.com/rdbo/libmem.git"
+ref = "e365941"
 features = ["static"]
 
 # docs can be found here. different api functions require adding the relevant features
@@ -78,7 +80,6 @@ vergen = { version = "8.3.1", features = ["build", "cargo", "git", "gitcl"] }
 opt-level = 1
 
 [profile.release]
-debug = true
 lto = true
 codegen-units = 1
 

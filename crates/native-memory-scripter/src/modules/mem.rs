@@ -1,30 +1,14 @@
 use rustpython_vm::pymodule;
 
-use libmem::{lm_address_t, lm_byte_t, lm_size_t};
-
-// TODO: Remove and replace with libmem-sys once it comes out
-#[link(name = "libmem", kind = "static")]
-extern "C" {
-    fn LM_ReadMemory(src: lm_address_t, dst: *mut lm_byte_t, size: lm_size_t) -> lm_size_t;
-
-    fn LM_WriteMemory(dst: lm_address_t, src: *const lm_byte_t, size: lm_size_t) -> lm_size_t;
-}
-
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod mem {
-    use std::ptr::NonNull;
+    use std::{fmt::Debug, sync::Mutex};
 
     use libmem::{
-        lm_address_t, lm_byte_t, lm_inst_t, lm_module_t, lm_page_t, lm_pid_t, lm_process_t,
-        lm_prot_t, lm_size_t, lm_symbol_t, lm_thread_t, lm_tid_t, lm_vmt_t, LM_AllocMemory,
-        LM_Assemble, LM_CodeLength, LM_DataScan, LM_DemangleSymbol, LM_Disassemble, LM_EnumModules,
-        LM_EnumPages, LM_EnumProcesses, LM_EnumSymbols, LM_EnumSymbolsDemangled, LM_EnumThreads,
-        LM_FindModule, LM_FindProcess, LM_FindSymbolAddress, LM_FindSymbolAddressDemangled,
-        LM_FreeMemory, LM_GetPage, LM_GetProcess, LM_GetSystemBits, LM_GetThread,
-        LM_GetThreadProcess, LM_HookCode, LM_IsProcessAlive, LM_LoadModule, LM_PatternScan,
-        LM_ProtMemory, LM_SetMemory, LM_SigScan, LM_UnhookCode, LM_UnloadModule,
+        Address, Inst, Module, Pid, Process, Prot, Segment, Symbol, Thread, Tid, Time, Vmt,
     };
+    use libmem_sys::{lm_byte_t, LM_DataScan, LM_ReadMemory, LM_WriteMemory, LM_ADDRESS_BAD};
     use rustpython_vm::{
         builtins::{PyByteArray, PyTypeRef},
         prelude::{VirtualMachine, *},
@@ -33,71 +17,69 @@ pub mod mem {
         PyPayload,
     };
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_AllocMemory.md
+    use crate::utils::Sendable;
+
     #[pyfunction]
-    fn alloc_memory(size: lm_size_t, prot: PyRef<PyProt>) -> Option<lm_address_t> {
-        LM_AllocMemory(size, prot.0.into())
+    fn alloc_memory(size: usize, prot: PyRef<PyProt>) -> Option<Address> {
+        libmem::alloc_memory(size, prot.0)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_Assemble.md
     #[pyfunction]
-    fn assemble(code: String) -> Option<py_lm_inst_t> {
-        LM_Assemble(&code).map(|inst| py_lm_inst_t(Opaque::new(inst)))
+    fn assemble(code: String) -> Option<PyInst> {
+        libmem::assemble(&code).map(PyInst)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_CodeLength.md
     #[pyfunction]
-    fn code_length(code: lm_address_t, minlength: lm_size_t) -> Option<lm_size_t> {
-        unsafe { LM_CodeLength(code, minlength) }
+    fn code_length(code: Address, min_length: usize) -> Option<usize> {
+        unsafe { libmem::code_length(code, min_length) }
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DataScan.md
     #[pyfunction]
-    fn data_scan(data: Vec<u8>, addr: lm_address_t, scansize: lm_size_t) -> Option<lm_address_t> {
-        unsafe { LM_DataScan(&data, addr, scansize) }
+    fn data_scan(data: Vec<u8>, address: Address, scan_size: usize) -> Option<Address> {
+        let scan = unsafe { LM_DataScan(data.as_ptr(), data.len(), address, scan_size) };
+
+        (scan != LM_ADDRESS_BAD).then_some(scan)
     }
 
-    // TODO: Implement when new version comes out
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DeepPointer.md
-    // #[pyfunction]
-    // fn deep_pointer(base: lm_address_t, offsets: Vec<lm_address_t>) -> Option<lm_address_t> {
-    //     unsafe { LM_DeepPointer::<()>(base, offsets) }
-    // }
+    // https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DeepPointer.md
+    #[pyfunction]
+    fn deep_pointer(base: Address, offsets: Vec<Address>) -> Address {
+        unsafe { libmem::deep_pointer::<()>(base, &offsets) as Address }
+    }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DemangleSymbol.md
     #[pyfunction]
-    fn demangle_symbol(symbol: String) -> Option<String> {
-        LM_DemangleSymbol(&symbol)
+    fn demangle_symbol(symbol_name: String) -> Option<String> {
+        libmem::demangle_symbol(&symbol_name)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_Disassemble.md
     #[pyfunction]
-    fn disassemble(code: lm_address_t) -> Option<py_lm_inst_t> {
-        unsafe { LM_Disassemble(code).map(|inst| py_lm_inst_t(Opaque::new(inst))) }
+    fn disassemble(code: Address) -> Option<PyInst> {
+        unsafe { libmem::disassemble(code).map(PyInst) }
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumModules.md
     #[pyfunction]
     fn enum_modules(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
-        let modules = LM_EnumModules();
-
-        modules.map(|modules| {
+        libmem::enum_modules().map(|modules| {
             modules
                 .into_iter()
-                .map(|module| py_lm_module_t(Opaque::new(module)).into_ref(&vm.ctx).into())
+                .map(|module| PyModule(module).into_ref(&vm.ctx).into())
                 .collect()
         })
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumPages.md
     #[pyfunction]
-    fn enum_pages(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
-        let pages = LM_EnumPages();
-
-        pages.map(|pages| {
-            pages
+    fn enum_segments(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
+        libmem::enum_segments().map(|segments| {
+            segments
                 .into_iter()
-                .map(|page| py_lm_page_t(Opaque::new(page)).into_ref(&vm.ctx).into())
+                .map(|segment| PySegment(segment).into_ref(&vm.ctx).into())
                 .collect()
         })
     }
@@ -105,30 +87,21 @@ pub mod mem {
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumProcesses.md
     #[pyfunction]
     fn enum_processes(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
-        let processes = LM_EnumProcesses();
-
-        processes.map(|pages| {
-            pages
+        libmem::enum_processes().map(|processes| {
+            processes
                 .into_iter()
-                .map(|process| {
-                    py_lm_process_t(Opaque::new(process))
-                        .into_ref(&vm.ctx)
-                        .into()
-                })
+                .map(|process| PyProcess(process).into_ref(&vm.ctx).into())
                 .collect()
         })
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumSymbols.md
     #[pyfunction]
-    fn enum_symbols(pmod: &py_lm_module_t, vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
-        let module: &lm_module_t = unsafe { pmod.0.as_ref() };
-        let symbols = LM_EnumSymbols(module);
-
-        symbols.map(|symbols| {
+    fn enum_symbols(module: PyRef<PyModule>, vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
+        libmem::enum_symbols(&module.0).map(|symbols| {
             symbols
                 .into_iter()
-                .map(|symbol| py_lm_symbol_t(Opaque::new(symbol)).into_ref(&vm.ctx).into())
+                .map(|symbol| PySymbol(symbol).into_ref(&vm.ctx).into())
                 .collect()
         })
     }
@@ -136,16 +109,13 @@ pub mod mem {
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumSymbolsDemangled.md
     #[pyfunction]
     fn enum_symbols_demangled(
-        pmod: &py_lm_module_t,
+        module: PyRef<PyModule>,
         vm: &VirtualMachine,
     ) -> Option<Vec<PyObjectRef>> {
-        let module: &lm_module_t = unsafe { pmod.0.as_ref() };
-        let symbols = LM_EnumSymbolsDemangled(module);
-
-        symbols.map(|symbols| {
+        libmem::enum_symbols_demangled(&module.0).map(|symbols| {
             symbols
                 .into_iter()
-                .map(|symbol| py_lm_symbol_t(Opaque::new(symbol)).into_ref(&vm.ctx).into())
+                .map(|symbol| PySymbol(symbol).into_ref(&vm.ctx).into())
                 .collect()
         })
     }
@@ -153,98 +123,88 @@ pub mod mem {
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumThreads.md
     #[pyfunction]
     fn enum_threads(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
-        let threads = LM_EnumThreads();
-
-        threads.map(|threads| {
+        libmem::enum_threads().map(|threads| {
             threads
                 .into_iter()
-                .map(|thread| py_lm_thread_t(Opaque::new(thread)).into_ref(&vm.ctx).into())
+                .map(|thread| PyThread(thread).into_ref(&vm.ctx).into())
                 .collect()
         })
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindModule.md
     #[pyfunction]
-    fn find_module(name: String) -> Option<py_lm_module_t> {
-        let module = LM_FindModule(&name);
-        module.map(|module| py_lm_module_t(Opaque::new(module)))
+    fn find_module(name: String) -> Option<PyModule> {
+        libmem::find_module(&name).map(PyModule)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindProcess.md
     #[pyfunction]
-    fn find_process(procstr: String) -> Option<py_lm_process_t> {
-        let process = LM_FindProcess(&procstr);
-        process.map(|process| py_lm_process_t(Opaque::new(process)))
+    fn find_process(name: String) -> Option<PyProcess> {
+        libmem::find_process(&name).map(PyProcess)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindSymbolAddress.md
     #[pyfunction]
-    fn find_symbol_address(pmod: &py_lm_module_t, name: String) -> Option<lm_address_t> {
-        let module: &lm_module_t = unsafe { pmod.0.as_ref() };
-        LM_FindSymbolAddress(module, &name)
+    fn find_symbol_address(module: PyRef<PyModule>, symbol_name: String) -> Option<Address> {
+        libmem::find_symbol_address(&module.0, &symbol_name)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindSymbolAddressDemangled.md
     #[pyfunction]
-    fn find_symbol_address_demangled(pmod: &py_lm_module_t, name: String) -> Option<lm_address_t> {
-        let module: &lm_module_t = unsafe { pmod.0.as_ref() };
-        LM_FindSymbolAddressDemangled(module, &name)
+    fn find_symbol_address_demangled(
+        module: PyRef<PyModule>,
+        demangled_symbol_name: String,
+    ) -> Option<Address> {
+        libmem::find_symbol_address_demangled(&module.0, &demangled_symbol_name)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FreeMemory.md
     #[pyfunction]
-    fn free_memory(alloc: lm_address_t, size: lm_size_t) -> bool {
-        unsafe { LM_FreeMemory(alloc, size).is_some() }
-    }
-
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetPage.md
-    #[pyfunction]
-    fn get_page(addr: lm_address_t) -> Option<py_lm_page_t> {
-        LM_GetPage(addr).map(|page| py_lm_page_t(Opaque::new(page)))
+    fn free_memory(alloc: Address, size: usize) {
+        unsafe { libmem::free_memory(alloc, size) }
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetProcess.md
     #[pyfunction]
-    fn get_process() -> Option<py_lm_process_t> {
-        LM_GetProcess().map(|process| py_lm_process_t(Opaque::new(process)))
+    fn get_process() -> Option<PyProcess> {
+        libmem::get_process().map(PyProcess)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetSystemBits.md
     #[pyfunction]
-    fn get_system_bits() -> lm_size_t {
-        LM_GetSystemBits()
+    fn get_system_bits() -> usize {
+        libmem::get_system_bits().into()
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetThread.md
     #[pyfunction]
-    fn get_thread() -> Option<py_lm_thread_t> {
-        LM_GetThread().map(|thread| py_lm_thread_t(Opaque::new(thread)))
+    fn get_thread() -> Option<PyThread> {
+        libmem::get_thread().map(PyThread)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetThreadProcess.md
     #[pyfunction]
-    fn get_thread_process(pthr: &py_lm_thread_t) -> Option<py_lm_process_t> {
-        let thread: &lm_thread_t = unsafe { pthr.0.as_ref() };
-        LM_GetThreadProcess(thread).map(|process| py_lm_process_t(Opaque::new(process)))
+    fn get_thread_process(thread: PyRef<PyThread>) -> Option<PyProcess> {
+        libmem::get_thread_process(&thread.0).map(PyProcess)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_HookCode.md
     #[pyfunction]
-    fn hook_code(from: lm_address_t, to: lm_address_t) -> Option<(lm_address_t, lm_size_t)> {
-        unsafe { LM_HookCode(from, to) }
+    fn hook_code(from: Address, to: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
+        let trampoline = unsafe { libmem::hook_code(from, to) };
+        trampoline.map(|t| PyTrampoline(t.address, t.size).into_pyobject(vm))
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_IsProcessAlive.md
     #[pyfunction]
-    fn is_process_alive(pproc: &py_lm_process_t) -> bool {
-        let process: &lm_process_t = unsafe { pproc.0.as_ref() };
-        LM_IsProcessAlive(process)
+    fn is_process_alive(process: PyRef<PyProcess>) -> bool {
+        libmem::is_process_alive(&process.0)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_LoadModule.md
     #[pyfunction]
-    fn load_module(modpath: String) -> Option<py_lm_module_t> {
-        LM_LoadModule(&modpath).map(|module| py_lm_module_t(Opaque::new(module)))
+    fn load_module(path: String) -> Option<PyModule> {
+        libmem::load_module(&path).map(PyModule)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_PatternScan.md
@@ -252,32 +212,28 @@ pub mod mem {
     fn pattern_scan(
         pattern: Vec<u8>,
         mask: String,
-        addr: lm_address_t,
-        scansize: lm_size_t,
-    ) -> Option<lm_address_t> {
-        unsafe { LM_PatternScan(&pattern, &mask, addr, scansize) }
+        address: Address,
+        scan_size: usize,
+    ) -> Option<Address> {
+        unsafe { libmem::pattern_scan(&pattern, &mask, address, scan_size) }
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_ProtMemory.md
     #[pyfunction]
-    fn prot_memory(addr: lm_address_t, size: lm_size_t, prot: PyRef<PyProt>) -> Option<PyProt> {
-        let prot = unsafe { LM_ProtMemory(addr, size, prot.0.into()) };
+    fn prot_memory(address: Address, size: usize, prot: PyRef<PyProt>) -> Option<PyProt> {
+        let prot = unsafe { libmem::prot_memory(address, size, prot.0) };
 
-        prot.map(|prot| PyProt(prot.into()))
+        prot.map(PyProt)
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_ReadMemory.md
     #[pyfunction]
-    fn read_memory(
-        src: lm_address_t,
-        size: lm_size_t,
-        vm: &VirtualMachine,
-    ) -> Option<PyRef<PyByteArray>> {
+    fn read_memory(src: Address, size: usize, vm: &VirtualMachine) -> Option<PyRef<PyByteArray>> {
         let mut data: Vec<u8> = Vec::with_capacity(size);
 
         let dst = data.as_mut_ptr() as *mut lm_byte_t;
 
-        if unsafe { super::LM_ReadMemory(src, dst, size) } == size {
+        if unsafe { LM_ReadMemory(src, dst, size) } == size {
             unsafe {
                 data.set_len(size);
             }
@@ -291,395 +247,378 @@ pub mod mem {
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_SetMemory.md
     #[pyfunction]
-    fn set_memory(dst: lm_address_t, byte: lm_byte_t, size: lm_size_t) -> bool {
-        unsafe { LM_SetMemory(dst, byte, size).is_some() }
+    fn set_memory(dst: Address, byte: u8, size: usize) {
+        unsafe { libmem::set_memory(dst, byte, size) }
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_SigScan.md
     #[pyfunction]
-    fn sig_scan(sig: String, addr: lm_address_t, scansize: lm_size_t) -> Option<lm_address_t> {
-        unsafe { LM_SigScan(&sig, addr, scansize) }
+    fn sig_scan(sig: String, addr: Address, scansize: usize) -> Option<Address> {
+        unsafe { libmem::sig_scan(&sig, addr, scansize) }
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_UnhookCode.md
     #[pyfunction]
-    fn unhook_code(from: lm_address_t, trampoline: (lm_address_t, lm_size_t)) -> bool {
-        unsafe { LM_UnhookCode(from, trampoline).is_some() }
+    fn unhook_code(from: Address, trampoline: PyRef<PyTrampoline>) -> bool {
+        let t = **trampoline;
+        unsafe { libmem::unhook_code(from, t.into()).is_some() }
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_UnhookCode.md
     #[pyfunction]
-    fn unload_module(pmod: &py_lm_module_t) -> bool {
-        let module = unsafe { pmod.0.as_ref() };
-        LM_UnloadModule(module).is_some()
+    fn unload_module(module: PyRef<PyModule>) -> bool {
+        libmem::unload_module(&module.0).is_some()
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_WriteMemory.md
     #[pyfunction]
-    fn write_memory(dst: lm_address_t, src: Vec<u8>) -> bool {
+    fn write_memory(dst: Address, src: Vec<u8>) -> bool {
         let size = src.len();
-        let written = unsafe { super::LM_WriteMemory(dst, src.as_ptr(), size) };
+        let written = unsafe { LM_WriteMemory(dst, src.as_ptr(), size) };
         written == size
     }
 
     /// https://github.com/rdbo/libmem/blob/master/docs/rust/VMT.md
-    #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name)]
-    #[derive(Debug, PyPayload)]
-    struct Vmt(Opaque);
+    #[pyclass(name = "Vmt")]
+    #[derive(PyPayload)]
+    struct PyVmt(Address, Sendable<Mutex<Vmt>>);
 
-    impl Constructor for Vmt {
-        type Args = lm_address_t;
+    impl Debug for PyVmt {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Vmt")
+        }
+    }
+
+    impl Constructor for PyVmt {
+        type Args = Address;
 
         fn py_new(_cls: PyTypeRef, args: Self::Args, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
-            let ptr = args as *mut lm_address_t;
-            let vmt = lm_vmt_t::new(ptr);
-            let slf = Self(Opaque::new(vmt)).into_ref(&vm.ctx).into();
+            let vmt = Vmt::new(args);
+            let slf = Self(args, Sendable(Mutex::new(vmt)))
+                .into_ref(&vm.ctx)
+                .into();
+
             Ok(slf)
         }
     }
 
     #[pyclass(with(Constructor))]
-    impl Vmt {
+    impl PyVmt {
         #[pymethod]
-        fn hook(&self, index: lm_size_t, dst: lm_address_t) {
-            let this: &mut lm_vmt_t = unsafe { self.0.as_mut() };
+        fn hook(&self, index: usize, dst: Address) {
+            let mut lock = self.1.lock().unwrap();
+
             unsafe {
-                this.hook(index, dst);
+                lock.hook(index, dst);
             }
         }
 
         #[pymethod]
-        fn unhook(&self, index: lm_size_t) {
-            let this: &mut lm_vmt_t = unsafe { self.0.as_mut() };
+        fn unhook(&self, index: usize) {
+            let mut lock = self.1.lock().unwrap();
+
             unsafe {
-                this.unhook(index);
+                lock.unhook(index);
             }
         }
 
         #[pymethod]
-        fn get_original(&self, index: lm_size_t) -> Option<lm_address_t> {
-            let this: &lm_vmt_t = unsafe { self.0.as_ref() };
-            unsafe { this.get_original(index) }
+        fn get_original(&self, index: usize) -> Option<Address> {
+            let lock = self.1.lock().unwrap();
+
+            unsafe { lock.get_original(index) }
         }
 
         #[pymethod]
         fn reset(&self) {
-            let this: &mut lm_vmt_t = unsafe { self.0.as_mut() };
+            let mut lock = self.1.lock().unwrap();
+
             unsafe {
-                this.reset();
+                lock.reset();
             }
         }
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            let data: &lm_vmt_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            format!("Vmt {{ address: {} }}", self.0)
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            let data: &lm_vmt_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.repr()
         }
     }
 
-    impl Drop for Vmt {
-        fn drop(&mut self) {
-            unsafe { self.0.drop::<lm_vmt_t>() }
-        }
-    }
-
-    #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name = "inst")]
+    #[pyclass(name = "Inst")]
     #[derive(Debug, PyPayload)]
-    struct py_lm_inst_t(Opaque);
+    struct PyInst(Inst);
 
     #[pyclass]
-    impl py_lm_inst_t {
+    impl PyInst {
         #[pygetset]
         fn bytes(&self, vm: &VirtualMachine) -> PyRef<PyByteArray> {
-            let data: &lm_inst_t = unsafe { self.0.as_ref() };
-            let bytes = data.get_bytes();
+            PyByteArray::new_ref(self.0.bytes.clone(), &vm.ctx)
+        }
 
-            PyByteArray::new_ref(bytes.to_owned(), &vm.ctx)
+        #[pygetset]
+        fn address(&self) -> Address {
+            self.0.address
+        }
+
+        #[pygetset]
+        fn mnemonic(&self) -> String {
+            self.0.mnemonic.clone()
+        }
+
+        #[pygetset]
+        fn op_str(&self) -> String {
+            self.0.op_str.clone()
         }
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            let data: &lm_inst_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            let data: &lm_inst_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
     }
 
-    impl Drop for py_lm_inst_t {
-        fn drop(&mut self) {
-            unsafe {
-                self.0.drop::<lm_inst_t>();
-            }
-        }
-    }
-
-    #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name = "module")]
+    #[pyclass(name = "Module")]
     #[derive(Debug, PyPayload)]
-    struct py_lm_module_t(Opaque);
+    struct PyModule(Module);
 
     #[pyclass]
-    impl py_lm_module_t {
+    impl PyModule {
         #[pygetset]
-        fn base(&self) -> lm_address_t {
-            let data: &lm_module_t = unsafe { self.0.as_ref() };
-            data.get_base()
+        fn base(&self) -> Address {
+            self.0.base
         }
 
         #[pygetset]
-        fn end(&self) -> lm_address_t {
-            let data: &lm_module_t = unsafe { self.0.as_ref() };
-            data.get_end()
+        fn end(&self) -> Address {
+            self.0.end
         }
 
         #[pygetset]
-        fn size(&self) -> lm_address_t {
-            let data: &lm_module_t = unsafe { self.0.as_ref() };
-            data.get_size()
+        fn size(&self) -> usize {
+            self.0.size
         }
 
         #[pygetset]
         fn path(&self) -> String {
-            let data: &lm_module_t = unsafe { self.0.as_ref() };
-            data.get_path()
+            self.0.path.clone()
         }
 
         #[pygetset]
         fn name(&self) -> String {
-            let data: &lm_module_t = unsafe { self.0.as_ref() };
-            data.get_name()
+            self.0.name.clone()
         }
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            let data: &lm_module_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            let data: &lm_module_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
     }
 
-    impl Drop for py_lm_module_t {
-        fn drop(&mut self) {
-            unsafe {
-                self.0.drop::<lm_module_t>();
-            }
-        }
-    }
-
-    #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name = "page")]
+    #[pyclass(name = "Segment")]
     #[derive(Debug, PyPayload)]
-    struct py_lm_page_t(Opaque);
+    struct PySegment(Segment);
 
     #[pyclass]
-    impl py_lm_page_t {
+    impl PySegment {
         #[pygetset]
-        fn base(&self) -> lm_address_t {
-            let data: &lm_page_t = unsafe { self.0.as_ref() };
-            data.get_base()
+        fn base(&self) -> Address {
+            self.0.base
         }
 
         #[pygetset]
-        fn end(&self) -> lm_address_t {
-            let data: &lm_page_t = unsafe { self.0.as_ref() };
-            data.get_end()
+        fn end(&self) -> Address {
+            self.0.end
         }
 
         #[pygetset]
-        fn size(&self) -> lm_size_t {
-            let data: &lm_page_t = unsafe { self.0.as_ref() };
-            data.get_size()
+        fn size(&self) -> usize {
+            self.0.size
         }
 
         #[pygetset]
         fn prot(&self) -> PyProt {
-            let data: &lm_page_t = unsafe { self.0.as_ref() };
-            let prot = data.get_prot();
-
-            PyProt(prot.into())
+            PyProt(self.0.prot)
         }
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            let data: &lm_page_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            let data: &lm_page_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
     }
 
-    impl Drop for py_lm_page_t {
-        fn drop(&mut self) {
-            unsafe {
-                self.0.drop::<lm_page_t>();
-            }
-        }
-    }
-
-    #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name = "process")]
+    #[pyclass(name = "Process")]
     #[derive(Debug, PyPayload)]
-    struct py_lm_process_t(Opaque);
+    struct PyProcess(Process);
 
     #[pyclass]
-    impl py_lm_process_t {
+    impl PyProcess {
         #[pygetset]
-        fn pid(&self) -> lm_pid_t {
-            let data: &lm_process_t = unsafe { self.0.as_ref() };
-            data.get_pid()
+        fn pid(&self) -> Pid {
+            self.0.pid
         }
 
         #[pygetset]
-        fn ppid(&self) -> lm_pid_t {
-            let data: &lm_process_t = unsafe { self.0.as_ref() };
-            data.get_ppid()
+        fn ppid(&self) -> Pid {
+            self.0.ppid
         }
 
         #[pygetset]
-        fn bits(&self) -> lm_size_t {
-            let data: &lm_process_t = unsafe { self.0.as_ref() };
-            data.get_bits()
+        fn arch(&self) -> String {
+            // this is the only one we support, so..
+            "X64".to_owned()
+        }
+
+        #[pygetset]
+        fn bits(&self) -> usize {
+            self.0.bits.into()
         }
 
         // lm_time_t is inexplicably private right now
         #[pygetset]
-        fn start_time(&self) -> u64 {
-            let data: &lm_process_t = unsafe { self.0.as_ref() };
-            data.get_start_time()
+        fn start_time(&self) -> Time {
+            self.0.start_time
         }
 
         #[pygetset]
         fn path(&self) -> String {
-            let data: &lm_process_t = unsafe { self.0.as_ref() };
-            data.get_path()
+            self.0.path.clone()
         }
 
         #[pygetset]
         fn name(&self) -> String {
-            let data: &lm_process_t = unsafe { self.0.as_ref() };
-            data.get_name()
+            self.0.name.clone()
         }
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            let data: &lm_process_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            let data: &lm_process_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
     }
 
-    impl Drop for py_lm_process_t {
-        fn drop(&mut self) {
-            unsafe {
-                self.0.drop::<lm_process_t>();
-            }
-        }
-    }
-
-    #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name = "symbol")]
-    #[derive(Debug, PyPayload)]
-    struct py_lm_symbol_t(Opaque);
+    #[pyclass(name = "Symbol")]
+    #[derive(PyPayload)]
+    struct PySymbol(Symbol);
+
+    impl Debug for PySymbol {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
 
     #[pyclass]
-    impl py_lm_symbol_t {
+    impl PySymbol {
         #[pygetset]
         fn name(&self) -> String {
-            let data: &lm_symbol_t = unsafe { self.0.as_ref() };
-            data.get_name().to_owned()
+            self.0.name.clone()
         }
 
         #[pygetset]
-        fn address(&self) -> lm_address_t {
-            let data: &lm_symbol_t = unsafe { self.0.as_ref() };
-            data.get_address()
+        fn address(&self) -> Address {
+            self.0.address
         }
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            let data: &lm_symbol_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            let data: &lm_symbol_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
     }
 
-    impl Drop for py_lm_symbol_t {
-        fn drop(&mut self) {
-            unsafe {
-                self.0.drop::<lm_symbol_t>();
-            }
-        }
-    }
-
-    #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name = "thread")]
+    #[pyclass(name = "Thread")]
     #[derive(Debug, PyPayload)]
-    struct py_lm_thread_t(Opaque);
+    struct PyThread(Thread);
 
     #[pyclass]
-    impl py_lm_thread_t {
+    impl PyThread {
         #[pygetset]
-        fn tid(&self) -> lm_tid_t {
-            let data: &lm_thread_t = unsafe { self.0.as_ref() };
-            data.get_tid()
+        fn tid(&self) -> Tid {
+            self.0.tid
+        }
+
+        #[pygetset]
+        fn owner_pid(&self) -> Pid {
+            self.0.owner_pid
         }
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            let data: &lm_thread_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            let data: &lm_thread_t = unsafe { self.0.as_ref() };
-            format!("{data}")
+            self.0.to_string()
         }
     }
 
-    impl Drop for py_lm_thread_t {
-        fn drop(&mut self) {
-            unsafe {
-                self.0.drop::<lm_thread_t>();
+    #[pyattr]
+    #[pyclass(name = "Trampoline")]
+    #[derive(Debug, Copy, Clone, PyPayload)]
+    struct PyTrampoline(Address, usize);
+
+    #[pyclass]
+    impl PyTrampoline {
+        #[pygetset]
+        fn address(&self) -> Address {
+            self.0
+        }
+
+        #[pygetset]
+        fn size(&self) -> usize {
+            self.1
+        }
+
+        #[pymethod(magic)]
+        fn repr(&self) -> String {
+            format!("Trampoline {{ address: {}, size: {} }}", self.0, self.1)
+        }
+
+        #[pymethod(magic)]
+        fn str(&self) -> String {
+            self.repr()
+        }
+    }
+
+    impl From<PyTrampoline> for libmem::Trampoline {
+        fn from(t: PyTrampoline) -> Self {
+            Self {
+                address: t.0,
+                size: t.1,
             }
         }
     }
@@ -688,59 +627,16 @@ pub mod mem {
     #[derive(Debug, Copy, Clone, PyPayload)]
     struct PyProt(Prot);
 
-    #[derive(Debug, Copy, Clone)]
-    enum Prot {
-        None,
-        X,
-        R,
-        W,
-        XR,
-        XW,
-        RW,
-        #[allow(clippy::upper_case_acronyms)]
-        XRW,
-    }
-
     #[pyclass]
     impl PyProt {
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            format!("Prot.{:?}", self.0)
+            self.0.to_string()
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            format!("Prot.{:?}", self.0)
-        }
-    }
-
-    impl From<lm_prot_t> for Prot {
-        fn from(prot: lm_prot_t) -> Self {
-            match prot {
-                lm_prot_t::LM_PROT_NONE => Self::None,
-                lm_prot_t::LM_PROT_X => Self::X,
-                lm_prot_t::LM_PROT_R => Self::R,
-                lm_prot_t::LM_PROT_W => Self::W,
-                lm_prot_t::LM_PROT_XR => Self::XR,
-                lm_prot_t::LM_PROT_XW => Self::XW,
-                lm_prot_t::LM_PROT_RW => Self::RW,
-                lm_prot_t::LM_PROT_XRW => Self::XRW,
-            }
-        }
-    }
-
-    impl From<Prot> for lm_prot_t {
-        fn from(prot: Prot) -> Self {
-            match prot {
-                Prot::None => Self::LM_PROT_NONE,
-                Prot::X => Self::LM_PROT_X,
-                Prot::R => Self::LM_PROT_R,
-                Prot::W => Self::LM_PROT_W,
-                Prot::XR => Self::LM_PROT_XR,
-                Prot::XW => Self::LM_PROT_XW,
-                Prot::RW => Self::LM_PROT_RW,
-                Prot::XRW => Self::LM_PROT_XRW,
-            }
+            self.0.to_string()
         }
     }
 
@@ -771,40 +667,5 @@ pub mod mem {
 
         #[pyattr]
         const XRW: PyProt = PyProt(Prot::XRW);
-    }
-
-    /// An Opaque pointer which can be casted back to the original data type
-    #[pyclass(name, no_attr)]
-    #[derive(Debug)]
-    struct Opaque(NonNull<()>);
-    unsafe impl Send for Opaque {}
-    unsafe impl Sync for Opaque {}
-
-    #[pyclass]
-    impl Opaque {
-        fn new<T>(t: T) -> Self {
-            let ptr = Box::into_raw(Box::new(t)).cast();
-            Self(NonNull::new(ptr).unwrap())
-        }
-
-        /// SAFETY: No other unique refs can exist anywhere when you call this
-        unsafe fn as_ref<T>(&self) -> &T {
-            let ptr: *mut T = self.0.as_ptr().cast();
-            unsafe { &*ptr }
-        }
-
-        /// SAFETY: No other unique or shared refs can exist anywhere when you call this
-        unsafe fn as_mut<'a, T>(&self) -> &'a mut T {
-            let ptr: *mut T = self.0.as_ptr().cast();
-            unsafe { &mut *ptr }
-        }
-
-        /// SAFETY: There must be no calls to any other functions after this
-        ///         as the inside pointer is no longer valid
-        unsafe fn drop<T>(&mut self) {
-            unsafe {
-                _ = Box::from_raw(self.0.as_ptr().cast::<T>());
-            }
-        }
     }
 }

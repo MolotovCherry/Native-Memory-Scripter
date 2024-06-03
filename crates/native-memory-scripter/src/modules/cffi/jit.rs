@@ -189,8 +189,7 @@ pub fn jit_py_wrapper(
             args_layout.size(),
             args_layout.align(),
         );
-
-        let slot = bcx.create_sized_stack_slot(slot_data);
+        let arg_slot = bcx.create_sized_stack_slot(slot_data);
 
         let ebb = bcx.create_block();
         bcx.append_block_params_for_function_params(ebb);
@@ -202,15 +201,19 @@ pub fn jit_py_wrapper(
             .copied()
             .zip(args_layout.offsets.iter().copied())
         {
-            bcx.ins().stack_store(val, slot, offset as i32);
+            bcx.ins().stack_store(val, arg_slot, offset as i32);
         }
 
-        let slot_data = StackSlotData::new(StackSlotKind::ExplicitSlot, 8, 8);
+        let slot_data = StackSlotData::new(
+            StackSlotKind::ExplicitSlot,
+            mem::size_of::<Ret>() as u32,
+            mem::align_of::<Ret>() as u8,
+        );
         let ret_slot = bcx.create_sized_stack_slot(slot_data);
         let ret_addr = bcx.ins().stack_addr(types::R64, ret_slot, 0);
 
         let leaked_addr = bcx.ins().iconst(types::I64, leaked_data as *const _ as i64);
-        let stack_addr = bcx.ins().stack_addr(types::R64, slot, 0);
+        let stack_addr = bcx.ins().stack_addr(types::R64, arg_slot, 0);
 
         let cb = module.declare_func_in_func(jit_callback, bcx.func);
         let params = &[stack_addr, leaked_addr, ret_addr];

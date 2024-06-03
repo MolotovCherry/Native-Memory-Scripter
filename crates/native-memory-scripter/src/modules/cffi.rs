@@ -2,15 +2,7 @@ mod jit;
 mod types;
 mod vm;
 
-use std::fmt::Debug;
-use std::ptr::NonNull;
-
 use rustpython_vm::pymodule;
-
-#[derive(Debug, Copy, Clone)]
-pub struct RawSendable<T: Debug>(NonNull<T>);
-unsafe impl<T: Debug> Send for RawSendable<T> {}
-unsafe impl<T: Debug> Sync for RawSendable<T> {}
 
 #[allow(clippy::module_inception)]
 #[pymodule]
@@ -31,6 +23,7 @@ pub mod cffi {
         types::Type,
         vm::PyThreadedVirtualMachine,
     };
+    use crate::utils::RawSendable;
 
     #[allow(non_camel_case_types)]
     #[pyattr]
@@ -44,8 +37,8 @@ pub mod cffi {
         pub params: Arc<(Vec<CType>, Option<CType>)>,
         pub layout: ArgLayout,
         // leaked memory for the callback
-        pub leaked: Arc<Mutex<Option<super::RawSendable<Self>>>>,
-        pub fn_addr: super::RawSendable<()>,
+        pub leaked: Arc<Mutex<Option<RawSendable<Self>>>>,
+        pub fn_addr: RawSendable<()>,
         pub code_size: u32,
     }
 
