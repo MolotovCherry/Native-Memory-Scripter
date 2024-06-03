@@ -4,6 +4,7 @@ mod interpreter;
 mod logging;
 mod modules;
 mod paths;
+mod utils;
 
 use std::{ffi::c_void, sync::OnceLock, thread};
 
