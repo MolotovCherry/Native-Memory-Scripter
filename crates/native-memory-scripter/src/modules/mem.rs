@@ -27,19 +27,16 @@ pub mod mem {
         libmem::alloc_memory(size, prot.0)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_Assemble.md
     #[pyfunction]
     fn assemble(code: String) -> Option<PyInst> {
         libmem::assemble(&code).map(PyInst)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_CodeLength.md
     #[pyfunction]
     fn code_length(code: Address, min_length: usize) -> Option<usize> {
         unsafe { libmem::code_length(code, min_length) }
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DataScan.md
     #[pyfunction]
     fn data_scan(data: Vec<u8>, address: Address, scan_size: usize) -> Option<Address> {
         let scan = unsafe { LM_DataScan(data.as_ptr(), data.len(), address, scan_size) };
@@ -47,25 +44,21 @@ pub mod mem {
         (scan != LM_ADDRESS_BAD).then_some(scan)
     }
 
-    // https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DeepPointer.md
     #[pyfunction]
     fn deep_pointer(base: Address, offsets: Vec<Address>) -> Address {
         unsafe { libmem::deep_pointer::<()>(base, &offsets) as Address }
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_DemangleSymbol.md
     #[pyfunction]
     fn demangle_symbol(symbol_name: String) -> Option<String> {
         libmem::demangle_symbol(&symbol_name)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_Disassemble.md
     #[pyfunction]
     fn disassemble(code: Address) -> Option<PyInst> {
         unsafe { libmem::disassemble(code).map(PyInst) }
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumModules.md
     #[pyfunction]
     fn enum_modules(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
         libmem::enum_modules().map(|modules| {
@@ -76,7 +69,6 @@ pub mod mem {
         })
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumPages.md
     #[pyfunction]
     fn enum_segments(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
         libmem::enum_segments().map(|segments| {
@@ -87,7 +79,6 @@ pub mod mem {
         })
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumProcesses.md
     #[pyfunction]
     fn enum_processes(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
         libmem::enum_processes().map(|processes| {
@@ -98,7 +89,6 @@ pub mod mem {
         })
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumSymbols.md
     #[pyfunction]
     fn enum_symbols(module: PyRef<PyModule>, vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
         libmem::enum_symbols(&module.0).map(|symbols| {
@@ -109,7 +99,6 @@ pub mod mem {
         })
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumSymbolsDemangled.md
     #[pyfunction]
     fn enum_symbols_demangled(
         module: PyRef<PyModule>,
@@ -123,7 +112,6 @@ pub mod mem {
         })
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_EnumThreads.md
     #[pyfunction]
     fn enum_threads(vm: &VirtualMachine) -> Option<Vec<PyObjectRef>> {
         libmem::enum_threads().map(|threads| {
@@ -134,25 +122,21 @@ pub mod mem {
         })
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindModule.md
     #[pyfunction]
     fn find_module(name: String) -> Option<PyModule> {
         libmem::find_module(&name).map(PyModule)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindProcess.md
     #[pyfunction]
     fn find_process(name: String) -> Option<PyProcess> {
         libmem::find_process(&name).map(PyProcess)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindSymbolAddress.md
     #[pyfunction]
     fn find_symbol_address(module: PyRef<PyModule>, symbol_name: String) -> Option<Address> {
         libmem::find_symbol_address(&module.0, &symbol_name)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindSymbolAddressDemangled.md
     #[pyfunction]
     fn find_symbol_address_demangled(
         module: PyRef<PyModule>,
@@ -161,13 +145,11 @@ pub mod mem {
         libmem::find_symbol_address_demangled(&module.0, &demangled_symbol_name)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FindSymbolAddressDemangled.md
     #[pyfunction]
     fn find_segment(address: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
         libmem::find_segment(address).map(|segment| PySegment(segment).into_ref(&vm.ctx).into())
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_FreeMemory.md
     #[pyfunction]
     fn free_memory(alloc: Address, size: usize) {
         unsafe { libmem::free_memory(alloc, size) }
@@ -178,56 +160,47 @@ pub mod mem {
         ArchDisplay(libmem::get_architecture()).to_string()
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetProcess.md
     #[pyfunction]
     fn get_process() -> Option<PyProcess> {
         libmem::get_process().map(PyProcess)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetSystemBits.md
     #[pyfunction]
     fn get_bits() -> usize {
         libmem::get_bits().into()
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetSystemBits.md
     #[pyfunction]
     fn get_system_bits() -> usize {
         libmem::get_system_bits().into()
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetThread.md
     #[pyfunction]
     fn get_thread() -> Option<PyThread> {
         libmem::get_thread().map(PyThread)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_GetThreadProcess.md
     #[pyfunction]
     fn get_thread_process(thread: PyRef<PyThread>) -> Option<PyProcess> {
         libmem::get_thread_process(&thread.0).map(PyProcess)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_HookCode.md
     #[pyfunction]
     fn hook_code(from: Address, to: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
         let trampoline = unsafe { libmem::hook_code(from, to) };
         trampoline.map(|t| PyTrampoline(t.address, t.size).into_pyobject(vm))
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_IsProcessAlive.md
     #[pyfunction]
     fn is_process_alive(process: PyRef<PyProcess>) -> bool {
         libmem::is_process_alive(&process.0)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_LoadModule.md
     #[pyfunction]
     fn load_module(path: String) -> Option<PyModule> {
         libmem::load_module(&path).map(PyModule)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_PatternScan.md
     #[pyfunction]
     fn pattern_scan(
         pattern: Vec<u8>,
@@ -238,7 +211,6 @@ pub mod mem {
         unsafe { libmem::pattern_scan(&pattern, &mask, address, scan_size) }
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_ProtMemory.md
     #[pyfunction]
     fn prot_memory(address: Address, size: usize, prot: PyRef<PyProt>) -> Option<PyProt> {
         let prot = unsafe { libmem::prot_memory(address, size, prot.0) };
@@ -246,7 +218,6 @@ pub mod mem {
         prot.map(PyProt)
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_ReadMemory.md
     #[pyfunction]
     fn read_memory(src: Address, size: usize, vm: &VirtualMachine) -> Option<PyRef<PyByteArray>> {
         let mut data: Vec<u8> = Vec::with_capacity(size);
@@ -265,32 +236,27 @@ pub mod mem {
         }
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_SetMemory.md
     #[pyfunction]
     fn set_memory(dst: Address, byte: u8, size: usize) {
         unsafe { libmem::set_memory(dst, byte, size) }
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_SigScan.md
     #[pyfunction]
     fn sig_scan(sig: String, addr: Address, scansize: usize) -> Option<Address> {
         unsafe { libmem::sig_scan(&sig, addr, scansize) }
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_UnhookCode.md
     #[pyfunction]
     fn unhook_code(from: Address, trampoline: PyRef<PyTrampoline>) -> bool {
         let t = **trampoline;
         unsafe { libmem::unhook_code(from, t.into()).is_some() }
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_UnhookCode.md
     #[pyfunction]
     fn unload_module(module: PyRef<PyModule>) -> bool {
         libmem::unload_module(&module.0).is_some()
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/LM_WriteMemory.md
     #[pyfunction]
     fn write_memory(dst: Address, src: Vec<u8>) -> bool {
         let size = src.len();
@@ -298,7 +264,6 @@ pub mod mem {
         written == size
     }
 
-    /// https://github.com/rdbo/libmem/blob/master/docs/rust/VMT.md
     #[pyattr]
     #[pyclass(name = "Vmt")]
     #[derive(PyPayload)]
@@ -516,7 +481,6 @@ pub mod mem {
             self.0.bits.into()
         }
 
-        // lm_time_t is inexplicably private right now
         #[pygetset]
         fn start_time(&self) -> Time {
             self.0.start_time
