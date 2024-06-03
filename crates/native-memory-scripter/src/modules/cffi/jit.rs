@@ -1,6 +1,7 @@
 use std::{
     alloc::{Layout, LayoutError},
     hint::unreachable_unchecked,
+    mem,
     ops::{Deref, DerefMut},
     ptr::NonNull,
     sync::{Arc, Mutex},
@@ -13,8 +14,8 @@ use rustpython_vm::function::FuncArgs;
 use rustpython_vm::prelude::*;
 use tracing::error;
 
-use super::{cffi::Callable, types::Type, RawSendable};
-use crate::modules::cffi::vm::PyThreadedVirtualMachine;
+use super::{cffi::Callable, types::Type};
+use crate::{modules::cffi::vm::PyThreadedVirtualMachine, utils::RawSendable};
 
 pub struct JITWrapper(pub JITModule);
 
