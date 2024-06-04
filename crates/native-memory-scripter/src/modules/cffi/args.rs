@@ -170,7 +170,7 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
             }
 
             Type::CStr(_) => {
-                let ptr = unsafe { *self.ptr.add(offset).cast::<*const i8>() };
+                let ptr = unsafe { *self.ptr.add(offset).cast::<*const u8>() };
                 Arg::CStr(ptr)
             }
 
@@ -222,7 +222,7 @@ pub enum Arg {
 
     // Strings
     // c str (null terminated) - r64
-    CStr(*const i8),
+    CStr(*const u8),
     // utf16 str - r64 (length unknown)
     WStr(*const u16),
 
@@ -318,7 +318,7 @@ impl Arg {
         }
     }
 
-    pub fn as_cstr(&self) -> *const i8 {
+    pub fn as_cstr(&self) -> *const u8 {
         match self {
             Self::CStr(c) => *c,
             _ => unreachable!(),
