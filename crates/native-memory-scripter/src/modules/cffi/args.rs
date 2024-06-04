@@ -70,7 +70,7 @@ impl ArgLayout {
     /// ptr must be valid for type+offset reads for anything in self.offsets and self.args
     pub unsafe fn iter(&self, ptr: *const ()) -> ArgLayoutIterator {
         ArgLayoutIterator {
-            ptr,
+            ptr: ptr.cast(),
             layout: self,
             pos: 0,
         }
@@ -78,7 +78,7 @@ impl ArgLayout {
 }
 
 pub struct ArgLayoutIterator<'a> {
-    ptr: *const (),
+    ptr: *const u8,
     layout: &'a ArgLayout,
     pos: usize,
 }
@@ -100,92 +100,92 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
             }
 
             Type::F32(_) => {
-                let arg = unsafe { *self.ptr.cast::<f32>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<f32>() };
                 Arg::F32(arg)
             }
 
             Type::F64(_) => {
-                let arg = unsafe { *self.ptr.cast::<f64>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<f64>() };
                 Arg::F64(arg)
             }
 
             Type::U8(_) => {
-                let arg = unsafe { *self.ptr.cast::<u8>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<u8>() };
                 Arg::U8(arg)
             }
 
             Type::U16(_) => {
-                let arg = unsafe { *self.ptr.cast::<u16>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<u16>() };
                 Arg::U16(arg)
             }
 
             Type::U32(_) => {
-                let arg = unsafe { *self.ptr.cast::<u32>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<u32>() };
                 Arg::U32(arg)
             }
 
             Type::U64(_) => {
-                let arg = unsafe { *self.ptr.cast::<u64>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<u64>() };
                 Arg::U64(arg)
             }
 
             Type::U128(_) => {
-                let arg = unsafe { *self.ptr.cast::<u128>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<u128>() };
                 Arg::U128(arg)
             }
 
             Type::I8(_) => {
-                let arg = unsafe { *self.ptr.cast::<i8>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<i8>() };
                 Arg::I8(arg)
             }
 
             Type::I16(_) => {
-                let arg = unsafe { *self.ptr.cast::<i16>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<i16>() };
                 Arg::I16(arg)
             }
 
             Type::I32(_) => {
-                let arg = unsafe { *self.ptr.cast::<i32>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<i32>() };
                 Arg::I32(arg)
             }
 
             Type::I64(_) => {
-                let arg = unsafe { *self.ptr.cast::<i64>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<i64>() };
                 Arg::I64(arg)
             }
 
             Type::I128(_) => {
-                let arg = unsafe { *self.ptr.cast::<i128>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<i128>() };
                 Arg::I128(arg)
             }
 
             Type::Ptr(_) => {
-                let arg = unsafe { *self.ptr.cast::<*const ()>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<*const ()>() };
                 Arg::Ptr(arg)
             }
 
             Type::Bool(_) => {
-                let arg = unsafe { *self.ptr.cast::<bool>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<bool>() };
                 Arg::Bool(arg)
             }
 
             Type::CStr(_) => {
-                let ptr = unsafe { *self.ptr.cast::<*const i8>().byte_add(offset) };
+                let ptr = unsafe { *self.ptr.add(offset).cast::<*const i8>() };
                 Arg::CStr(ptr)
             }
 
             Type::WStr(_) => {
-                let ptr = unsafe { *self.ptr.cast::<*const u16>().byte_add(offset) };
+                let ptr = unsafe { *self.ptr.add(offset).cast::<*const u16>() };
                 Arg::WStr(ptr)
             }
 
             Type::Char(_) => {
-                let arg = unsafe { *self.ptr.cast::<u8>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<u8>() };
                 Arg::Char(arg as char)
             }
 
             Type::WChar(_) => {
-                let arg = unsafe { *self.ptr.cast::<u16>().byte_add(offset) };
+                let arg = unsafe { *self.ptr.add(offset).cast::<u16>() };
                 Arg::WChar(unsafe { char::from_u32_unchecked(arg as u32) })
             }
         };
@@ -390,7 +390,8 @@ impl ArgMemory {
         unsafe { self.ptr.as_ptr().add(offset).cast::<D>().write(data) }
     }
 
-    /// fill will lock since it's writing to mutable memory
+    /// fill the block of memory with python args
+    /// will lock since it's writing to mutable memory
     pub fn fill(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<()> {
         if args.len() != self.args.len() {
             return Err(vm.new_runtime_error("incorrect number of args".to_owned()));
@@ -402,7 +403,7 @@ impl ArgMemory {
         {
             match ty {
                 Type::Void => {
-                    unreachable!("arg should not be void")
+                    return Err(vm.new_runtime_error("void cannot be an argument".to_owned()));
                 }
 
                 Type::F32(_) => {
@@ -503,10 +504,10 @@ impl ArgMemory {
                 }
 
                 Type::Ptr(_) | Type::CStr(_) | Type::WStr(_) => {
-                    let i = arg.try_to_value::<usize>(vm)?;
+                    let p = arg.try_to_value::<usize>(vm)?;
 
                     unsafe {
-                        self.write(i, offset);
+                        self.write(p, offset);
                     }
                 }
 
@@ -520,14 +521,21 @@ impl ArgMemory {
 
                 Type::Char(_) => {
                     let s = arg.clone().try_into_value::<String>(vm)?;
+
+                    if s.is_empty() {
+                        return Err(vm.new_runtime_error("string cannot be empty".to_string()));
+                    }
+
                     let Some(char) = s.chars().next() else {
-                        return Err(vm.new_value_error("string has no char".to_string()));
+                        return Err(vm.new_runtime_error("string has no char".to_string()));
                     };
 
                     let char = if char.len_utf8() == 1 {
                         char as u8
                     } else {
-                        return Err(vm.new_value_error("string contains no chars".to_string()));
+                        return Err(vm.new_overflow_error(
+                            "string cannot be encoded into ascii".to_string(),
+                        ));
                     };
 
                     unsafe {
@@ -537,18 +545,27 @@ impl ArgMemory {
 
                 Type::WChar(_) => {
                     let s = arg.clone().try_into_value::<String>(vm)?;
+
+                    if s.is_empty() {
+                        return Err(vm.new_runtime_error("string cannot be empty".to_string()));
+                    }
+
                     let Some(char) = s.chars().next() else {
-                        return Err(vm.new_value_error("string has no char".to_string()));
+                        return Err(vm.new_runtime_error("string has no char".to_string()));
                     };
 
-                    let char = if char.len_utf16() <= 2 {
+                    let wchar = if char.len_utf16() == 1 {
+                        // encode_utf16 just does a cast for a single code unit,
+                        // and we've already checked it fits only into 1
                         char as u16
                     } else {
-                        return Err(vm.new_value_error("string contains no chars".to_string()));
+                        return Err(vm.new_overflow_error(
+                            "string cannot be encoded into single utf16 char".to_string(),
+                        ));
                     };
 
                     unsafe {
-                        self.write(char, offset);
+                        self.write(wchar, offset);
                     }
                 }
             }
