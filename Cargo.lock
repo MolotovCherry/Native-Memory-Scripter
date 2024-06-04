@@ -384,7 +384,7 @@ dependencies = [
 [[package]]
 name = "cranelift"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "cranelift-codegen 0.109.0",
  "cranelift-frontend 0.109.0",
@@ -403,7 +403,7 @@ dependencies = [
 [[package]]
 name = "cranelift-bforest"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "cranelift-entity 0.109.0",
 ]
@@ -430,7 +430,7 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "bumpalo",
  "cranelift-bforest 0.109.0",
@@ -460,7 +460,7 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen-meta"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "cranelift-codegen-shared 0.109.0",
 ]
@@ -474,12 +474,12 @@ checksum = "e7c940133198426d26128f08be2b40b0bd117b84771fd36798969c4d712d81fc"
 [[package]]
 name = "cranelift-codegen-shared"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 
 [[package]]
 name = "cranelift-control"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "arbitrary",
 ]
@@ -493,7 +493,7 @@ checksum = "87a0f1b2fdc18776956370cf8d9b009ded3f855350c480c1c52142510961f352"
 [[package]]
 name = "cranelift-entity"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 
 [[package]]
 name = "cranelift-frontend"
@@ -510,7 +510,7 @@ dependencies = [
 [[package]]
 name = "cranelift-frontend"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "cranelift-codegen 0.109.0",
  "log",
@@ -527,7 +527,7 @@ checksum = "1b2629a569fae540f16a76b70afcc87ad7decb38dc28fa6c648ac73b51e78470"
 [[package]]
 name = "cranelift-isle"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 
 [[package]]
 name = "cranelift-jit"
@@ -550,7 +550,7 @@ dependencies = [
 [[package]]
 name = "cranelift-jit"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "anyhow",
  "cranelift-codegen 0.109.0",
@@ -579,7 +579,7 @@ dependencies = [
 [[package]]
 name = "cranelift-module"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "anyhow",
  "cranelift-codegen 0.109.0",
@@ -600,7 +600,7 @@ dependencies = [
 [[package]]
 name = "cranelift-native"
 version = "0.109.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "cranelift-codegen 0.109.0",
  "libc",
@@ -1350,7 +1350,7 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 [[package]]
 name = "libmem"
 version = "5.0.0-pre6"
-source = "git+https://github.com/rdbo/libmem.git#e365941f9ef764c9bf811c9b2c3b3ddc96d47785"
+source = "git+https://github.com/rdbo/libmem.git?rev=e365941#e365941f9ef764c9bf811c9b2c3b3ddc96d47785"
 dependencies = [
  "bitflags 2.5.0",
  "libmem-sys",
@@ -1359,7 +1359,7 @@ dependencies = [
 [[package]]
 name = "libmem-sys"
 version = "5.0.0-pre6"
-source = "git+https://github.com/rdbo/libmem.git#e365941f9ef764c9bf811c9b2c3b3ddc96d47785"
+source = "git+https://github.com/rdbo/libmem.git?rev=e365941#e365941f9ef764c9bf811c9b2c3b3ddc96d47785"
 dependencies = [
  "flate2",
  "reqwest",
@@ -3714,7 +3714,7 @@ checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
 [[package]]
 name = "wasmtime-jit-icache-coherence"
 version = "22.0.0"
-source = "git+https://github.com/MolotovCherry/wasmtime#42d6f3ac37e6595f9d74c07a56ffc9566cfd6487"
+source = "git+https://github.com/bytecodealliance/wasmtime?rev=9f695788a92dc495fb80075d014da66a8a1da728#9f695788a92dc495fb80075d014da66a8a1da728"
 dependencies = [
  "anyhow",
  "cfg-if",
