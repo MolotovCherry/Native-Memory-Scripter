@@ -1,4 +1,7 @@
-mod jit;
+mod args;
+mod jit_wrapper;
+mod ret;
+mod trampoline;
 mod types;
 mod vm;
 
@@ -19,7 +22,8 @@ pub mod cffi {
     };
 
     use super::{
-        jit::{jit_py_wrapper, ArgLayout, JITWrapper},
+        args::ArgLayout,
+        jit_wrapper::{jit_py_wrapper, JITWrapper},
         types::Type,
         vm::PyThreadedVirtualMachine,
     };
@@ -242,5 +246,9 @@ pub mod cffi {
         /// same as cdecl on Windows
         #[pyattr]
         pub(super) const WindowsFastcall: PyCallConv = PyCallConv(CallConv::WindowsFastcall);
+
+        /// systemv
+        #[pyattr]
+        pub(super) const SystemV: PyCallConv = PyCallConv(CallConv::SystemV);
     }
 }

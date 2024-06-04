@@ -13,6 +13,20 @@ impl<T> Debug for RawSendable<T> {
     }
 }
 
+impl<T> Deref for RawSendable<T> {
+    type Target = NonNull<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for RawSendable<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct Sendable<T>(pub T);
 
