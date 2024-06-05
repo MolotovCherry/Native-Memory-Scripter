@@ -120,7 +120,7 @@ pub fn jit_py_wrapper(
     cb_sig_fn.params.push(AbiParam::new(types::I64));
     cb_sig_fn.params.push(AbiParam::new(types::R64));
 
-    // declare and import link to static_fucntion
+    // declare and import fn
     let jit_callback = module
         .declare_function("__jit_cb", Linkage::Import, &cb_sig_fn)
         .unwrap();
@@ -133,20 +133,11 @@ pub fn jit_py_wrapper(
 
     let args_layout = ArgLayout::new(&args.0).unwrap();
 
-    let params = (
-        args.0.into_iter().map(|ty| ty.into()).collect(),
-        if !matches!(args.1, Type::Void) {
-            Some(args.1.into())
-        } else {
-            None
-        },
-    );
-
     let mut data = Callable {
         vm: Arc::new(Mutex::new(PyThreadedVirtualMachine(vm.new_thread()))),
         py_cb: obj,
         jit: module.clone(),
-        params: Arc::new(params),
+        params: Arc::new(args.clone()),
         layout: args_layout.clone(),
         leaked: Arc::new(Mutex::new(None)),
         // dangling pointer until we fill this with real pointer

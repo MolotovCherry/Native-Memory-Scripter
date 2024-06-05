@@ -5,7 +5,7 @@ use rustpython_vm::pymodule;
 pub mod mem {
     use std::{
         fmt::{Debug, Display},
-        sync::Mutex,
+        sync::{Arc, Mutex},
     };
 
     use libmem::{
@@ -14,13 +14,18 @@ pub mod mem {
     use libmem_sys::{lm_byte_t, LM_DataScan, LM_ReadMemory, LM_WriteMemory, LM_ADDRESS_BAD};
     use rustpython_vm::{
         builtins::{PyByteArray, PyTypeRef},
+        convert::ToPyObject,
+        function::FuncArgs,
         prelude::{VirtualMachine, *},
         pyclass, pymodule,
         types::Constructor,
         PyPayload,
     };
 
-    use crate::utils::Sendable;
+    use crate::{
+        modules::cffi::{cffi::Callable, trampoline::Trampoline},
+        utils::Sendable,
+    };
 
     #[pyfunction]
     fn alloc_memory(size: usize, prot: PyRef<PyProt>) -> Option<Address> {
@@ -186,9 +191,22 @@ pub mod mem {
     }
 
     #[pyfunction]
-    fn hook_code(from: Address, to: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
-        let trampoline = unsafe { libmem::hook_code(from, to) };
-        trampoline.map(|t| PyTrampoline(t.address, t.size).into_pyobject(vm))
+    fn hook_code(
+        callable: PyRef<Callable>,
+        from: Address,
+        vm: &VirtualMachine,
+    ) -> PyResult<Option<PyObjectRef>> {
+        let trampoline = unsafe { libmem::hook_code(from, callable.addr()) };
+
+        let args = (&*callable.params.0, callable.params.1);
+
+        let trampoline = trampoline
+            .map(|t| Trampoline::new(t.address, t.size, args, vm))
+            .transpose()?;
+
+        let trampoline = trampoline.map(|t| PyTrampoline::new(t).to_pyobject(vm));
+
+        Ok(trampoline)
     }
 
     #[pyfunction]
@@ -248,7 +266,7 @@ pub mod mem {
 
     #[pyfunction]
     fn unhook_code(from: Address, trampoline: PyRef<PyTrampoline>) -> bool {
-        let t = **trampoline;
+        let t = &**trampoline;
         unsafe { libmem::unhook_code(from, t.into()).is_some() }
     }
 
@@ -571,24 +589,41 @@ pub mod mem {
 
     #[pyattr]
     #[pyclass(name = "Trampoline")]
-    #[derive(Debug, Copy, Clone, PyPayload)]
-    struct PyTrampoline(Address, usize);
+    #[derive(Debug, Clone, PyPayload)]
+    struct PyTrampoline(Arc<Mutex<Trampoline>>);
 
     #[pyclass]
     impl PyTrampoline {
+        fn new(t: Trampoline) -> Self {
+            Self(Arc::new(Mutex::new(t)))
+        }
+
         #[pygetset]
         fn address(&self) -> Address {
-            self.0
+            let lock = self.0.lock().unwrap();
+            lock.address()
         }
 
         #[pygetset]
         fn size(&self) -> usize {
-            self.1
+            let lock = self.0.lock().unwrap();
+            lock.size()
+        }
+
+        #[pymethod]
+        fn call(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+            let lock = self.0.lock().unwrap();
+            lock.call(&args.args, vm)
         }
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            format!("Trampoline {{ address: {}, size: {} }}", self.0, self.1)
+            let lock = self.0.lock().unwrap();
+            format!(
+                "Trampoline {{ address: {}, size: {} }}",
+                lock.address(),
+                lock.size()
+            )
         }
 
         #[pymethod(magic)]
@@ -597,11 +632,13 @@ pub mod mem {
         }
     }
 
-    impl From<PyTrampoline> for libmem::Trampoline {
-        fn from(t: PyTrampoline) -> Self {
+    impl From<&PyTrampoline> for libmem::Trampoline {
+        fn from(t: &PyTrampoline) -> Self {
+            let lock = t.0.lock().unwrap();
+
             Self {
-                address: t.0,
-                size: t.1,
+                address: lock.address(),
+                size: lock.size(),
             }
         }
     }

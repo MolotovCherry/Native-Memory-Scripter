@@ -348,6 +348,7 @@ impl Arg {
 }
 
 /// Creates a dynamic struct in memory for passing args to jit
+#[derive(Debug)]
 pub struct ArgMemory {
     ptr: RawSendable<u8>,
     layout: Layout,
@@ -533,9 +534,9 @@ impl ArgMemory {
                     let char = if char.len_utf8() == 1 {
                         char as u8
                     } else {
-                        return Err(vm.new_overflow_error(
-                            "string cannot be encoded into ascii".to_string(),
-                        ));
+                        return Err(
+                            vm.new_overflow_error("string cannot be encoded into char".to_string())
+                        );
                     };
 
                     unsafe {

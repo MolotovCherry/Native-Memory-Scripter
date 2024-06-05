@@ -1,7 +1,7 @@
 mod args;
 mod jit_wrapper;
 mod ret;
-mod trampoline;
+pub mod trampoline;
 mod types;
 mod vm;
 
@@ -15,7 +15,7 @@ pub mod cffi {
         sync::{Arc, Mutex},
     };
 
-    use cranelift::prelude::{isa::CallConv, types::Type as CType, *};
+    use cranelift::prelude::{isa::CallConv, *};
     use rustpython_vm::{
         builtins::PyTypeRef, function::FuncArgs, prelude::*, pyclass, pymodule, types::Constructor,
         PyPayload,
@@ -38,7 +38,7 @@ pub mod cffi {
         pub py_cb: PyObjectRef,
         pub jit: Arc<Mutex<Option<JITWrapper>>>,
         // Args, Ret types
-        pub params: Arc<(Vec<CType>, Option<CType>)>,
+        pub params: Arc<(Vec<Type>, Type)>,
         pub layout: ArgLayout,
         // leaked memory for the callback
         pub leaked: Arc<Mutex<Option<RawSendable<Self>>>>,
@@ -98,7 +98,7 @@ pub mod cffi {
     #[pyclass(with(Constructor))]
     impl Callable {
         #[pygetset]
-        fn addr(&self) -> usize {
+        pub fn addr(&self) -> usize {
             self.fn_addr.0.as_ptr() as _
         }
 
