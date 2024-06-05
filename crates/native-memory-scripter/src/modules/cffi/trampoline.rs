@@ -16,7 +16,7 @@ pub struct Trampoline {
     arg_mem: ArgMemory,
     args: (Vec<Type>, Type),
     jit: OnceLock<JITWrapper>,
-    jit_cb: OnceLock<extern "fastcall" fn(*const (), *mut Ret)>,
+    trampoline_cb: OnceLock<extern "fastcall" fn(*const (), *mut Ret)>,
 }
 
 impl Trampoline {
@@ -33,7 +33,7 @@ impl Trampoline {
             arg_mem,
             args: (args.0.to_vec(), args.1),
             jit: OnceLock::new(),
-            jit_cb: OnceLock::new(),
+            trampoline_cb: OnceLock::new(),
         };
 
         Ok(slf)
@@ -42,11 +42,11 @@ impl Trampoline {
     pub fn call(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<PyObjectRef> {
         self.arg_mem.fill(args, vm)?;
 
-        let trampoline = if let Some(&_fn) = self.jit_cb.get() {
+        let trampoline = if let Some(&_fn) = self.trampoline_cb.get() {
             _fn
         } else {
             let _fn = self.compile(vm)?;
-            _ = self.jit_cb.set(_fn);
+            _ = self.trampoline_cb.set(_fn);
             _fn
         };
 
@@ -54,11 +54,11 @@ impl Trampoline {
         trampoline(self.arg_mem.mem(), ret.as_mut_ptr());
 
         // we have nothing to write in the void case
-        let ret = if !matches!(self.args.1, Type::Void) {
-            unsafe { ret.assume_init() }
-        } else {
+        if matches!(self.args.1, Type::Void) {
             return Ok(None::<()>.to_pyobject(vm));
-        };
+        }
+
+        let ret = unsafe { ret.assume_init() };
 
         let Some(ret) = (unsafe { ret.to_pyobject(self.args.1, vm) }) else {
             return Ok(None::<()>.to_pyobject(vm));

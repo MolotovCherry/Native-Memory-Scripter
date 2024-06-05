@@ -235,15 +235,15 @@ pub mod cffi {
         const I128: PyType = PyType(Type::I128(types::I128));
 
         #[pyattr]
-        const Ptr: PyType = PyType(Type::Ptr(types::R64));
+        const Ptr: PyType = PyType(Type::Ptr(types::I64));
 
         #[pyattr]
         const Bool: PyType = PyType(Type::Bool(types::I8));
 
         #[pyattr]
-        const CStr: PyType = PyType(Type::CStr(types::R64));
+        const CStr: PyType = PyType(Type::CStr(types::I64));
         #[pyattr]
-        const WStr: PyType = PyType(Type::WStr(types::R64));
+        const WStr: PyType = PyType(Type::WStr(types::I64));
 
         #[pyattr]
         const Char: PyType = PyType(Type::Char(types::I8));

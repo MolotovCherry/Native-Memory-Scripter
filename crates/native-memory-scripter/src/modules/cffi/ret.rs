@@ -34,6 +34,8 @@ pub union Ret {
 }
 
 impl Ret {
+    /// SAFETY:
+    /// Caller asserts that Type represents the type held in Ret
     pub unsafe fn to_pyobject(&self, ret: Type, vm: &VirtualMachine) -> Option<PyObjectRef> {
         let val = match ret {
             Type::Void => return None,
