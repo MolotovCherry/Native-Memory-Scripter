@@ -5,7 +5,7 @@ use rustpython_vm::pymodule;
 pub mod mem {
     use std::{
         fmt::{Debug, Display},
-        sync::{Arc, Mutex},
+        sync::Mutex,
     };
 
     use libmem::{
@@ -20,10 +20,7 @@ pub mod mem {
         PyPayload,
     };
 
-    use crate::{
-        modules::cffi::{cffi::Callable, trampoline::Trampoline},
-        utils::Sendable,
-    };
+    use crate::utils::Sendable;
 
     #[pyfunction]
     fn alloc_memory(size: usize, prot: PyRef<PyProt>) -> Option<Address> {
