@@ -17,6 +17,7 @@ pub mod cffi {
     };
 
     use cranelift::prelude::{isa::CallConv, *};
+    use libmem::Address;
     use rustpython_vm::{
         builtins::PyTypeRef,
         function::FuncArgs,
@@ -40,7 +41,8 @@ pub mod cffi {
     pub struct Callable {
         addr: usize,
         code_size: u32,
-        trampoline: Arc<Mutex<Trampoline>>,
+        trampoline: Arc<Mutex<Option<Trampoline>>>,
+        params: (Vec<Type>, Type),
         #[allow(clippy::type_complexity)]
         cb_mem: Arc<Mutex<Option<(JITWrapper, RawSendable<Data>)>>>,
     }
@@ -91,18 +93,17 @@ pub mod cffi {
             let (module, leaked_data, address, code_size) =
                 jit_py_wrapper(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
 
-            let trampoline = Trampoline::new(address, (&fn_args, ret), vm)?;
-
             let callable = Callable {
                 addr: address,
                 code_size,
+                params: (fn_args, ret),
 
                 cb_mem: Arc::new(Mutex::new(Some((
                     JITWrapper(module),
                     RawSendable(unsafe { NonNull::new_unchecked(leaked_data) }),
                 )))),
 
-                trampoline: Arc::new(Mutex::new(trampoline)),
+                trampoline: Arc::default(),
             };
 
             Ok(callable.into_pyobject(vm))
@@ -122,9 +123,31 @@ pub mod cffi {
         }
 
         #[pymethod]
-        fn call(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+        fn hook(&self, from: Address, vm: &VirtualMachine) -> PyResult<bool> {
+            let Some(trampoline) = (unsafe { libmem::hook_code(from, self.addr) }) else {
+                return Ok(false);
+            };
+
+            let trampoline =
+                Trampoline::new(trampoline.address, (&self.params.0, self.params.1), vm)?;
+
+            let mut lock = self.trampoline.lock().unwrap();
+            *lock = Some(trampoline);
+
+            Ok(true)
+        }
+
+        #[pymethod]
+        fn call_trampoline(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
             let lock = self.trampoline.lock().unwrap();
-            lock.call(&args.args, vm)
+
+            let Some(trampoline) = &*lock else {
+                return Err(vm.new_runtime_error(
+                    "cannot call trampoline because no function was hooked".to_owned(),
+                ));
+            };
+
+            trampoline.call(&args.args, vm)
         }
     }
 

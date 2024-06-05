@@ -374,14 +374,6 @@ impl ArgMemory {
         Some(slf)
     }
 
-    pub fn size(&self) -> usize {
-        self.layout.size()
-    }
-
-    pub fn align(&self) -> usize {
-        self.layout.align()
-    }
-
     pub fn offsets(&self) -> &[usize] {
         &self.offsets
     }
