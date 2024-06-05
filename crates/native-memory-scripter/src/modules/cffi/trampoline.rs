@@ -17,16 +17,10 @@ pub struct Trampoline {
     args: (Vec<Type>, Type),
     jit: OnceLock<JITWrapper>,
     jit_cb: OnceLock<extern "fastcall" fn(*const (), *mut Ret)>,
-    size: usize,
 }
 
 impl Trampoline {
-    pub fn new(
-        addr: usize,
-        size: usize,
-        args: (&[Type], Type),
-        vm: &VirtualMachine,
-    ) -> PyResult<Self> {
+    pub fn new(addr: usize, args: (&[Type], Type), vm: &VirtualMachine) -> PyResult<Self> {
         if addr == 0 {
             return Err(vm.new_runtime_error("address is unexpectedly null".to_owned()));
         }
@@ -40,18 +34,9 @@ impl Trampoline {
             args: (args.0.to_vec(), args.1),
             jit: OnceLock::new(),
             jit_cb: OnceLock::new(),
-            size,
         };
 
         Ok(slf)
-    }
-
-    pub fn address(&self) -> usize {
-        self.addr
-    }
-
-    pub fn size(&self) -> usize {
-        self.size
     }
 
     pub fn call(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<PyObjectRef> {
@@ -83,10 +68,7 @@ impl Trampoline {
     }
 
     /// Compile the jit trampoline wrapper
-    pub fn compile(
-        &self,
-        vm: &VirtualMachine,
-    ) -> PyResult<extern "fastcall" fn(*const (), *mut Ret)> {
+    fn compile(&self, vm: &VirtualMachine) -> PyResult<extern "fastcall" fn(*const (), *mut Ret)> {
         let mut flag_builder = settings::builder();
         flag_builder.set("use_colocated_libcalls", "false").unwrap();
         flag_builder.set("is_pic", "true").unwrap();

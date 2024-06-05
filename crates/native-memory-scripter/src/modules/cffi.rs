@@ -12,20 +12,24 @@ use rustpython_vm::pymodule;
 pub mod cffi {
     use std::{
         ops::Deref,
+        ptr::NonNull,
         sync::{Arc, Mutex},
     };
 
     use cranelift::prelude::{isa::CallConv, *};
     use rustpython_vm::{
-        builtins::PyTypeRef, function::FuncArgs, prelude::*, pyclass, pymodule, types::Constructor,
+        builtins::PyTypeRef,
+        function::FuncArgs,
+        prelude::{PyObjectRef, VirtualMachine, *},
+        pyclass, pymodule,
+        types::Constructor,
         PyPayload,
     };
 
     use super::{
-        args::ArgLayout,
-        jit_wrapper::{jit_py_wrapper, JITWrapper},
+        jit_wrapper::{jit_py_wrapper, Data, JITWrapper},
+        trampoline::Trampoline,
         types::Type,
-        vm::PyThreadedVirtualMachine,
     };
     use crate::utils::RawSendable;
 
@@ -34,16 +38,11 @@ pub mod cffi {
     #[pyclass(name)]
     #[derive(Debug, Clone, PyPayload)]
     pub struct Callable {
-        pub vm: Arc<Mutex<PyThreadedVirtualMachine>>,
-        pub py_cb: PyObjectRef,
-        pub jit: Arc<Mutex<Option<JITWrapper>>>,
-        // Args, Ret types
-        pub params: Arc<(Vec<Type>, Type)>,
-        pub layout: ArgLayout,
-        // leaked memory for the callback
-        pub leaked: Arc<Mutex<Option<RawSendable<Self>>>>,
-        pub fn_addr: RawSendable<()>,
-        pub code_size: u32,
+        addr: usize,
+        code_size: u32,
+        trampoline: Arc<Mutex<Trampoline>>,
+        #[allow(clippy::type_complexity)]
+        cb_mem: Arc<Mutex<Option<(JITWrapper, RawSendable<Data>)>>>,
     }
 
     impl Constructor for Callable {
@@ -89,7 +88,22 @@ pub mod cffi {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let callable = jit_py_wrapper(&name, args.0, (fn_args, ret), calling_conv, vm)?;
+            let (module, leaked_data, address, code_size) =
+                jit_py_wrapper(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
+
+            let trampoline = Trampoline::new(address, (&fn_args, ret), vm)?;
+
+            let callable = Callable {
+                addr: address,
+                code_size,
+
+                cb_mem: Arc::new(Mutex::new(Some((
+                    JITWrapper(module),
+                    RawSendable(unsafe { NonNull::new_unchecked(leaked_data) }),
+                )))),
+
+                trampoline: Arc::new(Mutex::new(trampoline)),
+            };
 
             Ok(callable.into_pyobject(vm))
         }
@@ -99,7 +113,7 @@ pub mod cffi {
     impl Callable {
         #[pygetset]
         pub fn addr(&self) -> usize {
-            self.fn_addr.0.as_ptr() as _
+            self.addr
         }
 
         #[pygetset]
@@ -107,21 +121,22 @@ pub mod cffi {
             self.code_size
         }
 
-        /// SAFETY:
-        /// Ensure that no C code will ever call this function ever again
-        /// Never calling this will leak memory
         #[pymethod]
-        fn free_memory(&self) {
-            let mut lock = self.jit.lock().unwrap();
-            if let Some(jit) = lock.take() {
-                unsafe {
-                    jit.0.free_memory();
-                }
-            }
+        fn call(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+            let lock = self.trampoline.lock().unwrap();
+            lock.call(&args.args, vm)
+        }
+    }
 
-            let mut lock = self.leaked.lock().unwrap();
-            if let Some(callable) = lock.take() {
-                _ = unsafe { Box::from_raw(callable.0.as_ptr()) };
+    impl Drop for Callable {
+        fn drop(&mut self) {
+            if let Ok(mut lock) = self.cb_mem.lock() {
+                if let Some((jit, leaked)) = lock.take() {
+                    unsafe {
+                        jit.0.free_memory();
+                        _ = Box::from_raw(leaked.0.as_ptr());
+                    }
+                }
             }
         }
     }

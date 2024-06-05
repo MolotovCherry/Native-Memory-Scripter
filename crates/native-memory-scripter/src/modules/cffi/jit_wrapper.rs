@@ -1,19 +1,20 @@
+mod callback;
+
 use std::{
     hint::unreachable_unchecked,
     mem,
     ops::{Deref, DerefMut},
-    ptr::NonNull,
-    sync::{Arc, Mutex},
 };
 
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
-use rustpython_vm::function::FuncArgs;
+use libmem::Address;
 use rustpython_vm::prelude::*;
+use rustpython_vm::vm::thread::ThreadedVirtualMachine;
 
-use super::{args::ArgLayout, cffi::Callable, ret::Ret, types::Type};
-use crate::{modules::cffi::vm::PyThreadedVirtualMachine, utils::RawSendable};
+use self::callback::__jit_cb;
+use super::{args::ArgLayout, ret::Ret, types::Type};
 
 pub struct JITWrapper(pub JITModule);
 
@@ -37,35 +38,21 @@ impl DerefMut for JITWrapper {
     }
 }
 
-extern "fastcall" fn __jit_cb(args: *const (), data: &Callable, ret: &mut Ret) {
-    let vm = &*data.vm.lock().unwrap();
-
-    let result = vm.0.shared_run(|vm| {
-        let mut iter = unsafe { data.layout.iter(args) };
-
-        let mut py_args = FuncArgs::default();
-
-        let first = iter.next().unwrap().as_u8();
-        let second = iter.next().unwrap().as_u64();
-
-        py_args.prepend_arg(vm.new_pyobj(second));
-        py_args.prepend_arg(vm.new_pyobj(first));
-
-        let res = data.py_cb.call_with_args(py_args, vm).unwrap();
-        9u32
-    });
-
-    *ret = Ret { u32: result };
+pub struct Data {
+    vm: ThreadedVirtualMachine,
+    callable: PyObjectRef,
+    params: (Vec<Type>, Type),
+    layout: ArgLayout,
 }
 
 // generate a c wrapper according to specs
 pub fn jit_py_wrapper(
     name: &str,
     obj: PyObjectRef,
-    args: (Vec<Type>, Type),
+    args: (&[Type], Type),
     call_conv: CallConv,
     vm: &VirtualMachine,
-) -> PyResult<Callable> {
+) -> PyResult<(JITModule, *mut Data, Address, u32)> {
     let mut flag_builder = settings::builder();
     flag_builder.set("use_colocated_libcalls", "false").unwrap();
     flag_builder.set("is_pic", "true").unwrap();
@@ -126,38 +113,20 @@ pub fn jit_py_wrapper(
         .unwrap();
 
     //
-    // create callback and leak it
+    // create data and leak it
     //
 
-    let module = Arc::new(Mutex::new(Some(JITWrapper(module))));
+    let args_layout = ArgLayout::new(args.0).unwrap();
 
-    let args_layout = ArgLayout::new(&args.0).unwrap();
-
-    let mut data = Callable {
-        vm: Arc::new(Mutex::new(PyThreadedVirtualMachine(vm.new_thread()))),
-        py_cb: obj,
-        jit: module.clone(),
-        params: Arc::new(args.clone()),
+    let data = Data {
+        vm: vm.new_thread(),
+        callable: obj,
+        params: (args.0.to_vec(), args.1),
         layout: args_layout.clone(),
-        leaked: Arc::new(Mutex::new(None)),
-        // dangling pointer until we fill this with real pointer
-        fn_addr: RawSendable(NonNull::dangling()),
-        code_size: 0,
     };
 
     // since we cloned this, we clone the dangling pointer, but we don't need this address anyways
-    let leaked_data = Box::leak(Box::new(data.clone()));
-
-    // leak callback and set a pointer to it inside callable so it can be freed later
-    {
-        let mut lock = data.leaked.lock().unwrap();
-        *lock = Some(RawSendable(NonNull::new(leaked_data).unwrap()));
-    }
-
-    let mut module = module.lock().unwrap();
-    let module = module.as_mut().unwrap();
-
-    let leaked_data = &*leaked_data;
+    let leaked_data = Box::leak(Box::new(data));
 
     //
     // jit function
@@ -244,8 +213,6 @@ pub fn jit_py_wrapper(
     // Get a raw pointer to the generated code.
     let code = module.get_finalized_function(func);
 
-    data.fn_addr = RawSendable(NonNull::new(code as *const _ as *mut _).unwrap());
-    data.code_size = code_size;
-
-    Ok(data)
+    // we cast leaked data to a raw pointer so that a mutable reference does not exist anymore and we can call the callback with &Data
+    Ok((module, leaked_data, code as _, code_size))
 }
