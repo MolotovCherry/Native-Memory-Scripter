@@ -387,7 +387,6 @@ impl ArgMemory {
     }
 
     unsafe fn write<D>(&self, data: D, offset: usize) {
-        let _lock = self.lock.lock().unwrap();
         unsafe { self.ptr.as_ptr().add(offset).cast::<D>().write(data) }
     }
 
@@ -397,6 +396,8 @@ impl ArgMemory {
         if args.len() != self.args.len() {
             return Err(vm.new_runtime_error("incorrect number of args".to_owned()));
         }
+
+        let _lock = self.lock.lock().unwrap();
 
         for (arg, (offset, ty)) in args
             .iter()
