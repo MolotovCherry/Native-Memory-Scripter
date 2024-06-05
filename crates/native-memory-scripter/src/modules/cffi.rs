@@ -124,6 +124,14 @@ pub mod cffi {
 
         #[pymethod]
         fn hook(&self, from: Address, vm: &VirtualMachine) -> PyResult<bool> {
+            let mut lock = self.trampoline.lock().unwrap();
+            if lock.is_some() {
+                return Err(vm.new_runtime_error(
+                    "this callable is already hooking something. create a new callable to hook something else"
+                        .to_owned(),
+                ));
+            }
+
             let Some(trampoline) = (unsafe { libmem::hook_code(from, self.addr) }) else {
                 return Ok(false);
             };
@@ -131,7 +139,6 @@ pub mod cffi {
             let trampoline =
                 Trampoline::new(trampoline.address, (&self.params.0, self.params.1), vm)?;
 
-            let mut lock = self.trampoline.lock().unwrap();
             *lock = Some(trampoline);
 
             Ok(true)
