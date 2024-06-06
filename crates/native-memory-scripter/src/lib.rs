@@ -6,7 +6,7 @@ mod modules;
 mod paths;
 mod utils;
 
-use std::{ffi::c_void, sync::OnceLock, thread};
+use std::{ffi::c_void, panic, sync::OnceLock, thread};
 
 use eyre::{Context, Result};
 use native_plugin_lib::declare_plugin;
@@ -41,7 +41,7 @@ extern "C-unwind" fn DllMain(
             thread::spawn(move || {
                 // make sure we catch panics so they don't propagate up any further
                 // we already handle panic logging, so we don't care about the return value
-                _ = std::panic::catch_unwind(move || {
+                _ = panic::catch_unwind(move || {
                     if let Err(e) = pre_init(module) {
                         // whether this prints or not depends on which point it failed
                         error!("\nError:{e:?}");
