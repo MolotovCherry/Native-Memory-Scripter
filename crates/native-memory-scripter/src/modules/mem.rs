@@ -14,6 +14,7 @@ pub mod mem {
     use libmem_sys::{lm_byte_t, LM_DataScan, LM_ReadMemory, LM_WriteMemory, LM_ADDRESS_BAD};
     use rustpython_vm::{
         builtins::{PyByteArray, PyTypeRef},
+        convert::ToPyObject as _,
         prelude::{VirtualMachine, *},
         pyclass, pymodule,
         types::Constructor,
@@ -64,7 +65,7 @@ pub mod mem {
         libmem::enum_modules().map(|modules| {
             modules
                 .into_iter()
-                .map(|module| PyModule(module).into_ref(&vm.ctx).into())
+                .map(|module| PyModule(module).into_pyobject(vm))
                 .collect()
         })
     }
@@ -74,7 +75,7 @@ pub mod mem {
         libmem::enum_segments().map(|segments| {
             segments
                 .into_iter()
-                .map(|segment| PySegment(segment).into_ref(&vm.ctx).into())
+                .map(|segment| PySegment(segment).into_pyobject(vm))
                 .collect()
         })
     }
@@ -84,7 +85,7 @@ pub mod mem {
         libmem::enum_processes().map(|processes| {
             processes
                 .into_iter()
-                .map(|process| PyProcess(process).into_ref(&vm.ctx).into())
+                .map(|process| PyProcess(process).into_pyobject(vm))
                 .collect()
         })
     }
@@ -94,7 +95,7 @@ pub mod mem {
         libmem::enum_symbols(&module.0).map(|symbols| {
             symbols
                 .into_iter()
-                .map(|symbol| PySymbol(symbol).into_ref(&vm.ctx).into())
+                .map(|symbol| PySymbol(symbol).into_pyobject(vm))
                 .collect()
         })
     }
@@ -107,7 +108,7 @@ pub mod mem {
         libmem::enum_symbols_demangled(&module.0).map(|symbols| {
             symbols
                 .into_iter()
-                .map(|symbol| PySymbol(symbol).into_ref(&vm.ctx).into())
+                .map(|symbol| PySymbol(symbol).into_pyobject(vm))
                 .collect()
         })
     }
@@ -117,7 +118,7 @@ pub mod mem {
         libmem::enum_threads().map(|threads| {
             threads
                 .into_iter()
-                .map(|thread| PyThread(thread).into_ref(&vm.ctx).into())
+                .map(|thread| PyThread(thread).into_pyobject(vm))
                 .collect()
         })
     }
@@ -147,7 +148,7 @@ pub mod mem {
 
     #[pyfunction]
     fn find_segment(address: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
-        libmem::find_segment(address).map(|segment| PySegment(segment).into_ref(&vm.ctx).into())
+        libmem::find_segment(address).map(|segment| PySegment(segment).to_pyobject(vm))
     }
 
     #[pyfunction]
@@ -280,9 +281,7 @@ pub mod mem {
 
         fn py_new(_cls: PyTypeRef, args: Self::Args, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
             let vmt = Vmt::new(args);
-            let slf = Self(args, Sendable(Mutex::new(vmt)))
-                .into_ref(&vm.ctx)
-                .into();
+            let slf = Self(args, Sendable(Mutex::new(vmt))).into_pyobject(vm);
 
             Ok(slf)
         }

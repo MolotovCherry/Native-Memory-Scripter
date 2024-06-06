@@ -58,7 +58,7 @@ pub mod cffi {
 
             let calling_conv = args
                 .1
-                .get_kwarg("conv", _call_conv::WindowsFastcall.into_ref(&vm.ctx).into());
+                .get_kwarg("conv", _call_conv::WindowsFastcall.into_pyobject(vm));
 
             let call_conv = calling_conv
                 .downcast_exact::<PyCallConv>(vm)
@@ -67,7 +67,7 @@ pub mod cffi {
 
             let ret = args
                 .1
-                .get_kwarg("ret", PyType(Type::Void).into_ref(&vm.ctx).into());
+                .get_kwarg("ret", PyType(Type::Void).into_pyobject(vm));
 
             let ret = ret
                 .downcast_exact::<PyType>(vm)
