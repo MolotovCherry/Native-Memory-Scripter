@@ -94,11 +94,6 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
         let offset = self.layout.offsets[pos];
 
         let arg = match ty {
-            Type::Void => {
-                error!("bug! args cannot be void!");
-                return None;
-            }
-
             Type::F32(_) => {
                 let arg = unsafe { *self.ptr.add(offset).cast::<f32>() };
                 Arg::F32(arg)
@@ -188,6 +183,8 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
                 let arg = unsafe { *self.ptr.add(offset).cast::<u16>() };
                 Arg::WChar(unsafe { char::from_u32_unchecked(arg as u32) })
             }
+
+            _ => unreachable!(),
         };
 
         Some(arg)
@@ -272,6 +269,13 @@ impl Arg {
     pub fn as_u64(&self) -> u64 {
         match self {
             Self::U64(u) => *u,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn as_u128(&self) -> u128 {
+        match self {
+            Self::U128(u) => *u,
             _ => unreachable!(),
         }
     }
@@ -396,10 +400,6 @@ impl ArgMemory {
             .zip(self.offsets.iter().copied().zip(self.args.iter().copied()))
         {
             match ty {
-                Type::Void => {
-                    return Err(vm.new_runtime_error("void cannot be an argument".to_owned()));
-                }
-
                 Type::F32(_) => {
                     // note: truncation happens if f64 was beyond its limits
                     let f = arg.try_float(vm)?.to_f64() as f32;
@@ -562,6 +562,8 @@ impl ArgMemory {
                         self.write(wchar, offset);
                     }
                 }
+
+                _ => unreachable!(),
             }
         }
 

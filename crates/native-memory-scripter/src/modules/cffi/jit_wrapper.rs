@@ -84,10 +84,6 @@ pub fn jit_py_wrapper(
     sig_fn.call_conv = call_conv;
 
     for arg in args.0.iter().copied() {
-        if matches!(arg, Type::Void) {
-            return Err(vm.new_type_error("void is not a valid argument type".to_owned()));
-        }
-
         sig_fn.params.push(AbiParam::new(arg.into()));
     }
 

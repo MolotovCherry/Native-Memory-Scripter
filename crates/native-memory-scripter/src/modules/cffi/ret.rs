@@ -1,3 +1,5 @@
+use std::ffi;
+
 use rustpython_vm::{
     convert::ToPyObject,
     prelude::{PyObjectRef, VirtualMachine},
@@ -36,9 +38,9 @@ pub union Ret {
 impl Ret {
     /// SAFETY:
     /// Caller asserts that Type represents the type held in Ret
-    pub unsafe fn to_pyobject(&self, ret: Type, vm: &VirtualMachine) -> Option<PyObjectRef> {
-        let val = match ret {
-            Type::Void => return None,
+    pub unsafe fn to_pyobject(&self, ret: Type, vm: &VirtualMachine) -> PyObjectRef {
+        match ret {
+            Type::Void => None::<()>.to_pyobject(vm),
             Type::F32(_) => unsafe { self.f32.to_pyobject(vm) },
             Type::F64(_) => unsafe { self.f64.to_pyobject(vm) },
             Type::U8(_) => unsafe { self.u8.to_pyobject(vm) },
@@ -57,7 +59,7 @@ impl Ret {
             // null terminated
             Type::CStr(_) => {
                 let ptr = unsafe { self.ptr as *const i8 };
-                let data = unsafe { std::ffi::CStr::from_ptr(ptr) };
+                let data = unsafe { ffi::CStr::from_ptr(ptr) };
                 let string = data.to_string_lossy().to_string();
                 string.to_pyobject(vm)
             }
@@ -74,10 +76,8 @@ impl Ret {
             Type::WChar(_) => {
                 let char = unsafe { self.wchar };
                 // not all u16 is valid char
-                return char::from_u32(char as u32).map(|c| c.to_pyobject(vm));
+                char::from_u32(char as u32).to_pyobject(vm)
             }
-        };
-
-        Some(val)
+        }
     }
 }

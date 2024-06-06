@@ -45,7 +45,7 @@ impl Trampoline {
         let trampoline = if let Some(&_fn) = self.trampoline_cb.get() {
             _fn
         } else {
-            let _fn = self.compile(vm)?;
+            let _fn = self.compile()?;
             _ = self.trampoline_cb.set(_fn);
             _fn
         };
@@ -58,17 +58,13 @@ impl Trampoline {
             return Ok(None::<()>.to_pyobject(vm));
         }
 
-        let ret = unsafe { ret.assume_init() };
-
-        let Some(ret) = (unsafe { ret.to_pyobject(self.args.1, vm) }) else {
-            return Ok(None::<()>.to_pyobject(vm));
-        };
+        let ret = unsafe { ret.assume_init().to_pyobject(self.args.1, vm) };
 
         Ok(ret)
     }
 
     /// Compile the jit trampoline wrapper
-    fn compile(&self, vm: &VirtualMachine) -> PyResult<extern "fastcall" fn(*const (), *mut Ret)> {
+    fn compile(&self) -> PyResult<extern "fastcall" fn(*const (), *mut Ret)> {
         let mut flag_builder = settings::builder();
         flag_builder.set("use_colocated_libcalls", "false").unwrap();
         flag_builder.set("is_pic", "true").unwrap();
@@ -103,10 +99,6 @@ impl Trampoline {
         tp_sig_fn.call_conv = CallConv::WindowsFastcall;
 
         for &arg in &self.args.0 {
-            if matches!(arg, Type::Void) {
-                return Err(vm.new_runtime_error("arg cannot be void".to_owned()));
-            }
-
             let ty: types::Type = arg.into();
             tp_sig_fn.params.push(AbiParam::new(ty));
         }

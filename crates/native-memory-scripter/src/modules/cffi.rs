@@ -205,9 +205,6 @@ pub mod cffi {
         use super::*;
 
         #[pyattr]
-        const Void: PyType = PyType(Type::Void);
-
-        #[pyattr]
         const F32: PyType = PyType(Type::F32(types::F32));
         #[pyattr]
         const F64: PyType = PyType(Type::F64(types::F64));
