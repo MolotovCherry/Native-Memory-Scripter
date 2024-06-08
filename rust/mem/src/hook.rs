@@ -107,7 +107,8 @@ fn make_jmp(from: *mut u8, to: *const u8, force_64: bool) -> ArrayVec<u8, 14> {
 
 /// Starting at from address, finds next whole instruction and replaces it with
 /// jmp to target address. The replaced instruction is placed inside the trampoline,
-/// so caller must verify no relative instructions are replaced.
+/// so caller must verify no relative instructions are replaced, as these are not
+/// valid if they're in another location.
 ///
 /// If `to` address is within 32-bits of `from`, uses relative 32-bit jmp (5 bytes), otherwise
 /// will take 14 bytes for a full 64-bit jmp
