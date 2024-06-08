@@ -60,6 +60,21 @@ impl Display for Inst {
     }
 }
 
+pub trait InstructionBytes {
+    fn to_bytes(&self) -> Vec<u8>;
+}
+
+impl InstructionBytes for Vec<Inst> {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        for inst in self.iter() {
+            buffer.extend_from_slice(&inst.bytes);
+        }
+
+        buffer
+    }
+}
+
 pub fn assemble(code: &str) -> Result<Inst, AsmError> {
     if code.is_empty() {
         return Err(AsmError::BadAsm);
