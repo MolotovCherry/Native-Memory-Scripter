@@ -13,6 +13,8 @@ pub enum AsmError {
     BadAsm,
     #[error("failed to disassemble")]
     BadDis,
+    #[error("there were no instructions to disassemble")]
+    NoInstructions,
     #[error(transparent)]
     Keystone(#[from] keystone_engine::KeystoneError),
     #[error(transparent)]
@@ -21,7 +23,6 @@ pub enum AsmError {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Inst {
-    pub id: u32,
     pub address: u64,
     pub size: usize,
     pub bytes: Vec<u8>,
@@ -34,7 +35,6 @@ unsafe impl Send for Inst {}
 impl<'a> From<&'a Insn<'a>> for Inst {
     fn from(value: &Insn) -> Self {
         Self {
-            id: value.id().0,
             address: value.address(),
             size: value.len(),
             bytes: value.bytes().to_vec(),
@@ -58,15 +58,35 @@ impl Display for Inst {
     }
 }
 
-pub fn assemble(code: &str) -> Result<Vec<Inst>, AsmError> {
-    assemble_ex(code, 0, 0)
+pub fn assemble(code: &str) -> Result<Inst, AsmError> {
+    if code.is_empty() {
+        return Err(AsmError::BadAsm);
+    }
+
+    let ks = Keystone::new(Arch::X86, Mode::MODE_64)?;
+
+    let output = ks.asm(code.into(), 0)?;
+
+    if output.bytes.is_empty() {
+        return Err(AsmError::BadAsm);
+    }
+
+    let cs = Capstone::new()
+        .x86()
+        .mode(arch::x86::ArchMode::Mode64)
+        .syntax(arch::x86::ArchSyntax::Intel)
+        .build()?;
+
+    let insts = cs.disasm_count(&output.bytes, 0, 1)?;
+
+    let Some(inst) = insts.as_ref().iter().next() else {
+        return Err(AsmError::NoInstructions);
+    };
+
+    Ok(inst.into())
 }
 
-pub fn assemble_ex(
-    code: &str,
-    runtime_addr: usize,
-    instruction_count: usize,
-) -> Result<Vec<Inst>, AsmError> {
+pub fn assemble_ex(code: &str, runtime_addr: usize) -> Result<Vec<Inst>, AsmError> {
     if code.is_empty() {
         return Err(AsmError::BadAsm);
     }
@@ -79,23 +99,44 @@ pub fn assemble_ex(
         return Err(AsmError::BadAsm);
     }
 
-    let dis = disassemble_bytes_ex(&output.bytes, runtime_addr, instruction_count)?;
+    let dis = disassemble_bytes_ex(&output.bytes, runtime_addr)?;
 
     Ok(dis)
 }
 
 pub unsafe fn disassemble(addr: *const u8) -> Result<Inst, AsmError> {
-    let mut dis = unsafe { disassemble_ex(addr, 16, 0, 1)? };
+    let cs = Capstone::new()
+        .x86()
+        .mode(arch::x86::ArchMode::Mode64)
+        .syntax(arch::x86::ArchSyntax::Intel)
+        .build()?;
 
-    if !dis.is_empty() {
-        // remove panics, so we need to do the check
-        Ok(dis.remove(0))
-    } else {
-        Err(AsmError::BadDis)
-    }
+    let code = unsafe { slice::from_raw_parts(addr, 16) };
+
+    let insts = cs.disasm_count(code, 0, 1)?;
+
+    let Some(inst) = insts.as_ref().iter().next() else {
+        return Err(AsmError::NoInstructions);
+    };
+
+    Ok(inst.into())
 }
 
 pub unsafe fn disassemble_ex(
+    addr: *const u8,
+    size: usize,
+    runtime_addr: usize,
+) -> Result<Vec<Inst>, AsmError> {
+    if addr.is_null() {
+        return Err(AsmError::BadAddress);
+    }
+
+    let code = unsafe { slice::from_raw_parts(addr, size) };
+
+    disassemble_bytes_ex(code, runtime_addr)
+}
+
+pub unsafe fn disassemble_ex_count(
     addr: *const u8,
     size: usize,
     runtime_addr: usize,
@@ -107,14 +148,39 @@ pub unsafe fn disassemble_ex(
 
     let code = unsafe { slice::from_raw_parts(addr, size) };
 
-    disassemble_bytes_ex(code, runtime_addr, instruction_count)
+    disassemble_bytes_ex_count(code, runtime_addr, instruction_count)
 }
 
-pub fn disassemble_bytes(code: &[u8], instruction_count: usize) -> Result<Vec<Inst>, AsmError> {
-    disassemble_bytes_ex(code, 0, instruction_count)
+pub fn disassemble_bytes(code: &[u8]) -> Result<Vec<Inst>, AsmError> {
+    disassemble_bytes_ex(code, 0)
 }
 
-pub fn disassemble_bytes_ex(
+pub fn disassemble_bytes_count(
+    code: &[u8],
+    instruction_count: usize,
+) -> Result<Vec<Inst>, AsmError> {
+    disassemble_bytes_ex_count(code, 0, instruction_count)
+}
+
+pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: usize) -> Result<Vec<Inst>, AsmError> {
+    let cs = Capstone::new()
+        .x86()
+        .mode(arch::x86::ArchMode::Mode64)
+        .syntax(arch::x86::ArchSyntax::Intel)
+        .build()?;
+
+    let insts = cs.disasm_all(code, runtime_addr as u64)?;
+
+    let mut buffer = Vec::new();
+    for inst in insts.as_ref() {
+        let inst: Inst = inst.into();
+        buffer.push(inst);
+    }
+
+    Ok(buffer)
+}
+
+pub fn disassemble_bytes_ex_count(
     code: &[u8],
     runtime_addr: usize,
     instruction_count: usize,
@@ -149,6 +215,21 @@ pub unsafe fn code_len(mut addr: *const u8, min_len: usize) -> Result<usize, Asm
 
         len += inst.size;
         addr = unsafe { addr.add(inst.size) };
+    }
+
+    Ok(len)
+}
+
+pub fn code_bytes_len(bytes: &[u8], min_len: usize) -> Result<usize, AsmError> {
+    let insts = disassemble_bytes(bytes)?;
+
+    let mut len = 0;
+    for inst in insts {
+        len += inst.size;
+
+        if len >= min_len {
+            break;
+        }
     }
 
     Ok(len)
