@@ -42,9 +42,11 @@ type Pid = u32;
 static PROCESS: LazyLock<(HANDLE, Pid)> =
     LazyLock::new(|| unsafe { (GetCurrentProcess(), GetCurrentProcessId()) });
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Module {
-    module: HMODULE,
+    // our own unalterable copy of the base
+    pub(crate) module: HMODULE,
+
     pub base: Address,
     pub end: Address,
     pub size: u32,
@@ -55,11 +57,23 @@ pub struct Module {
 unsafe impl Send for Module {}
 unsafe impl Sync for Module {}
 
+impl fmt::Debug for Module {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Module")
+            .field("base", &self.base)
+            .field("end", &self.end)
+            .field("size", &self.size)
+            .field("path", &self.path)
+            .field("name", &self.name)
+            .finish()
+    }
+}
+
 impl fmt::Display for Module {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Module {{ base: {:#x?}, end: {:#x?}, size: {:#x}, path: {}, name: {} }}",
+            "Module {{ base: {:#x?}, end: {:#x?}, size: {}, path: {}, name: {} }}",
             self.base,
             self.end,
             self.size,
