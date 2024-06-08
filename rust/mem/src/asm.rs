@@ -5,6 +5,8 @@ use capstone::prelude::*;
 use capstone::Insn;
 use keystone_engine::{Arch, Keystone, Mode};
 
+use crate::{Address, AddressUtils as _};
+
 #[derive(Debug, thiserror::Error)]
 pub enum AsmError {
     #[error("bad address")]
@@ -86,7 +88,7 @@ pub fn assemble(code: &str) -> Result<Inst, AsmError> {
     Ok(inst.into())
 }
 
-pub fn assemble_ex(code: &str, runtime_addr: usize) -> Result<Vec<Inst>, AsmError> {
+pub fn assemble_ex(code: &str, runtime_addr: Address) -> Result<Vec<Inst>, AsmError> {
     if code.is_empty() {
         return Err(AsmError::BadAsm);
     }
@@ -104,14 +106,14 @@ pub fn assemble_ex(code: &str, runtime_addr: usize) -> Result<Vec<Inst>, AsmErro
     Ok(dis)
 }
 
-pub unsafe fn disassemble(addr: *const u8) -> Result<Inst, AsmError> {
+pub unsafe fn disassemble(addr: Address) -> Result<Inst, AsmError> {
     let cs = Capstone::new()
         .x86()
         .mode(arch::x86::ArchMode::Mode64)
         .syntax(arch::x86::ArchSyntax::Intel)
         .build()?;
 
-    let code = unsafe { slice::from_raw_parts(addr, 16) };
+    let code = unsafe { slice::from_raw_parts(addr as _, 16) };
 
     let insts = cs.disasm_count(code, 0, 1)?;
 
@@ -123,30 +125,30 @@ pub unsafe fn disassemble(addr: *const u8) -> Result<Inst, AsmError> {
 }
 
 pub unsafe fn disassemble_ex(
-    addr: *const u8,
+    addr: Address,
     size: usize,
-    runtime_addr: usize,
+    runtime_addr: Address,
 ) -> Result<Vec<Inst>, AsmError> {
     if addr.is_null() {
         return Err(AsmError::BadAddress);
     }
 
-    let code = unsafe { slice::from_raw_parts(addr, size) };
+    let code = unsafe { slice::from_raw_parts(addr.as_ptr(), size) };
 
     disassemble_bytes_ex(code, runtime_addr)
 }
 
 pub unsafe fn disassemble_ex_count(
-    addr: *const u8,
+    addr: Address,
     size: usize,
-    runtime_addr: usize,
+    runtime_addr: Address,
     instruction_count: usize,
 ) -> Result<Vec<Inst>, AsmError> {
     if addr.is_null() {
         return Err(AsmError::BadAddress);
     }
 
-    let code = unsafe { slice::from_raw_parts(addr, size) };
+    let code = unsafe { slice::from_raw_parts(addr.as_ptr(), size) };
 
     disassemble_bytes_ex_count(code, runtime_addr, instruction_count)
 }
@@ -162,7 +164,7 @@ pub fn disassemble_bytes_count(
     disassemble_bytes_ex_count(code, 0, instruction_count)
 }
 
-pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: usize) -> Result<Vec<Inst>, AsmError> {
+pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: Address) -> Result<Vec<Inst>, AsmError> {
     let cs = Capstone::new()
         .x86()
         .mode(arch::x86::ArchMode::Mode64)
@@ -182,7 +184,7 @@ pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: usize) -> Result<Vec<Inst
 
 pub fn disassemble_bytes_ex_count(
     code: &[u8],
-    runtime_addr: usize,
+    runtime_addr: Address,
     instruction_count: usize,
 ) -> Result<Vec<Inst>, AsmError> {
     let cs = Capstone::new()
@@ -202,7 +204,7 @@ pub fn disassemble_bytes_ex_count(
     Ok(buffer)
 }
 
-pub unsafe fn code_len(mut addr: *const u8, min_len: usize) -> Result<usize, AsmError> {
+pub unsafe fn code_len(mut addr: Address, min_len: usize) -> Result<usize, AsmError> {
     if addr.is_null() {
         return Err(AsmError::BadAddress);
     }
@@ -214,7 +216,7 @@ pub unsafe fn code_len(mut addr: *const u8, min_len: usize) -> Result<usize, Asm
         };
 
         len += inst.size;
-        addr = unsafe { addr.add(inst.size) };
+        addr += inst.size;
     }
 
     Ok(len)

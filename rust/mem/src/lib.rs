@@ -12,6 +12,28 @@ use windows::Win32::System::Memory::{
     PAGE_PROTECTION_FLAGS, PAGE_READONLY, PAGE_READWRITE, PAGE_WRITECOPY,
 };
 
+pub type Address = usize;
+
+trait AddressUtils {
+    fn is_null(&self) -> bool;
+    fn as_ptr<T>(&self) -> *const T;
+    fn as_mut<T>(&self) -> *mut T;
+}
+
+impl AddressUtils for Address {
+    fn is_null(&self) -> bool {
+        *self == 0
+    }
+
+    fn as_ptr<T>(&self) -> *const T {
+        *self as _
+    }
+
+    fn as_mut<T>(&self) -> *mut T {
+        *self as _
+    }
+}
+
 #[derive(Debug, strum::Display)]
 pub enum Prot {
     None,

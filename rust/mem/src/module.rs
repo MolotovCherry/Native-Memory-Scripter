@@ -21,7 +21,7 @@ use windows::{
     },
 };
 
-use crate::utils::LazyLock;
+use crate::{utils::LazyLock, Address};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModuleError {
@@ -45,8 +45,8 @@ static PROCESS: LazyLock<(HANDLE, Pid)> =
 #[derive(Debug, Clone)]
 pub struct Module {
     module: HMODULE,
-    pub base: *mut u8,
-    pub end: *mut u8,
+    pub base: Address,
+    pub end: Address,
     pub size: u32,
     pub path: PathBuf,
     pub name: String,
@@ -182,8 +182,8 @@ pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
 
         let module = Module {
             module: entry.hModule,
-            base: entry.modBaseAddr,
-            end: unsafe { entry.modBaseAddr.add(entry.dwSize as usize) },
+            base: entry.modBaseAddr as _,
+            end: entry.modBaseAddr as Address + entry.dwSize as usize,
             size: entry.modBaseSize,
             path: PathBuf::from(path),
             name,

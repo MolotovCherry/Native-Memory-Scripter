@@ -1,4 +1,4 @@
-use std::{fmt, mem, ptr};
+use std::{fmt, mem};
 
 use arrayvec::ArrayVec;
 use tracing::trace;
@@ -6,7 +6,7 @@ use tracing::trace;
 use crate::{
     asm::{self, AsmError},
     memory::{self, Alloc, MemError},
-    Prot,
+    Address, AddressUtils as _, Prot,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -26,8 +26,8 @@ pub struct Trampoline {
     // the allocation holding the code - the code disappears when the trampoline is dropped!
     _code: Alloc,
     // the original ptr + length that was replaced
-    from: (*mut u8, usize),
-    pub address: *const u8,
+    from: (Address, usize),
+    pub address: Address,
     pub size: usize,
 }
 
@@ -48,8 +48,8 @@ impl Trampoline {
         trace!(
             "unhook copying {} bytes from 0x{:X} -> 0x{:X}",
             self.from.1,
-            self._code.as_ptr::<()>() as usize,
-            self.from.0 as usize
+            self._code.addr(),
+            self.from.0
         );
 
         // remove memory protection
@@ -57,7 +57,7 @@ impl Trampoline {
 
         // replace original fn code back to original location
         unsafe {
-            memory::write_raw(self._code.as_ptr(), self.from.0, self.from.1);
+            memory::write_raw(self._code.addr() as _, self.from.0, self.from.1);
         }
 
         // restore memory protection
@@ -70,11 +70,11 @@ impl Trampoline {
 
     /// SAFETY: Caller must provide correct type signature
     pub unsafe fn callable<T: Copy>(&self) -> T {
-        unsafe { mem::transmute_copy(&self._code.as_ptr::<T>()) }
+        unsafe { mem::transmute_copy(&self._code.addr()) }
     }
 }
 
-fn make_jmp(from: *mut u8, to: *const u8, force_64: bool) -> ArrayVec<u8, 14> {
+fn make_jmp(from: Address, to: Address, force_64: bool) -> ArrayVec<u8, 14> {
     let mut jmp = ArrayVec::<_, 14>::new();
 
     // jmp code for trampoline
@@ -94,7 +94,7 @@ fn make_jmp(from: *mut u8, to: *const u8, force_64: bool) -> ArrayVec<u8, 14> {
         .and_then(|n| n.try_into().ok());
 
     if relative_addr.is_none() || force_64 {
-        jmp64[6..].copy_from_slice(&(to as usize).to_ne_bytes());
+        jmp64[6..].copy_from_slice(&to.to_ne_bytes());
         jmp.try_extend_from_slice(&jmp64).unwrap();
     } else if let Some(addr) = relative_addr {
         jmp32[1..].copy_from_slice(&addr.to_ne_bytes());
@@ -117,7 +117,7 @@ fn make_jmp(from: *mut u8, to: *const u8, force_64: bool) -> ArrayVec<u8, 14> {
 ///     - Must verify instruction that gets replaced is not relative
 ///     - Instruction that gets replaced should be able to ran in a different area of memory
 ///
-pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError> {
+pub unsafe fn hook(from: Address, to: Address) -> Result<Trampoline, HookError> {
     debug_assert!(!from.is_null(), "from must not be null");
     debug_assert!(!to.is_null(), "to must not be null");
 
@@ -133,11 +133,9 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     let orig_bytes = unsafe { memory::read_bytes(from, code_len) };
 
     trace!(
-        "jmp -> 0x{:X} used {} bytes spanning 0x{:X}-0x{:X}",
-        to as usize,
+        "jmp -> 0x{to:X} used {} bytes spanning 0x{from:X}-0x{:X}",
         jmp.len(),
-        from as usize,
-        (from as usize) + code_len
+        from + code_len
     );
 
     // remove memory protection
@@ -160,28 +158,24 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
 
     // generate full 64-bit jmp for trampoline
     // when force is on, `from` addr is not used
-    let target = unsafe { from.add(code_len) };
-    let jmp = make_jmp(ptr::null_mut(), target, true);
+    let target = from + code_len;
+    let jmp = make_jmp(0, target, true);
 
     // allocate some memory for our trampoline
     let trampoline_len = orig_bytes.len() + jmp.len();
     let trampoline = memory::alloc(trampoline_len, Prot::XRW)?;
 
-    trace!(
-        "trampoline @ 0x{:X} jmp -> 0x{:X}",
-        trampoline.as_ptr::<()>() as usize,
-        target as usize
-    );
+    trace!("trampoline @ 0x{:X} jmp -> 0x{target:X}", trampoline.addr());
 
     // write original code to trampoline
-    unsafe { memory::write_bytes(&orig_bytes, trampoline.as_ptr()) };
+    unsafe { memory::write_bytes(&orig_bytes, trampoline.addr()) };
 
     // now write jmp
-    unsafe { memory::write_bytes(&jmp, trampoline.as_ptr::<u8>().add(orig_bytes.len())) };
+    unsafe { memory::write_bytes(&jmp, trampoline.addr() + orig_bytes.len()) };
 
     // make it executable and readonly
     unsafe {
-        memory::prot(trampoline.as_ptr(), trampoline_len, Prot::XR)?;
+        memory::prot(trampoline.addr() as _, trampoline_len, Prot::XR)?;
     }
 
     //
@@ -190,7 +184,7 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
 
     let trampoline = Trampoline {
         from: (from, code_len),
-        address: trampoline.as_ptr(),
+        address: trampoline.addr(),
         _code: trampoline,
         size: trampoline_len,
     };

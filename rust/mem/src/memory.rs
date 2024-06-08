@@ -11,7 +11,7 @@ use windows::Win32::System::{
     SystemInformation::{GetSystemInfo, SYSTEM_INFO},
 };
 
-use crate::Prot;
+use crate::{Address, AddressUtils, Prot};
 
 #[derive(Debug, thiserror::Error)]
 pub enum MemError {
@@ -28,8 +28,8 @@ pub struct Alloc(NonNull<()>);
 unsafe impl Send for Alloc {}
 
 impl Alloc {
-    pub fn as_ptr<T>(&self) -> *mut T {
-        self.0.as_ptr().cast()
+    pub fn addr(&self) -> usize {
+        self.0.as_ptr() as _
     }
 }
 
@@ -49,16 +49,15 @@ impl Drop for Alloc {
 ///     - Beware of any drop impl on T
 ///     - Address must be aligned for T
 ///     - Address must be valid for reads up to size of T
-pub unsafe fn read<T>(addr: *const T) -> T {
+pub unsafe fn read<T>(addr: Address) -> T {
     if cfg!(debug_assertions) {
         let align = mem::align_of::<T>();
-        let addr = addr as usize;
         assert!(addr % align == 0, "addr is not aligned to T");
     }
 
     debug_assert!(!addr.is_null(), "ptr must not be null");
 
-    unsafe { ptr::read(addr) }
+    unsafe { ptr::read(addr.as_ptr()) }
 }
 
 /// Read bytes from address
@@ -69,13 +68,13 @@ pub unsafe fn read<T>(addr: *const T) -> T {
 ///     - Should only use for runtime addresses (otherwise lack of provenance is UB)
 ///     - Address must be valid for reads
 ///     - Address must be valid for reads up to addr+count bytes
-pub unsafe fn read_bytes(src: *const u8, count: usize) -> Vec<u8> {
+pub unsafe fn read_bytes(src: Address, count: usize) -> Vec<u8> {
     debug_assert!(!src.is_null(), "src must not be null");
 
     let mut buffer = Vec::with_capacity(count);
 
     unsafe {
-        ptr::copy_nonoverlapping(src, buffer.as_mut_ptr(), count);
+        ptr::copy_nonoverlapping(src as _, buffer.as_mut_ptr(), count);
     }
 
     unsafe {
@@ -90,18 +89,17 @@ pub unsafe fn read_bytes(src: *const u8, count: usize) -> Vec<u8> {
 /// SAFETY:
 ///     - dst must be aligned
 ///     - dst must be valid for writes
-pub unsafe fn write<T>(dst: *mut T, src: T) {
+pub unsafe fn write<T>(dst: Address, src: T) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
     if cfg!(debug_assertions) {
         let align = mem::align_of::<T>();
 
-        let dst = dst as usize;
         assert!(dst % align == 0, "dst is not aligned to T");
     }
 
     unsafe {
-        ptr::write(dst, src);
+        ptr::write(dst.as_mut(), src);
     }
 }
 
@@ -110,10 +108,10 @@ pub unsafe fn write<T>(dst: *mut T, src: T) {
 /// SAFETY:
 ///     - dst must be valid for writes up to count bytes
 ///     - addresses must not overlap
-pub unsafe fn write_bytes(src: &[u8], dst: *mut u8) {
+pub unsafe fn write_bytes(src: &[u8], dst: Address) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
-    unsafe { write_raw(src.as_ptr(), dst, src.len()) }
+    unsafe { write_raw(src.as_ptr() as _, dst, src.len()) }
 }
 
 /// Write ptr to dst
@@ -122,11 +120,11 @@ pub unsafe fn write_bytes(src: &[u8], dst: *mut u8) {
 ///     - src must be valid for reads up to count bytes
 ///     - dst must be valid for writes up to count bytes
 ///     - addresses must not overlap
-pub unsafe fn write_raw(src: *const u8, dst: *mut u8, count: usize) {
+pub unsafe fn write_raw(src: Address, dst: Address, count: usize) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
     unsafe {
-        ptr::copy_nonoverlapping(src, dst, count);
+        ptr::copy_nonoverlapping(src.as_ptr::<u8>(), dst.as_mut(), count);
     }
 }
 
@@ -134,15 +132,15 @@ pub unsafe fn write_raw(src: *const u8, dst: *mut u8, count: usize) {
 ///
 /// SAFETY:
 ///     - dst must be valid for writes up to count bytes
-pub unsafe fn set(dst: *mut u8, val: u8, count: usize) {
+pub unsafe fn set(dst: Address, val: u8, count: usize) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
     unsafe {
-        ptr::write_bytes(dst, val, count);
+        ptr::write_bytes(dst.as_mut::<u8>(), val, count);
     }
 }
 
-pub unsafe fn prot(addr: *mut u8, mut size: usize, prot: Prot) -> Result<Prot, MemError> {
+pub unsafe fn prot(addr: Address, mut size: usize, prot: Prot) -> Result<Prot, MemError> {
     if addr.is_null() {
         return Err(MemError::BadAddress);
     }
@@ -153,7 +151,7 @@ pub unsafe fn prot(addr: *mut u8, mut size: usize, prot: Prot) -> Result<Prot, M
 
     let mut old_prot = PAGE_PROTECTION_FLAGS::default();
     unsafe {
-        VirtualProtect(addr.cast(), size, prot.into(), &mut old_prot)?;
+        VirtualProtect(addr.as_ptr(), size, prot.into(), &mut old_prot)?;
     }
 
     Ok(old_prot.into())
