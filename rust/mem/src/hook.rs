@@ -1,5 +1,6 @@
-use core::fmt;
-use std::mem;
+use std::{fmt, mem, ptr};
+
+use arrayvec::ArrayVec;
 
 use crate::{
     asm::{self, AsmError},
@@ -65,13 +66,45 @@ impl Trampoline {
     }
 }
 
-///
+fn make_jmp(from: *mut u8, to: *const u8, force_64: bool) -> ArrayVec<u8, 14> {
+    let mut jmp = ArrayVec::<_, 14>::new();
+
+    // jmp code for trampoline
+    #[rustfmt::skip]
+    let mut jmp64 = [
+        // jmp [rip]
+        0xFF, 0x25, 0x00, 0x00, 0x00, 0x00,
+        // addr
+        0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+    ];
+
+    let mut jmp32 = [0xE9, 0x0, 0x0, 0x0, 0x0]; // jmp <addr>
+
+    let relative_addr: Option<u32> = (to as usize)
+        .checked_sub(from as usize)
+        .and_then(|i| i.checked_sub(jmp32.len()))
+        .and_then(|n| n.try_into().ok());
+
+    if relative_addr.is_none() || force_64 {
+        jmp64[6..].copy_from_slice(&(to as usize).to_ne_bytes());
+        jmp.try_extend_from_slice(&jmp64).unwrap();
+    } else if let Some(addr) = relative_addr {
+        jmp32[1..].copy_from_slice(&addr.to_ne_bytes());
+        jmp.try_extend_from_slice(&jmp32).unwrap();
+    }
+
+    jmp
+}
+
 /// Starting at from address, finds next whole instruction and replaces it with
 /// jmp to target address. The replaced instruction is placed inside the trampoline,
 /// so caller must verify no relative instructions are replaced.
 ///
+/// If `to` address is within 32-bits of `from`, uses relative 32-bit jmp (5 bytes), otherwise
+/// will take 14 bytes for a full 64-bit jmp
+///
 /// SAFETY:
-///     - Must manually verify from location enough space for 14 bytes jmp to be written
+///     - Must manually verify from location enough space for 14 or 5 bytes jmp to be written
 ///     - Must verify instruction that gets replaced is not relative
 ///     - Instruction that gets replaced should be able to ran in a different area of memory
 ///
@@ -79,50 +112,16 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     debug_assert!(!from.is_null(), "from must not be null");
     debug_assert!(!to.is_null(), "to must not be null");
 
-    // jmp code for trampoline
-    #[rustfmt::skip]
-    let mut jmp = [
-        // jmp QWORD PTR [rip+0x0]
-        0xFF, 0x25, 0x00, 0x00, 0x00, 0x00,
-        // addr
-        0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-    ];
-
-    let code_len = unsafe { asm::code_len(from, jmp.len())? };
-
-    //
-    // generate the trampoline
-    //
-
-    // allocate some memory for our trampoline
-    let trampoline_len = code_len + jmp.len();
-    let trampoline = memory::alloc(trampoline_len, Prot::XRW)?;
-    let trampoline_ptr = trampoline.as_ptr();
-    // write original code to trampoline
-    unsafe { memory::write_raw(from, trampoline_ptr, code_len) };
-
-    // cause trampoline to call original function
-    let target_addr = (from as usize + code_len).to_ne_bytes();
-    // copy address into instruction array
-    let si = jmp.len() - mem::size_of::<*const u8>();
-    jmp[si..].copy_from_slice(&target_addr);
-
-    // now write jmp
-    unsafe { memory::write_bytes(&jmp, trampoline_ptr.add(code_len)) };
-
-    // make it executable and readonly
-    unsafe {
-        memory::prot(trampoline_ptr, trampoline_len, Prot::XR)?;
-    }
-
     //
     // copy the jmp to the original function to redirect it
     //
 
-    // cause trampoline to call original function
-    let target_addr = (to as usize).to_ne_bytes();
-    // copy address into instruction array
-    jmp[si..].copy_from_slice(&target_addr);
+    // generate 5 or 14 byte jmp, whichever is possible
+    let jmp = make_jmp(from, to, false);
+
+    // we will need these later for the trampoline
+    let code_len = unsafe { asm::code_len(from, jmp.len())? };
+    let orig_bytes = unsafe { memory::read_bytes(from, code_len) };
 
     // remove memory protection
     let prot_size = jmp.len();
@@ -139,12 +138,35 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     }
 
     //
+    // generate the trampoline
+    //
+
+    // generate full 64-bit jmp for trampoline
+    // when force is on, `from` addr is not used
+    let jmp = make_jmp(ptr::null_mut(), unsafe { from.add(code_len) }, true);
+
+    // allocate some memory for our trampoline
+    let trampoline_len = orig_bytes.len() + jmp.len();
+    let trampoline = memory::alloc(trampoline_len, Prot::XRW)?;
+
+    // write original code to trampoline
+    unsafe { memory::write_bytes(&orig_bytes, trampoline.as_ptr()) };
+
+    // now write jmp
+    unsafe { memory::write_bytes(&jmp, trampoline.as_ptr::<u8>().add(orig_bytes.len())) };
+
+    // make it executable and readonly
+    unsafe {
+        memory::prot(trampoline.as_ptr(), trampoline_len, Prot::XR)?;
+    }
+
+    //
     // end
     //
 
     let trampoline = Trampoline {
         from: (from, code_len),
-        address: trampoline_ptr,
+        address: trampoline.as_ptr(),
         _code: trampoline,
         size: trampoline_len,
     };
