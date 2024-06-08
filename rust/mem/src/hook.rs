@@ -1,6 +1,7 @@
 use std::{fmt, mem, ptr};
 
 use arrayvec::ArrayVec;
+use tracing::trace;
 
 use crate::{
     asm::{self, AsmError},
@@ -44,6 +45,14 @@ impl fmt::Display for Trampoline {
 
 impl Trampoline {
     pub unsafe fn unhook(self) -> Result<(), HookError> {
+        trace!(
+            "unhook writing 0x{:X}-0x{:X} to 0x{:X}-0x{:X}",
+            self._code.as_ptr::<()>() as usize,
+            self._code.as_ptr::<()>() as usize + self.from.1,
+            self.from.0 as usize,
+            self.from.0 as usize + self.from.1
+        );
+
         // remove memory protection
         let old = unsafe { memory::prot(self.from.0, self.from.1, Prot::XRW)? };
 
@@ -80,9 +89,9 @@ fn make_jmp(from: *mut u8, to: *const u8, force_64: bool) -> ArrayVec<u8, 14> {
 
     let mut jmp32 = [0xE9, 0x0, 0x0, 0x0, 0x0]; // jmp <addr>
 
-    let relative_addr: Option<u32> = (to as usize)
-        .checked_sub(from as usize)
-        .and_then(|i| i.checked_sub(jmp32.len()))
+    let relative_addr: Option<i32> = (to as isize)
+        .checked_sub(from as isize)
+        .and_then(|i| i.checked_sub(jmp32.len() as isize))
         .and_then(|n| n.try_into().ok());
 
     if relative_addr.is_none() || force_64 {
@@ -123,6 +132,14 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     let code_len = unsafe { asm::code_len(from, jmp.len())? };
     let orig_bytes = unsafe { memory::read_bytes(from, code_len) };
 
+    trace!(
+        "jmp used {} bytes spanning 0x{:X}-0x{:X}, with target 0x{:X}",
+        jmp.len(),
+        from as usize,
+        (from as usize) + code_len,
+        to as usize
+    );
+
     // remove memory protection
     let prot_size = jmp.len();
     let old = unsafe { memory::prot(from, prot_size, Prot::XRW)? };
@@ -143,11 +160,18 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
 
     // generate full 64-bit jmp for trampoline
     // when force is on, `from` addr is not used
-    let jmp = make_jmp(ptr::null_mut(), unsafe { from.add(code_len) }, true);
+    let target = unsafe { from.add(code_len) };
+    let jmp = make_jmp(ptr::null_mut(), target, true);
 
     // allocate some memory for our trampoline
     let trampoline_len = orig_bytes.len() + jmp.len();
     let trampoline = memory::alloc(trampoline_len, Prot::XRW)?;
+
+    trace!(
+        "trampoline @ 0x{:X} jmp to 0x{:X}",
+        trampoline.as_ptr::<()>() as usize,
+        target as usize
+    );
 
     // write original code to trampoline
     unsafe { memory::write_bytes(&orig_bytes, trampoline.as_ptr()) };
