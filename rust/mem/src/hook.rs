@@ -46,11 +46,10 @@ impl fmt::Display for Trampoline {
 impl Trampoline {
     pub unsafe fn unhook(self) -> Result<(), HookError> {
         trace!(
-            "unhook writing 0x{:X}-0x{:X} to 0x{:X}-0x{:X}",
+            "unhook copying {} bytes from 0x{:X} -> 0x{:X}",
+            self.from.1,
             self._code.as_ptr::<()>() as usize,
-            self._code.as_ptr::<()>() as usize + self.from.1,
-            self.from.0 as usize,
-            self.from.0 as usize + self.from.1
+            self.from.0 as usize
         );
 
         // remove memory protection
@@ -134,11 +133,11 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     let orig_bytes = unsafe { memory::read_bytes(from, code_len) };
 
     trace!(
-        "jmp used {} bytes spanning 0x{:X}-0x{:X}, with target 0x{:X}",
+        "jmp -> 0x{:X} used {} bytes spanning 0x{:X}-0x{:X}",
+        to as usize,
         jmp.len(),
         from as usize,
-        (from as usize) + code_len,
-        to as usize
+        (from as usize) + code_len
     );
 
     // remove memory protection
@@ -169,7 +168,7 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     let trampoline = memory::alloc(trampoline_len, Prot::XRW)?;
 
     trace!(
-        "trampoline @ 0x{:X} jmp to 0x{:X}",
+        "trampoline @ 0x{:X} jmp -> 0x{:X}",
         trampoline.as_ptr::<()>() as usize,
         target as usize
     );
