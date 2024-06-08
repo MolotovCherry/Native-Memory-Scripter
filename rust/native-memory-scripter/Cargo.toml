@@ -42,22 +42,6 @@ cranelift-jit = { git = "https://github.com/bytecodealliance/wasmtime", rev = "9
 cranelift-module = { git = "https://github.com/bytecodealliance/wasmtime", rev = "9f695788a92dc495fb80075d014da66a8a1da728" }
 cranelift-native = { git = "https://github.com/bytecodealliance/wasmtime", rev = "9f695788a92dc495fb80075d014da66a8a1da728" }
 
-libmem-sys = { git = "https://github.com/rdbo/libmem.git", rev = "e365941" }
-
-# to update this, you need to update the static lib in the lib folder
-# go to the release page to download the compiled static lib
-# https://github.com/rdbo/libmem/releases
-#
-# Look for the *-x86_64-windows-msvc-static-mt version
-# open the archive, and in the lib folder, use the release libmem.lib
-#
-# For more info on which version to use, how to install, etc,
-# see README in lib folder
-[dependencies.libmem]
-git = "https://github.com/rdbo/libmem.git"
-rev = "e365941"
-features = ["static"]
-
 # docs can be found here. different api functions require adding the relevant features
 # https://microsoft.github.io/windows-docs-rs/doc/windows/index.html
 [dependencies.windows]

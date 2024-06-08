@@ -1,0 +1,22 @@
+[package]
+name = "mem"
+version = "0.1.0"
+edition = "2021"
+description = "Memory hacking library"
+
+[dependencies]
+strum = { version = "0.26.2", features = ["derive"] }
+thiserror = "1.0.61"
+keystone-engine = { version = "0.1.0", features = ["build-from-src"] }
+capstone = "0.12.0"
+
+[dependencies.windows]
+version = "0.57.0"
+features = [
+    "Win32_System_SystemInformation",
+    "Win32_System_Memory",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Diagnostics_ToolHelp",
+]

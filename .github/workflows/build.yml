@@ -26,16 +26,6 @@ jobs:
         with:
           key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
 
-      - name: Setup libmem
-        env:
-            GH_TOKEN: ${{ github.token }}
-        run: |
-            gh release download -R rdbo/libmem --pattern "libmem-*-x86_64-windows-msvc-static-mt.tar.gz" -O libmem.tar.gz
-            tar -xvzf libmem.tar.gz
-            cd "libmem*/lib/release"
-            New-Item -ItemType Directory -Force -Path "$env:ProgramFiles\libmem\lib"
-            Copy-Item "libmem.lib" -Destination "$env:ProgramFiles\libmem\lib"
-
       - name: Build Release
         if: github.event_name == 'release'
         run: cargo build --release
@@ -55,7 +45,7 @@ jobs:
       - name: Zip files up
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path target/*/*.dll | Compress-Archive -CompressionLevel Optimal -DestinationPath "my-plugin-x64.zip"
+          Get-ChildItem -Path target/*/*.dll | Compress-Archive -CompressionLevel Optimal -DestinationPath "native-memory-scripter-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
