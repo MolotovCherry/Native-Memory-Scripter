@@ -32,10 +32,11 @@ impl fmt::Display for Symbol {
 /// Note that the name IS case-sensitive!
 pub fn find_symbol_address(module: &Module, symbol: &str) -> Result<Symbol, SymbolError> {
     // this base address is crate private, so it is guaranteed
-    let base = module.module.base;
+    let base = module.handle.base;
 
     // SAFETY: module field is crate private, it cannot be changed
-    //         and we only support 64-bit
+    //         and we only support 64-bit. Additionally, each module is backed by
+    //         an increased refcount, which keeps them valid for the duration of Module
     let view = unsafe { PeView::module(base as _) };
 
     let exports = view.exports()?;

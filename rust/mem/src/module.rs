@@ -94,7 +94,7 @@ impl Drop for ModuleHandle {
 #[derive(Clone)]
 pub struct Module {
     // our own unalterable copy of the base
-    pub(crate) module: ModuleHandle,
+    pub(crate) handle: ModuleHandle,
 
     pub base: Address,
     pub end: Address,
@@ -161,7 +161,7 @@ impl TryFrom<HMODULE> for Module {
         let handle = ModuleHandle::new(&path)?;
 
         let module = Module {
-            module: handle,
+            handle,
             base: module_info.lpBaseOfDll as _,
             end: unsafe {
                 module_info
@@ -193,7 +193,7 @@ impl Module {
 
     pub fn unload(self) -> Result<(), ModuleError> {
         unsafe {
-            FreeLibrary(HMODULE(self.module.base as _))?;
+            FreeLibrary(HMODULE(self.handle.base as _))?;
         }
 
         Ok(())
@@ -217,7 +217,7 @@ impl Module {
     }
 
     pub fn handle(&self) -> HMODULE {
-        HMODULE(self.module.base as _)
+        HMODULE(self.handle.base as _)
     }
 }
 
@@ -248,7 +248,7 @@ pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
         let handle = ModuleHandle::new(&path)?;
 
         let module = Module {
-            module: handle,
+            handle,
             base: entry.modBaseAddr as _,
             end: entry.modBaseAddr as Address + entry.dwSize as usize,
             size: entry.modBaseSize,
