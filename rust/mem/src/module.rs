@@ -1,3 +1,5 @@
+//! This module allows one to get a process's loaded modules
+
 use std::{
     fmt, iter, mem,
     os::windows::prelude::OsStrExt,
@@ -24,16 +26,22 @@ use windows::{
 
 use crate::{utils::LazyLock, Address};
 
+/// An error for the [Module] type
 #[derive(Debug, thiserror::Error)]
 pub enum ModuleError {
+    /// wrong path or path does not exist
     #[error("filename does not exist")]
     BadPath,
+    /// cannot convert osstr to utf8
     #[error("failed to convert to utf8")]
     OsStrConversion,
+    /// cannot convert utf16 to utf8
     #[error(transparent)]
     Utf16Conversion(#[from] FromUtf16Error),
     #[error(transparent)]
+    /// a windows erorr
     Windows(#[from] windows::core::Error),
+    /// no modules were found
     #[error("no modules available")]
     NoModules(windows::core::Error),
 }
@@ -226,10 +234,6 @@ impl Module {
         }
 
         Ok(())
-    }
-
-    pub fn handle(&self) -> HMODULE {
-        HMODULE(self.handle.base as _)
     }
 }
 

@@ -1,3 +1,5 @@
+//! This module allows one to read and write underlying system memory
+
 use std::{mem, ptr};
 
 use sptr::Strict;
@@ -11,19 +13,24 @@ use windows::Win32::System::{
 
 use crate::{Address, AddressUtils, Prot};
 
+/// An error for the [memory](crate::memory) module
 #[derive(Debug, thiserror::Error)]
 pub enum MemError {
+    /// address is invalid
     #[error("bad address")]
     BadAddress,
+    /// a windows error
     #[error(transparent)]
     Windows(#[from] windows::core::Error),
 }
 
+/// A Windows allocation which will be freed when this type is dropped
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Alloc(Address);
 
 impl Alloc {
+    /// Get the address of the allocation. This ptr is valid up to the size of the allocation
     pub fn addr(&self) -> Address {
         self.0
     }

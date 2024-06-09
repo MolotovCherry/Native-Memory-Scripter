@@ -6,6 +6,7 @@
 //! defined provenance (making sure you never write/read outside of the alloc)
 
 #![deny(unsafe_op_in_unsafe_fn)]
+#![deny(missing_docs)]
 #![allow(unstable_name_collisions)]
 
 #[cfg(not(any(target_arch = "x86_64", target_os = "windows")))]
@@ -23,6 +24,7 @@ use windows::Win32::System::Memory::{
     PAGE_PROTECTION_FLAGS, PAGE_READONLY, PAGE_READWRITE, PAGE_WRITECOPY,
 };
 
+/// A memory address
 pub type Address = usize;
 
 trait AddressUtils {
@@ -35,15 +37,24 @@ impl AddressUtils for Address {
     }
 }
 
+/// The protection status of some memory
 #[derive(Debug, strum::Display)]
 pub enum Prot {
+    /// none
     None,
+    /// read
     R,
+    /// write
     W,
+    /// execute
     X,
+    /// execute + read
     XR,
+    /// execute + write
     XW,
+    /// read + write
     RW,
+    /// execute + read + right
     XRW,
 }
 

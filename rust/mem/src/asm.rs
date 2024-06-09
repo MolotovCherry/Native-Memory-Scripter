@@ -1,3 +1,5 @@
+//! This module allows one to assemble and disassemble asm
+
 use core::slice;
 use std::fmt::{self, Display};
 
@@ -7,18 +9,25 @@ use keystone_engine::{Arch, Keystone, Mode};
 
 use crate::{Address, AddressUtils as _};
 
+/// An error for the [asm](crate::asm) module
 #[derive(Debug, thiserror::Error)]
 pub enum AsmError {
+    /// an invalid address
     #[error("bad address")]
     BadAddress,
+    /// the asm could not be compiled
     #[error("failed to assemble asm")]
     BadAsm,
+    /// something wrong happened with disassembly
     #[error("failed to disassemble")]
     BadDis,
+    /// no instructions were able to be disassembled
     #[error("there were no instructions to disassemble")]
     NoInstructions,
+    /// a keystone error
     #[error(transparent)]
     Keystone(#[from] keystone_engine::KeystoneError),
+    /// a capstone error
     #[error(transparent)]
     Capstone(#[from] capstone::Error),
 }
@@ -64,11 +73,14 @@ impl Display for Inst {
     }
 }
 
+/// Allow a vector of instructions to be converted to bytes
 pub trait InstructionBytes {
+    /// Convert all instructions to bytes
     fn to_bytes(&self) -> Vec<u8>;
 }
 
 impl InstructionBytes for Vec<Inst> {
+    /// Convert all instructions to bytes
     fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
         for inst in self.iter() {
@@ -79,6 +91,11 @@ impl InstructionBytes for Vec<Inst> {
     }
 }
 
+/// Assemble code string to instructions
+///
+/// ```rust,ignore
+/// assemble("jmp [rip]");
+/// ```
 pub fn assemble(code: &str) -> Result<Inst, AsmError> {
     if code.is_empty() {
         return Err(AsmError::BadAsm);
@@ -107,6 +124,11 @@ pub fn assemble(code: &str) -> Result<Inst, AsmError> {
     Ok(inst.into())
 }
 
+/// Assemble code string to instructions, with runtime_addr
+///
+/// ```rust,ignore
+/// assemble("jmp [rip]", 0x112233445566);
+/// ```
 pub fn assemble_ex(code: &str, runtime_addr: Address) -> Result<Vec<Inst>, AsmError> {
     if code.is_empty() {
         return Err(AsmError::BadAsm);

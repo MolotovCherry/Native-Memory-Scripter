@@ -1,17 +1,23 @@
+//! This module allows one to search through and demangle a module's external symbols
+
 use std::{ffi::CStr, fmt};
 
 use pelite::{pe::Pe, pe64::PeView};
 
 use crate::{module::Module, Address};
 
+/// An error for the [Symbol] type
 #[derive(Debug, thiserror::Error)]
 pub enum SymbolError {
+    /// symbol was not found
     #[error("symbol not found")]
     SymbolNotFound,
+    /// an error from pelite
     #[error(transparent)]
     Pelite(#[from] pelite::Error),
 }
 
+/// A symbol in a [Module](crate::module::Module)
 #[derive(Debug, Clone)]
 pub struct Symbol {
     /// the symbol name

@@ -1,3 +1,5 @@
+//! This module allows one to hook functions
+
 use std::{fmt, mem};
 
 use arrayvec::ArrayVec;
@@ -9,10 +11,13 @@ use crate::{
     Address, AddressUtils as _, Prot,
 };
 
+/// An error for the [hook](crate::hook) module
 #[derive(Debug, thiserror::Error)]
 pub enum HookError {
+    /// a memory error
     #[error(transparent)]
     MemError(#[from] MemError),
+    /// an asm error
     #[error(transparent)]
     AsmError(#[from] AsmError),
 }
@@ -27,7 +32,9 @@ pub struct Trampoline {
     _code: Alloc,
     // the original ptr + length that was replaced
     from: (Address, usize),
+    /// the trampoline address
     pub address: Address,
+    /// the code size of the trampoline
     pub size: usize,
 }
 
