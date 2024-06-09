@@ -5,6 +5,7 @@ pub mod asm;
 pub mod hook;
 pub mod memory;
 pub mod module;
+pub mod symbol;
 mod utils;
 
 use windows::Win32::System::Memory::{

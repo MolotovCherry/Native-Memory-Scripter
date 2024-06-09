@@ -42,10 +42,59 @@ type Pid = u32;
 static PROCESS: LazyLock<(HANDLE, Pid)> =
     LazyLock::new(|| unsafe { (GetCurrentProcess(), GetCurrentProcessId()) });
 
+/// A handle based type which keeps the library loaded, which ensures the
+/// base address is always correct as long as the handle exists
+#[derive(Debug)]
+pub(crate) struct ModuleHandle {
+    path: Vec<u16>,
+    pub(crate) base: Address, // equivalent to HMODULE
+}
+
+impl ModuleHandle {
+    fn new<P: AsRef<Path>>(path: P) -> Result<Self, ModuleError> {
+        let path = path
+            .as_ref()
+            .as_os_str()
+            .encode_wide()
+            .chain(iter::once(0))
+            .collect::<Vec<_>>();
+
+        // increase library refcount
+        let module = unsafe { LoadLibraryW(PCWSTR(path.as_ptr()))? };
+
+        let slf = Self {
+            path,
+            base: module.0 as _,
+        };
+
+        Ok(slf)
+    }
+}
+
+impl Clone for ModuleHandle {
+    fn clone(&self) -> Self {
+        // increase refcount
+        unsafe { LoadLibraryW(PCWSTR(self.path.as_ptr())).expect("load library failed") };
+
+        Self {
+            path: self.path.clone(),
+            base: self.base,
+        }
+    }
+}
+
+impl Drop for ModuleHandle {
+    fn drop(&mut self) {
+        _ = unsafe { FreeLibrary(HMODULE(self.base as _)) };
+    }
+}
+
+/// Represents a module. The dll refcount is increased 1 for this, so it will not
+/// be unloaded until all modules go out of scope
 #[derive(Clone)]
 pub struct Module {
     // our own unalterable copy of the base
-    pub(crate) module: HMODULE,
+    pub(crate) module: ModuleHandle,
 
     pub base: Address,
     pub end: Address,
@@ -109,8 +158,10 @@ impl TryFrom<HMODULE> for Module {
             .ok_or(ModuleError::OsStrConversion)?
             .to_owned();
 
+        let handle = ModuleHandle::new(&path)?;
+
         let module = Module {
-            module,
+            module: handle,
             base: module_info.lpBaseOfDll as _,
             end: unsafe {
                 module_info
@@ -142,7 +193,7 @@ impl Module {
 
     pub fn unload(self) -> Result<(), ModuleError> {
         unsafe {
-            FreeLibrary(self.module)?;
+            FreeLibrary(HMODULE(self.module.base as _))?;
         }
 
         Ok(())
@@ -166,7 +217,7 @@ impl Module {
     }
 
     pub fn handle(&self) -> HMODULE {
-        self.module
+        HMODULE(self.module.base as _)
     }
 }
 
@@ -194,8 +245,10 @@ pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
         let len = entry.szExePath.iter().position(|n| *n == 0).unwrap_or(259);
         let path = String::from_utf16(&entry.szExePath[..len])?;
 
+        let handle = ModuleHandle::new(&path)?;
+
         let module = Module {
-            module: entry.hModule,
+            module: handle,
             base: entry.modBaseAddr as _,
             end: entry.modBaseAddr as Address + entry.dwSize as usize,
             size: entry.modBaseSize,
