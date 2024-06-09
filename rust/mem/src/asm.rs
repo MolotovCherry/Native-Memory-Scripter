@@ -23,21 +23,25 @@ pub enum AsmError {
     Capstone(#[from] capstone::Error),
 }
 
+/// A single compiled instruction
 #[derive(Debug, Clone, PartialEq)]
 pub struct Inst {
-    pub address: u64,
+    /// the base address of the instruction (if you used `runtime_addr`)
+    pub address: Address,
+    /// the byte size of the instruction
     pub size: usize,
+    /// the instruction bytes
     pub bytes: Vec<u8>,
+    /// the mnemonic
     pub mnemonic: Option<String>,
+    /// the op str
     pub op_str: Option<String>,
 }
-
-unsafe impl Send for Inst {}
 
 impl<'a> From<&'a Insn<'a>> for Inst {
     fn from(value: &Insn) -> Self {
         Self {
-            address: value.address(),
+            address: value.address() as _,
             size: value.len(),
             bytes: value.bytes().to_vec(),
             mnemonic: value.mnemonic().map(ToOwned::to_owned),
@@ -121,6 +125,11 @@ pub fn assemble_ex(code: &str, runtime_addr: Address) -> Result<Vec<Inst>, AsmEr
     Ok(dis)
 }
 
+/// Disassemble a single instruction at the target address
+///
+/// # Safety
+/// - Address must be valid ptr with exposed provenance
+/// - Address must be valid for max 16 bytes read
 pub unsafe fn disassemble(addr: Address) -> Result<Inst, AsmError> {
     let cs = Capstone::new()
         .x86()
@@ -128,7 +137,9 @@ pub unsafe fn disassemble(addr: Address) -> Result<Inst, AsmError> {
         .syntax(arch::x86::ArchSyntax::Intel)
         .build()?;
 
-    let code = unsafe { slice::from_raw_parts(addr as _, 16) };
+    // SAFETY: caller guarantees addr has provenance for 16 bytes
+    let addr = sptr::from_exposed_addr(addr);
+    let code = unsafe { slice::from_raw_parts(addr, 16) };
 
     let insts = cs.disasm_count(code, 0, 1)?;
 
@@ -139,6 +150,12 @@ pub unsafe fn disassemble(addr: Address) -> Result<Inst, AsmError> {
     Ok(inst.into())
 }
 
+/// Disassemble all instructions from target address up to `size`, with
+/// optional runtime_addr to make detecting actual address easy
+///
+/// # Safety
+/// - Address must be valid ptr with exposed provenance
+/// - Address must be valid for `size` bytes read
 pub unsafe fn disassemble_ex(
     addr: Address,
     size: usize,
@@ -155,6 +172,12 @@ pub unsafe fn disassemble_ex(
     disassemble_bytes_ex(code, runtime_addr)
 }
 
+/// Disassemble up to `instruction_count` instructions from target address up to `size`, with
+/// optional runtime_addr to make detecting actual address easy
+///
+/// # Safety
+/// - Address must be valid ptr with exposed provenance
+/// - Address must be valid for `size` bytes read
 pub unsafe fn disassemble_ex_count(
     addr: Address,
     size: usize,
@@ -172,10 +195,12 @@ pub unsafe fn disassemble_ex_count(
     disassemble_bytes_ex_count(code, runtime_addr, instruction_count)
 }
 
+/// Disassemble all bytes in `code` into instructions, with `runtime_addr` of 0
 pub fn disassemble_bytes(code: &[u8]) -> Result<Vec<Inst>, AsmError> {
     disassemble_bytes_ex(code, 0)
 }
 
+/// Disassemble up to `instruction_count` instructions from bytes
 pub fn disassemble_bytes_count(
     code: &[u8],
     instruction_count: usize,
@@ -183,6 +208,7 @@ pub fn disassemble_bytes_count(
     disassemble_bytes_ex_count(code, 0, instruction_count)
 }
 
+/// Disassemble all instructions from bytes, with`runtime_addr`
 pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: Address) -> Result<Vec<Inst>, AsmError> {
     let cs = Capstone::new()
         .x86()
@@ -201,6 +227,7 @@ pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: Address) -> Result<Vec<In
     Ok(buffer)
 }
 
+/// Disassemble up to `instruction_count` instructions from bytes, with`runtime_addr`
 pub fn disassemble_bytes_ex_count(
     code: &[u8],
     runtime_addr: Address,
@@ -223,6 +250,10 @@ pub fn disassemble_bytes_ex_count(
     Ok(buffer)
 }
 
+/// Starting at address, get the closest valid length of bytes to `min_len` without overwriting any asm instructions
+///
+/// # Safety
+/// - address must be valid address with provenance for min_len up to the returned usize
 pub unsafe fn code_len(mut addr: Address, min_len: usize) -> Result<usize, AsmError> {
     if addr.is_null() {
         return Err(AsmError::BadAddress);
@@ -241,6 +272,7 @@ pub unsafe fn code_len(mut addr: Address, min_len: usize) -> Result<usize, AsmEr
     Ok(len)
 }
 
+/// Get the closest valid length of bytes in byte slice to `min_len` without overwriting any asm instructions
 pub fn code_bytes_len(bytes: &[u8], min_len: usize) -> Result<usize, AsmError> {
     let insts = disassemble_bytes(bytes)?;
 

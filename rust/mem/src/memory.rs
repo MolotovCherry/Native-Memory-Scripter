@@ -39,14 +39,11 @@ impl Drop for Alloc {
 
 /// Read a T from memory address
 ///
-/// SAFETY:
-///     - Memory at location must be initialized
-///     - Memory at location must contain a valid bitpattern for T
-///     - Ptr must be non-null
-///     - Should only use for runtime addresses (otherwise lack of provenance is UB)
-///     - Beware of any drop impl on T
-///     - Address must be aligned for T
-///     - Address must be valid for reads up to size of T
+/// # Safety
+/// - Ptr must be valid, aligned, point to valid init data, have provenance for T bytes
+/// - Memory at location must be initialized
+/// - Memory at location must contain a valid bitpattern for T
+/// - Beware of any drop impl on T
 pub unsafe fn read<T>(addr: Address) -> T {
     if cfg!(debug_assertions) {
         let align = mem::align_of::<T>();
@@ -62,12 +59,10 @@ pub unsafe fn read<T>(addr: Address) -> T {
 
 /// Read bytes from address
 ///
-/// SAFETY:
-///     - Memory at location must be initialized
-///     - Ptr must be non-null
-///     - Should only use for runtime addresses (otherwise lack of provenance is UB)
-///     - Address must be valid for reads
-///     - Address must be valid for reads up to addr+count bytes
+/// # Safety
+/// - Memory at location must be initialized
+/// - Ptr must be non-null
+/// - Address must be valid for reads up to addr+count bytes
 pub unsafe fn read_bytes(src: Address, count: usize) -> Vec<u8> {
     debug_assert!(!src.is_null(), "src must not be null");
 
@@ -88,9 +83,9 @@ pub unsafe fn read_bytes(src: Address, count: usize) -> Vec<u8> {
 
 /// Write T to dst
 ///
-/// SAFETY:
-///     - dst must be aligned
-///     - dst must be valid for writes
+/// # Safety
+/// - dst must be aligned, contain provenance for T bytes
+/// - dst must be valid for writes up to T bytes
 pub unsafe fn write<T>(dst: Address, src: T) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
@@ -110,9 +105,9 @@ pub unsafe fn write<T>(dst: Address, src: T) {
 
 /// Write bytes to dst
 ///
-/// SAFETY:
-///     - dst must be valid for writes up to count bytes
-///     - addresses must not overlap
+/// # Safety
+/// - dst must be aligned, contain provenance for src.len() bytes
+/// - addresses must not overlap
 pub unsafe fn write_bytes(src: &[u8], dst: Address) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
@@ -121,10 +116,10 @@ pub unsafe fn write_bytes(src: &[u8], dst: Address) {
 
 /// Write ptr to dst
 ///
-/// SAFETY:
-///     - src must be valid for reads up to count bytes
-///     - dst must be valid for writes up to count bytes
-///     - addresses must not overlap
+/// # Safety
+/// - src must be valid for reads up to count bytes
+/// - dst must be valid for writes up to count bytes
+/// - addresses must not overlap
 pub unsafe fn write_raw(src: Address, dst: Address, count: usize) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
@@ -138,8 +133,8 @@ pub unsafe fn write_raw(src: Address, dst: Address, count: usize) {
 
 /// Set dst to val for N bytes
 ///
-/// SAFETY:
-///     - dst must be valid for writes up to count bytes
+/// # Safety
+/// - dst must be valid for writes up to count bytes
 pub unsafe fn set(dst: Address, val: u8, count: usize) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
@@ -150,6 +145,11 @@ pub unsafe fn set(dst: Address, val: u8, count: usize) {
     }
 }
 
+/// Change memory protection of a certain region of memory
+///
+/// # Safety
+/// - address must contain exposed provenance, and for `size` bytes
+/// - any safety requirements of VirtualProtect
 pub unsafe fn prot(addr: Address, mut size: usize, prot: Prot) -> Result<Prot, MemError> {
     if addr.is_null() {
         return Err(MemError::BadAddress);
@@ -170,6 +170,7 @@ pub unsafe fn prot(addr: Address, mut size: usize, prot: Prot) -> Result<Prot, M
     Ok(old_prot.into())
 }
 
+/// Allocate memory of size `size` with protection `prot`
 pub fn alloc(mut size: usize, prot: Prot) -> Result<Alloc, MemError> {
     if size == 0 {
         size = get_page_size() as usize;

@@ -1,13 +1,15 @@
-#![allow(clippy::missing_safety_doc)]
-#![deny(unsafe_op_in_unsafe_fn)]
-#![allow(unstable_name_collisions)]
-
 //! Rust based memory hacking library
 //!
 //! # Note about Provenance
 //! You cannot use Rust-based fn pointers with this, because you have to obey provenance.
-//! They are defined as an alloc of 0. You must only use pointers to external memory, or pointers with
+//! They are defined with an alloc of 0. You must only use pointers to external memory, or pointers with
 //! defined provenance (making sure you never write/read outside of the alloc)
+
+#![deny(unsafe_op_in_unsafe_fn)]
+#![allow(unstable_name_collisions)]
+
+#[cfg(not(any(target_arch = "x86_64", target_os = "windows")))]
+compile_error!("only x86_64 windows is supported");
 
 pub mod asm;
 pub mod hook;

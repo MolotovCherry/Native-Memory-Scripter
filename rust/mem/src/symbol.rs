@@ -14,7 +14,9 @@ pub enum SymbolError {
 
 #[derive(Debug, Clone)]
 pub struct Symbol {
+    /// the symbol name
     name: String,
+    /// the symbol's starting address
     address: Address,
 }
 
@@ -59,6 +61,7 @@ fn enum_symbols_cb(
     Ok(())
 }
 
+/// Return all symbols in their raw form
 pub fn enum_symbols(module: &Module) -> Result<Vec<Symbol>, SymbolError> {
     let mut symbols = Vec::new();
 
@@ -76,6 +79,7 @@ pub fn enum_symbols(module: &Module) -> Result<Vec<Symbol>, SymbolError> {
     Ok(symbols)
 }
 
+/// Return all symbols in their demangled form
 pub fn enum_symbols_demangled(module: &Module) -> Result<Vec<Symbol>, SymbolError> {
     let mut symbols = Vec::new();
 
@@ -155,9 +159,9 @@ pub fn find_symbol_address_demangled(module: &Module, symbol: &str) -> Result<Sy
 /// will return demangled symbol
 ///
 /// Supports:
-/// C++ (GCC-style compilers and MSVC) (features = ["cpp", "msvc"])
-/// Rust (both legacy and v0) (features = ["rust"])
-/// Swift (up to Swift 5.3) (features = ["swift"])
+/// C++ (GCC-style compilers and MSVC)
+/// Rust (both legacy and v0)
+/// Swift (up to Swift 5.3)
 /// ObjC (only symbol detection)
 pub fn demangle_symbol(symbol: &str) -> String {
     use symbolic_common::{Language, Name, NameMangling};

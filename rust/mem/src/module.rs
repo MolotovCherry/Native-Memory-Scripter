@@ -87,6 +87,7 @@ impl Clone for ModuleHandle {
 
 impl Drop for ModuleHandle {
     fn drop(&mut self) {
+        // decrease library refcount when done
         _ = unsafe { FreeLibrary(HMODULE(self.base as _)) };
     }
 }
@@ -95,18 +96,20 @@ impl Drop for ModuleHandle {
 /// be unloaded until all modules go out of scope
 #[derive(Clone)]
 pub struct Module {
-    // our own unalterable copy of the base
+    /// our own unalterable copy of the base
     pub(crate) handle: ModuleHandle,
 
+    /// base address of the module in memory
     pub base: Address,
+    /// end address of the module in memory
     pub end: Address,
+    /// the size of the module in memory
     pub size: u32,
+    /// the filesystem path to the module
     pub path: PathBuf,
+    /// the filename of the module
     pub name: String,
 }
-
-unsafe impl Send for Module {}
-unsafe impl Sync for Module {}
 
 impl fmt::Debug for Module {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -178,6 +181,7 @@ impl TryFrom<HMODULE> for Module {
 }
 
 impl Module {
+    /// load a module into the process
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ModuleError> {
         let path = path
             .as_ref()
@@ -191,15 +195,23 @@ impl Module {
         module.try_into()
     }
 
-    pub fn unload(self) -> Result<(), ModuleError> {
-        unsafe {
-            FreeLibrary(HMODULE(self.handle.base as _))?;
-        }
-
-        Ok(())
+    /// Unload a module from the process.
+    ///
+    /// Note: Windows keeps a refcount of each module. The module is only unloaded when
+    ///       this refcount reaches 0. All existing Module's to a specific dll keep a refcount
+    ///       open in order to ensure safe operation of apis. Dropping Module will decrease the refcount by 1.
+    ///       To ensure a dll you loaded is unloaded, you must Drop or unload all existing Module references to it.
+    pub fn unload(self) {
+        // this is a no-op. Drop impl releases refcount
     }
 
-    pub fn unload_path<P: AsRef<Path>>(path: P) -> Result<(), ModuleError> {
+    /// Decrease library refcount by 1 and unload it if it reaches 0.
+    /// Each call to this will decrease the refcount by 1.
+    ///
+    /// # Safety
+    /// Ensure no other code anywhere in the process is using this module anymore. Otherwise may be UB,
+    /// especially if a Module still exists to this library
+    pub unsafe fn unload_path<P: AsRef<Path>>(path: P) -> Result<(), ModuleError> {
         let path = path
             .as_ref()
             .as_os_str()
@@ -221,6 +233,7 @@ impl Module {
     }
 }
 
+/// Get a list of all modules loaded into the process
 pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
     let process = *PROCESS;
 

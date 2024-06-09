@@ -44,6 +44,10 @@ impl fmt::Display for Trampoline {
 }
 
 impl Trampoline {
+    /// Unhook the trampoline and restore original operation of the hooked function
+    ///
+    /// # Safety
+    /// This overwrites the target function with the original code. There is no synchronization.
     pub unsafe fn unhook(self) -> Result<(), HookError> {
         trace!(
             "unhook copying {} bytes from 0x{:X} -> 0x{:X}",
@@ -68,7 +72,15 @@ impl Trampoline {
         Ok(())
     }
 
-    /// SAFETY: Caller must provide correct type signature
+    /// Create a callable function to the trampoline
+    ///
+    /// ```rust,ignore
+    /// let t = hook.callable::<fn()>();
+    /// t();
+    /// ```
+    ///
+    /// # Safety
+    /// Caller must provide correct type signature
     pub unsafe fn callable<T: Copy>(&self) -> T {
         unsafe { mem::transmute_copy(&self._code.addr()) }
     }
@@ -112,11 +124,10 @@ fn make_jmp(from: Address, to: Address, force_64: bool) -> ArrayVec<u8, 14> {
 /// If `to` address is within 32-bits of `from`, uses relative 32-bit jmp (5 bytes), otherwise
 /// will take 14 bytes for a full 64-bit jmp
 ///
-/// SAFETY:
-///     - Must manually verify from location enough space for 14 or 5 bytes jmp to be written
-///     - Must verify instruction that gets replaced is not relative
-///     - Instruction that gets replaced should be able to ran in a different area of memory
-///
+/// # Safety
+/// - Must manually verify `from`` location enough space for 14 or 5 bytes jmp to be written
+/// - Must verify instruction that gets replaced is not relative
+/// - Instruction that gets replaced should be able to ran in a different area of memory
 pub unsafe fn hook(from: Address, to: Address) -> Result<Trampoline, HookError> {
     debug_assert!(!from.is_null(), "from must not be null");
     debug_assert!(!to.is_null(), "to must not be null");
