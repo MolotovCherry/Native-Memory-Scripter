@@ -28,9 +28,10 @@ impl fmt::Display for Symbol {
     }
 }
 
-/// Find the address of an exported symbol in the module
-/// Note that the name IS case-sensitive!
-pub fn find_symbol_address(module: &Module, symbol: &str) -> Result<Symbol, SymbolError> {
+fn enum_symbols_cb(
+    module: &Module,
+    mut cb: impl FnMut(Address, &str) -> bool,
+) -> Result<(), SymbolError> {
     // this base address is crate private, so it is guaranteed
     let base = module.handle.base;
 
@@ -42,20 +43,126 @@ pub fn find_symbol_address(module: &Module, symbol: &str) -> Result<Symbol, Symb
     let exports = view.exports()?;
 
     for (&func, &name) in exports.functions()?.iter().zip(exports.names()?.iter()) {
-        let fn_addr = base + func as usize;
+        let addr = base + func as usize;
         let name = base + name as usize;
 
         let name = unsafe { CStr::from_ptr(name as _) };
         let name = name.to_string_lossy();
-        if symbol == name {
-            let symbol = Symbol {
-                name: name.to_string(),
-                address: fn_addr,
-            };
 
-            return Ok(symbol);
+        if cb(addr, &name) {
+            break;
         }
     }
 
-    Err(SymbolError::SymbolNotFound)
+    Ok(())
+}
+
+pub fn enum_symbols(module: &Module) -> Result<Vec<Symbol>, SymbolError> {
+    let mut symbols = Vec::new();
+
+    enum_symbols_cb(module, |addr, name| {
+        let sym = Symbol {
+            name: name.to_string(),
+            address: addr,
+        };
+
+        symbols.push(sym);
+
+        false
+    })?;
+
+    Ok(symbols)
+}
+
+pub fn enum_symbols_demangled(module: &Module) -> Result<Vec<Symbol>, SymbolError> {
+    let mut symbols = Vec::new();
+
+    enum_symbols_cb(module, |addr, name| {
+        let name = demangle_symbol(name);
+
+        let sym = Symbol {
+            name,
+            address: addr,
+        };
+
+        symbols.push(sym);
+
+        false
+    })?;
+
+    Ok(symbols)
+}
+
+/// Find the address of an exported symbol in the module
+/// Note that the name IS case-sensitive and requires an exact match!
+pub fn find_symbol_address(module: &Module, symbol: &str) -> Result<Symbol, SymbolError> {
+    let mut symbol_out = None;
+
+    enum_symbols_cb(module, |addr, name| {
+        if symbol == name {
+            let sym = Symbol {
+                name: name.to_string(),
+                address: addr,
+            };
+
+            symbol_out = Some(sym);
+
+            true
+        } else {
+            false
+        }
+    })?;
+
+    if let Some(symbol) = symbol_out {
+        Ok(symbol)
+    } else {
+        Err(SymbolError::SymbolNotFound)
+    }
+}
+
+/// Find the address of an exported symbol in the module
+/// Note that the name IS case-sensitive but only requires a partial match!
+pub fn find_symbol_address_demangled(module: &Module, symbol: &str) -> Result<Symbol, SymbolError> {
+    let mut symbol_out = None;
+
+    enum_symbols_cb(module, |addr, name| {
+        let name = demangle_symbol(name);
+
+        if name.contains(symbol) {
+            let sym = Symbol {
+                name,
+                address: addr,
+            };
+
+            symbol_out = Some(sym);
+
+            true
+        } else {
+            false
+        }
+    })?;
+
+    if let Some(symbol) = symbol_out {
+        Ok(symbol)
+    } else {
+        Err(SymbolError::SymbolNotFound)
+    }
+}
+
+/// Demangle a symbol. If language can not be detected, returns original mangled symbol, otherwise
+/// will return demangled symbol
+///
+/// Supports:
+/// C++ (GCC-style compilers and MSVC) (features = ["cpp", "msvc"])
+/// Rust (both legacy and v0) (features = ["rust"])
+/// Swift (up to Swift 5.3) (features = ["swift"])
+/// ObjC (only symbol detection)
+pub fn demangle_symbol(symbol: &str) -> String {
+    use symbolic_common::{Language, Name, NameMangling};
+    use symbolic_demangle::{Demangle, DemangleOptions};
+
+    let name = Name::new(symbol, NameMangling::Mangled, Language::Unknown);
+
+    name.demangle(DemangleOptions::name_only())
+        .unwrap_or_else(|| symbol.to_owned())
 }
