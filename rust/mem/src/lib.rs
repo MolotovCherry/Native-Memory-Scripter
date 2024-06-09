@@ -1,5 +1,13 @@
 #![allow(clippy::missing_safety_doc)]
-#![warn(unsafe_op_in_unsafe_fn)]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![allow(unstable_name_collisions)]
+
+//! Rust based memory hacking library
+//!
+//! # Note about Provenance
+//! You cannot use Rust-based fn pointers with this, because you have to obey provenance.
+//! They are defined as an alloc of 0. You must only use pointers to external memory, or pointers with
+//! defined provenance (making sure you never write/read outside of the alloc)
 
 pub mod asm;
 pub mod hook;
@@ -17,21 +25,11 @@ pub type Address = usize;
 
 trait AddressUtils {
     fn is_null(&self) -> bool;
-    fn as_ptr<T>(&self) -> *const T;
-    fn as_mut<T>(&self) -> *mut T;
 }
 
 impl AddressUtils for Address {
     fn is_null(&self) -> bool {
         *self == 0
-    }
-
-    fn as_ptr<T>(&self) -> *const T {
-        *self as _
-    }
-
-    fn as_mut<T>(&self) -> *mut T {
-        *self as _
     }
 }
 

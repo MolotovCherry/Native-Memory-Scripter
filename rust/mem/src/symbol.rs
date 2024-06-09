@@ -43,8 +43,10 @@ fn enum_symbols_cb(
     let exports = view.exports()?;
 
     for (&func, &name) in exports.functions()?.iter().zip(exports.names()?.iter()) {
+        // storing as address, but external mem, provenance OK
         let addr = base + func as usize;
-        let name = base + name as usize;
+        // external mem, provenance OK
+        let name = sptr::from_exposed_addr(base + name as usize);
 
         let name = unsafe { CStr::from_ptr(name as _) };
         let name = name.to_string_lossy();

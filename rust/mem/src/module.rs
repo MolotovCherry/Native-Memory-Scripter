@@ -5,6 +5,7 @@ use std::{
     string::FromUtf16Error,
 };
 
+use sptr::Strict;
 use windows::{
     core::PCWSTR,
     Win32::{
@@ -64,6 +65,7 @@ impl ModuleHandle {
 
         let slf = Self {
             path,
+            // external ptr, but provenance OK
             base: module.0 as _,
         };
 
@@ -162,12 +164,10 @@ impl TryFrom<HMODULE> for Module {
 
         let module = Module {
             handle,
-            base: module_info.lpBaseOfDll as _,
-            end: unsafe {
-                module_info
-                    .lpBaseOfDll
-                    .add(module_info.SizeOfImage as usize) as _
-            },
+            // provenance will always be OK since external mem
+            base: module_info.lpBaseOfDll.expose_addr(),
+            // provenance will always be OK since external mem
+            end: module_info.lpBaseOfDll.expose_addr() + module_info.SizeOfImage as usize,
             size: module_info.SizeOfImage,
             path,
             name,
@@ -249,8 +249,10 @@ pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
 
         let module = Module {
             handle,
-            base: entry.modBaseAddr as _,
-            end: entry.modBaseAddr as Address + entry.dwSize as usize,
+            // external mem, provenance OK
+            base: entry.modBaseAddr.expose_addr(),
+            // external mem, provenance OK
+            end: entry.modBaseAddr.expose_addr() + entry.dwSize as usize,
             size: entry.modBaseSize,
             path: PathBuf::from(path),
             name,

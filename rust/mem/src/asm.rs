@@ -148,7 +148,9 @@ pub unsafe fn disassemble_ex(
         return Err(AsmError::BadAddress);
     }
 
-    let code = unsafe { slice::from_raw_parts(addr.as_ptr(), size) };
+    // provenance valid cause caller asserts it was previously exposed
+    let addr = sptr::from_exposed_addr::<u8>(addr);
+    let code = unsafe { slice::from_raw_parts(addr, size) };
 
     disassemble_bytes_ex(code, runtime_addr)
 }
@@ -163,7 +165,9 @@ pub unsafe fn disassemble_ex_count(
         return Err(AsmError::BadAddress);
     }
 
-    let code = unsafe { slice::from_raw_parts(addr.as_ptr(), size) };
+    // provenance valid cause caller asserts it was previously exposed
+    let addr = sptr::from_exposed_addr::<u8>(addr);
+    let code = unsafe { slice::from_raw_parts(addr, size) };
 
     disassemble_bytes_ex_count(code, runtime_addr, instruction_count)
 }

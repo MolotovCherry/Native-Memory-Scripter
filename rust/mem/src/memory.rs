@@ -1,8 +1,6 @@
-use std::{
-    mem,
-    ptr::{self, NonNull},
-};
+use std::{mem, ptr};
 
+use sptr::Strict;
 use windows::Win32::System::{
     Memory::{
         VirtualAlloc, VirtualFree, VirtualProtect, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE,
@@ -23,19 +21,19 @@ pub enum MemError {
 
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct Alloc(NonNull<()>);
-
-unsafe impl Send for Alloc {}
+pub struct Alloc(Address);
 
 impl Alloc {
-    pub fn addr(&self) -> usize {
-        self.0.as_ptr() as _
+    pub fn addr(&self) -> Address {
+        self.0
     }
 }
 
 impl Drop for Alloc {
     fn drop(&mut self) {
-        _ = unsafe { VirtualFree(self.0.as_ptr().cast(), 0, MEM_RELEASE) };
+        // provenance valid cause it's external mem, and address obtained from VirtualAlloc
+        let ptr = sptr::from_exposed_addr_mut(self.0);
+        _ = unsafe { VirtualFree(ptr, 0, MEM_RELEASE) };
     }
 }
 
@@ -57,7 +55,9 @@ pub unsafe fn read<T>(addr: Address) -> T {
 
     debug_assert!(!addr.is_null(), "ptr must not be null");
 
-    unsafe { ptr::read(addr.as_ptr()) }
+    // provenance valid cause caller asserts it was previously exposed
+    let addr = sptr::from_exposed_addr(addr);
+    unsafe { ptr::read(addr) }
 }
 
 /// Read bytes from address
@@ -73,8 +73,10 @@ pub unsafe fn read_bytes(src: Address, count: usize) -> Vec<u8> {
 
     let mut buffer = Vec::with_capacity(count);
 
+    // provenance valid cause caller asserts it was previously exposed
+    let ptr = sptr::from_exposed_addr(src);
     unsafe {
-        ptr::copy_nonoverlapping(src as _, buffer.as_mut_ptr(), count);
+        ptr::copy_nonoverlapping(ptr, buffer.as_mut_ptr(), count);
     }
 
     unsafe {
@@ -98,8 +100,11 @@ pub unsafe fn write<T>(dst: Address, src: T) {
         assert!(dst % align == 0, "dst is not aligned to T");
     }
 
+    // provenance valid cause caller asserts it was previously exposed
+    let dst = sptr::from_exposed_addr_mut(dst);
+
     unsafe {
-        ptr::write(dst.as_mut(), src);
+        ptr::write(dst, src);
     }
 }
 
@@ -111,7 +116,7 @@ pub unsafe fn write<T>(dst: Address, src: T) {
 pub unsafe fn write_bytes(src: &[u8], dst: Address) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
-    unsafe { write_raw(src.as_ptr() as _, dst, src.len()) }
+    unsafe { write_raw(src.as_ptr().expose_addr(), dst, src.len()) }
 }
 
 /// Write ptr to dst
@@ -123,8 +128,11 @@ pub unsafe fn write_bytes(src: &[u8], dst: Address) {
 pub unsafe fn write_raw(src: Address, dst: Address, count: usize) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
+    // provenances are valid cause caller asserts they were previously exposed
+    let src = sptr::from_exposed_addr::<u8>(src);
+    let dst = sptr::from_exposed_addr_mut(dst);
     unsafe {
-        ptr::copy_nonoverlapping(src.as_ptr::<u8>(), dst.as_mut(), count);
+        ptr::copy_nonoverlapping(src, dst, count);
     }
 }
 
@@ -135,8 +143,10 @@ pub unsafe fn write_raw(src: Address, dst: Address, count: usize) {
 pub unsafe fn set(dst: Address, val: u8, count: usize) {
     debug_assert!(!dst.is_null(), "dst must not be null");
 
+    // provenance valid cause caller asserts it was previously exposed
+    let dst = sptr::from_exposed_addr_mut::<u8>(dst);
     unsafe {
-        ptr::write_bytes(dst.as_mut::<u8>(), val, count);
+        ptr::write_bytes(dst, val, count);
     }
 }
 
@@ -150,8 +160,11 @@ pub unsafe fn prot(addr: Address, mut size: usize, prot: Prot) -> Result<Prot, M
     }
 
     let mut old_prot = PAGE_PROTECTION_FLAGS::default();
+
+    // provenance valid cause caller asserts it was previously exposed
+    let addr = sptr::from_exposed_addr(addr);
     unsafe {
-        VirtualProtect(addr.as_ptr(), size, prot.into(), &mut old_prot)?;
+        VirtualProtect(addr, size, prot.into(), &mut old_prot)?;
     }
 
     Ok(old_prot.into())
@@ -167,7 +180,9 @@ pub fn alloc(mut size: usize, prot: Prot) -> Result<Alloc, MemError> {
         return Err(MemError::BadAddress);
     }
 
-    let alloc = Alloc(unsafe { NonNull::new_unchecked(alloc.cast()) });
+    // provenance valid cause it was given from external mem
+    let alloc = alloc.expose_addr();
+    let alloc = Alloc(alloc);
 
     Ok(alloc)
 }
