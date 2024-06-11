@@ -23,7 +23,6 @@ pub struct AlignedBytes {
 }
 
 unsafe impl Send for AlignedBytes {}
-unsafe impl Sync for AlignedBytes {}
 
 impl AlignedBytes {
     /// Create a new `AlignedBytes` instance from a slice

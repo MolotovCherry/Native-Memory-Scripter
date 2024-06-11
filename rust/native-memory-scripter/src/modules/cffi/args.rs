@@ -5,7 +5,6 @@ use std::{
 };
 
 use rustpython_vm::prelude::{PyObjectRef, PyResult, VirtualMachine};
-use tracing::error;
 
 use super::types::Type;
 use crate::utils::RawSendable;
@@ -360,6 +359,8 @@ pub struct ArgMemory {
     args: Vec<Type>,
     lock: Mutex<()>,
 }
+
+unsafe impl Send for ArgMemory {}
 
 impl ArgMemory {
     pub fn new(args: &[Type]) -> Option<Self> {

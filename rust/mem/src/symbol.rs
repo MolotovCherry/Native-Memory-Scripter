@@ -1,6 +1,6 @@
 //! This module allows one to search through and demangle a module's external symbols
 
-use std::{ffi::CStr, fmt};
+use std::ffi::CStr;
 
 use pelite::{pe::Pe, pe64::PeView};
 
@@ -21,20 +21,12 @@ pub enum SymbolError {
 #[derive(Debug, Clone)]
 pub struct Symbol {
     /// the symbol name
-    name: String,
+    pub name: String,
     /// the symbol's starting address
-    address: *const (),
+    pub address: *const (),
 }
 
-impl fmt::Display for Symbol {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Symbol {{ name: {}, address: {:?} }}",
-            self.name, self.address
-        )
-    }
-}
+unsafe impl Send for Symbol {}
 
 fn enum_symbols_cb(
     module: &Module,

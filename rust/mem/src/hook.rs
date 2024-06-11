@@ -39,7 +39,6 @@ pub struct Trampoline {
 }
 
 unsafe impl Send for Trampoline {}
-unsafe impl Sync for Trampoline {}
 
 impl fmt::Display for Trampoline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

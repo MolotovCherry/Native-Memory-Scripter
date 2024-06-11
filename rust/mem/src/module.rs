@@ -62,7 +62,6 @@ pub(crate) struct ModuleHandle {
 }
 
 unsafe impl Send for ModuleHandle {}
-unsafe impl Sync for ModuleHandle {}
 
 impl ModuleHandle {
     fn new<P: AsRef<Path>>(path: P) -> Result<Self, ModuleError> {
@@ -123,6 +122,8 @@ pub struct Module {
     pub name: String,
 }
 
+unsafe impl Send for Module {}
+
 impl fmt::Debug for Module {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Module")
@@ -132,20 +133,6 @@ impl fmt::Debug for Module {
             .field("path", &self.path)
             .field("name", &self.name)
             .finish()
-    }
-}
-
-impl fmt::Display for Module {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Module {{ base: {:#x?}, end: {:#x?}, size: {}, path: {}, name: {} }}",
-            self.base,
-            self.end,
-            self.size,
-            self.path.display(),
-            self.name
-        )
     }
 }
 

@@ -46,7 +46,6 @@ pub struct Inst {
 }
 
 unsafe impl Send for Inst {}
-unsafe impl Sync for Inst {}
 
 impl<'a> From<&'a Insn<'a>> for Inst {
     fn from(value: &Insn) -> Self {

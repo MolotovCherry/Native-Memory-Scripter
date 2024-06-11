@@ -29,7 +29,6 @@ pub enum MemError {
 pub struct Alloc(*mut c_void);
 
 unsafe impl Send for Alloc {}
-unsafe impl Sync for Alloc {}
 
 impl Alloc {
     /// Get the address of the allocation. This ptr is valid up to the size of the allocation

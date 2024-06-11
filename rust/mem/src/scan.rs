@@ -3,7 +3,6 @@
 mod aligned_bytes;
 mod backends;
 mod pattern;
-use std::fmt::{self, Display};
 
 use self::pattern::PatternError;
 
@@ -16,17 +15,14 @@ enum ScannerError {
 }
 
 /// The result of a scan
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Scan {
     /// the address of a found match
     pub addr: *const u8,
 }
 
-impl Display for Scan {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Scan {{ addr: {:?} }}", self.addr)
-    }
-}
+unsafe impl Send for Scan {}
+unsafe impl Sync for Scan {}
 
 /// Single result IDA-style pattern scanner
 ///

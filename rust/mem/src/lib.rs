@@ -25,7 +25,7 @@ use windows::Win32::System::Memory::{
 };
 
 /// The protection status of some memory
-#[derive(Debug, strum::Display)]
+#[derive(Debug, Copy, Clone, strum::Display)]
 pub enum Prot {
     /// none
     None,
