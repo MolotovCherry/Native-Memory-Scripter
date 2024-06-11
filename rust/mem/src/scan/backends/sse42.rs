@@ -24,42 +24,45 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Optio
     let mut processed_size = 0;
 
     // SAFETY: this function is only called if the CPU supports SSE4.2
-    unsafe {
-        let mut pattern = _mm_load_si128(pattern_data.data.as_ptr() as *const _);
-        let mut mask = _mm_load_si128(pattern_data.mask.as_ptr() as *const _);
-        let all_zeros = _mm_set1_epi8(0x00);
 
-        let mut chunk = 0;
+    let mut pattern = unsafe { _mm_load_si128(pattern_data.data.as_ptr() as *const _) };
+    let mut mask = unsafe { _mm_load_si128(pattern_data.mask.as_ptr() as *const _) };
+    let all_zeros = unsafe { _mm_set1_epi8(0x00) };
 
-        while chunk < size {
-            let chunk_data = _mm_loadu_si128(ptr.add(chunk) as *const _);
-            let blend = _mm_blendv_epi8(all_zeros, chunk_data, mask);
-            let eq = _mm_cmpeq_epi8(pattern, blend);
+    let mut chunk = 0;
 
-            if _mm_movemask_epi8(eq) == 0xffff {
-                processed_size += UNIT_SIZE;
+    while chunk < size {
+        let chunk_data = unsafe { _mm_loadu_si128(ptr.add(chunk) as *const _) };
+        let blend = unsafe { _mm_blendv_epi8(all_zeros, chunk_data, mask) };
+        let eq = unsafe { _mm_cmpeq_epi8(pattern, blend) };
 
-                if processed_size < pattern_data.unpadded_size {
-                    chunk += UNIT_SIZE - 1;
-                    pattern =
-                        _mm_load_si128(pattern_data.data.as_ptr().add(processed_size) as *const _);
-                    mask =
-                        _mm_load_si128(pattern_data.mask.as_ptr().add(processed_size) as *const _);
-                } else {
-                    let addr = ptr.add(chunk).sub(processed_size).add(UNIT_SIZE);
+        if unsafe { _mm_movemask_epi8(eq) == 0xffff } {
+            processed_size += UNIT_SIZE;
 
-                    let scan = Scan { addr };
+            if processed_size < pattern_data.unpadded_size {
+                chunk += UNIT_SIZE - 1;
 
-                    return Some(scan);
-                }
+                pattern = unsafe {
+                    _mm_load_si128(pattern_data.data.as_ptr().add(processed_size) as *const _)
+                };
+
+                mask = unsafe {
+                    _mm_load_si128(pattern_data.mask.as_ptr().add(processed_size) as *const _)
+                };
             } else {
-                pattern = _mm_load_si128(pattern_data.data.as_ptr() as *const _);
-                mask = _mm_load_si128(pattern_data.mask.as_ptr() as *const _);
-                processed_size = 0;
-            }
+                let addr = unsafe { ptr.add(chunk).sub(processed_size).add(UNIT_SIZE) };
 
-            chunk += 1;
+                let scan = Scan { addr };
+
+                return Some(scan);
+            }
+        } else {
+            pattern = unsafe { _mm_load_si128(pattern_data.data.as_ptr() as *const _) };
+            mask = unsafe { _mm_load_si128(pattern_data.mask.as_ptr() as *const _) };
+            processed_size = 0;
         }
+
+        chunk += 1;
     }
 
     None

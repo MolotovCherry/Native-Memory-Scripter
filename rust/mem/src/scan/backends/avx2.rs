@@ -27,41 +27,40 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Optio
     let mask_base = pattern_data.mask.as_ptr();
 
     // SAFETY: this function is only called if the CPU supports AVX2
-    unsafe {
-        let mut pattern = _mm256_load_si256(data_base as *const _);
-        let mut mask = _mm256_load_si256(mask_base as *const _);
-        let all_zeros = _mm256_set1_epi8(0x00);
 
-        let mut chunk = 0;
-        while chunk < size {
-            let chunk_data = _mm256_loadu_si256(ptr.add(chunk) as *const _);
+    let mut pattern = unsafe { _mm256_load_si256(data_base as *const _) };
+    let mut mask = unsafe { _mm256_load_si256(mask_base as *const _) };
+    let all_zeros = unsafe { _mm256_set1_epi8(0x00) };
 
-            let blend = _mm256_blendv_epi8(all_zeros, chunk_data, mask);
-            let eq = _mm256_cmpeq_epi8(pattern, blend);
+    let mut chunk = 0;
+    while chunk < size {
+        let chunk_data = unsafe { _mm256_loadu_si256(ptr.add(chunk) as *const _) };
 
-            if _mm256_movemask_epi8(eq) as u32 == 0xffffffff {
-                processed_size += UNIT_SIZE;
+        let blend = unsafe { _mm256_blendv_epi8(all_zeros, chunk_data, mask) };
+        let eq = unsafe { _mm256_cmpeq_epi8(pattern, blend) };
 
-                if processed_size < pattern_data.unpadded_size {
-                    chunk += UNIT_SIZE - 1;
+        if unsafe { _mm256_movemask_epi8(eq) as u32 == 0xffffffff } {
+            processed_size += UNIT_SIZE;
 
-                    pattern = _mm256_load_si256(data_base.add(processed_size) as *const _);
-                    mask = _mm256_load_si256(mask_base.add(processed_size) as *const _);
-                } else {
-                    let addr = ptr.add(chunk).sub(processed_size).add(UNIT_SIZE);
+            if processed_size < pattern_data.unpadded_size {
+                chunk += UNIT_SIZE - 1;
 
-                    let scan = Scan { addr };
-
-                    return Some(scan);
-                }
+                pattern = unsafe { _mm256_load_si256(data_base.add(processed_size) as *const _) };
+                mask = unsafe { _mm256_load_si256(mask_base.add(processed_size) as *const _) };
             } else {
-                pattern = _mm256_load_si256(data_base as *const _);
-                mask = _mm256_load_si256(mask_base as *const _);
-                processed_size = 0;
-            }
+                let addr = unsafe { ptr.add(chunk).sub(processed_size).add(UNIT_SIZE) };
 
-            chunk += 1;
+                let scan = Scan { addr };
+
+                return Some(scan);
+            }
+        } else {
+            pattern = unsafe { _mm256_load_si256(data_base as *const _) };
+            mask = unsafe { _mm256_load_si256(mask_base as *const _) };
+            processed_size = 0;
         }
+
+        chunk += 1;
     }
 
     None

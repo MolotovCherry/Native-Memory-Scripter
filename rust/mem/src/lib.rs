@@ -7,7 +7,6 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![warn(missing_docs)]
-#![allow(unstable_name_collisions)]
 
 #[cfg(not(any(target_arch = "x86_64", target_os = "windows")))]
 compile_error!("only x86_64 windows is supported");
