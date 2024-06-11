@@ -7,6 +7,7 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![warn(missing_docs)]
+#![warn(missing_copy_implementations, missing_debug_implementations)]
 
 #[cfg(not(any(target_arch = "x86_64", target_os = "windows")))]
 compile_error!("only x86_64 windows is supported");

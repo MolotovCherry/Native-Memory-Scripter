@@ -7,7 +7,7 @@ use pelite::{pe::Pe, pe64::PeView};
 use crate::module::Module;
 
 /// An error for the [Symbol] type
-#[derive(Debug, thiserror::Error)]
+#[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum SymbolError {
     /// symbol was not found
     #[error("symbol not found")]

@@ -8,7 +8,7 @@ use capstone::Insn;
 use keystone_engine::{Arch, Keystone, Mode};
 
 /// An error for the [asm](crate::asm) module
-#[derive(Debug, thiserror::Error)]
+#[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum AsmError {
     /// an invalid address
     #[error("bad address")]
