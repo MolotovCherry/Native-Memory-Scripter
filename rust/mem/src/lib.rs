@@ -16,6 +16,7 @@ pub mod hook;
 pub mod memory;
 pub mod module;
 pub mod scan;
+pub mod segment;
 pub mod symbol;
 mod utils;
 
