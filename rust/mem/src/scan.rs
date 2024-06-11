@@ -4,7 +4,7 @@ mod aligned_bytes;
 mod backends;
 mod pattern;
 
-use self::pattern::PatternError;
+use self::pattern::{Pattern, PatternError};
 
 /// Scanning errors
 #[derive(Debug, thiserror::Error)]
@@ -89,5 +89,39 @@ pub unsafe fn sig_scan(pattern: &str, addr: *const u8, size: usize) -> Option<Sc
 /// ```
 pub unsafe fn data_scan(data: &[u8], addr: *const u8, size: usize) -> Option<Scan> {
     let pattern = data.into();
+    unsafe { backends::find(&pattern, addr, size) }
+}
+
+/// Scan address for data with a mask
+///
+/// Find the first occurence of the pattern in the binary
+///
+/// # Params
+///
+/// * `data` - the binary data to search for
+///
+/// * `mask` - the mask to apply to the data. use `x` for known byte, `?` for unknown byte
+///
+/// * `addr` - pointer to the first element of the binary to search the pattern in
+///
+/// * `size` - binary size
+///
+/// # Safety
+///
+/// * `addr` - is a valid pointer
+///
+/// * `size` - corresponds to a valid size of `binary`
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let binary = [0xab, 0xec, 0x00, 0x89, 0x5c, 0x00, 0xee, 0x00, 0x89, 0x6c];
+///
+/// let result = unsafe { pattern_scan(&binary, "xx?xx?x?xx", address, 200) };
+///
+/// println!("{:?}", result);
+/// ```
+pub unsafe fn pattern_scan(data: &[u8], mask: &str, addr: *const u8, size: usize) -> Option<Scan> {
+    let pattern = Pattern::from_data_with_mask(data, mask).ok()?;
     unsafe { backends::find(&pattern, addr, size) }
 }

@@ -43,9 +43,6 @@ pub enum ModuleError {
     /// no modules were found
     #[error("no modules available")]
     NoModules(windows::core::Error),
-    /// module was not found
-    #[error("module not found")]
-    NotFound,
 }
 
 type Pid = u32;
@@ -62,6 +59,7 @@ pub(crate) struct ModuleHandle {
 }
 
 unsafe impl Send for ModuleHandle {}
+unsafe impl Sync for ModuleHandle {}
 
 impl ModuleHandle {
     fn new<P: AsRef<Path>>(path: P) -> Result<Self, ModuleError> {
@@ -123,6 +121,7 @@ pub struct Module {
 }
 
 unsafe impl Send for Module {}
+unsafe impl Sync for Module {}
 
 impl fmt::Debug for Module {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -293,7 +292,7 @@ pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
 }
 
 /// Find a module by name. This is case sensitive
-pub fn find_module(name: &str) -> Result<Module, ModuleError> {
+pub fn find_module(name: &str) -> Result<Option<Module>, ModuleError> {
     let mut module_ret = None;
 
     enum_modules_cb(|module| {
@@ -305,5 +304,5 @@ pub fn find_module(name: &str) -> Result<Module, ModuleError> {
         }
     })?;
 
-    module_ret.ok_or(ModuleError::NotFound)
+    Ok(module_ret)
 }

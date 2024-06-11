@@ -9,9 +9,6 @@ use crate::module::Module;
 /// An error for the [Symbol] type
 #[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum SymbolError {
-    /// symbol was not found
-    #[error("symbol not found")]
-    SymbolNotFound,
     /// an error from pelite
     #[error(transparent)]
     Pelite(#[from] pelite::Error),
@@ -27,6 +24,7 @@ pub struct Symbol {
 }
 
 unsafe impl Send for Symbol {}
+unsafe impl Sync for Symbol {}
 
 fn enum_symbols_cb(
     module: &Module,
@@ -78,11 +76,12 @@ pub fn enum_symbols(module: &Module) -> Result<Vec<Symbol>, SymbolError> {
 pub fn enum_symbols_demangled(module: &Module) -> Result<Vec<Symbol>, SymbolError> {
     let mut symbols = Vec::new();
 
-    enum_symbols_cb(module, |addr, name| {
-        let name = demangle_symbol(name);
+    enum_symbols_cb(module, |addr, _name| {
+        let name = demangle_symbol(_name);
+        let name = name.as_deref().unwrap_or(_name);
 
         let sym = Symbol {
-            name,
+            name: name.to_owned(),
             address: addr.cast(),
         };
 
@@ -96,7 +95,7 @@ pub fn enum_symbols_demangled(module: &Module) -> Result<Vec<Symbol>, SymbolErro
 
 /// Find the address of an exported symbol in the module
 /// Note that the name IS case-sensitive and requires an exact match!
-pub fn find_symbol_address(module: &Module, symbol: &str) -> Result<Symbol, SymbolError> {
+pub fn find_symbol_address(module: &Module, symbol: &str) -> Result<Option<Symbol>, SymbolError> {
     let mut symbol_out = None;
 
     enum_symbols_cb(module, |addr, name| {
@@ -115,19 +114,24 @@ pub fn find_symbol_address(module: &Module, symbol: &str) -> Result<Symbol, Symb
     })?;
 
     if let Some(symbol) = symbol_out {
-        Ok(symbol)
+        Ok(Some(symbol))
     } else {
-        Err(SymbolError::SymbolNotFound)
+        Ok(None)
     }
 }
 
 /// Find the address of an exported symbol in the module
 /// Note that the name IS case-sensitive but only requires a partial match!
-pub fn find_symbol_address_demangled(module: &Module, symbol: &str) -> Result<Symbol, SymbolError> {
+pub fn find_symbol_address_demangled(
+    module: &Module,
+    symbol: &str,
+) -> Result<Option<Symbol>, SymbolError> {
     let mut symbol_out = None;
 
     enum_symbols_cb(module, |addr, name| {
-        let name = demangle_symbol(name);
+        let Some(name) = demangle_symbol(name) else {
+            return false;
+        };
 
         if name.contains(symbol) {
             let sym = Symbol {
@@ -144,9 +148,9 @@ pub fn find_symbol_address_demangled(module: &Module, symbol: &str) -> Result<Sy
     })?;
 
     if let Some(symbol) = symbol_out {
-        Ok(symbol)
+        Ok(Some(symbol))
     } else {
-        Err(SymbolError::SymbolNotFound)
+        Ok(None)
     }
 }
 
@@ -158,12 +162,11 @@ pub fn find_symbol_address_demangled(module: &Module, symbol: &str) -> Result<Sy
 /// Rust (both legacy and v0)
 /// Swift (up to Swift 5.3)
 /// ObjC (only symbol detection)
-pub fn demangle_symbol(symbol: &str) -> String {
+pub fn demangle_symbol(symbol: &str) -> Option<String> {
     use symbolic_common::{Language, Name, NameMangling};
     use symbolic_demangle::{Demangle, DemangleOptions};
 
     let name = Name::new(symbol, NameMangling::Mangled, Language::Unknown);
 
     name.demangle(DemangleOptions::name_only())
-        .unwrap_or_else(|| symbol.to_owned())
 }

@@ -1,6 +1,9 @@
 //! This module allows one to hook functions
 
-use std::{fmt, mem, ptr};
+use std::{
+    fmt, mem, ptr,
+    sync::{Arc, Mutex},
+};
 
 use arrayvec::ArrayVec;
 use tracing::trace;
@@ -29,9 +32,10 @@ pub enum HookError {
 #[derive(Debug)]
 pub struct Trampoline {
     // the allocation holding the code - the code disappears when the trampoline is dropped!
-    _code: Alloc,
+    _code: Arc<Alloc>,
     // the original ptr + length that was replaced
     from: (*mut u8, usize),
+    mutex: Mutex<()>,
     /// the trampoline address
     pub address: *const u8,
     /// the code size of the trampoline
@@ -39,6 +43,19 @@ pub struct Trampoline {
 }
 
 unsafe impl Send for Trampoline {}
+unsafe impl Sync for Trampoline {}
+
+impl Clone for Trampoline {
+    fn clone(&self) -> Self {
+        Self {
+            _code: self._code.clone(),
+            from: self.from,
+            mutex: Mutex::default(),
+            address: self.address,
+            size: self.size,
+        }
+    }
+}
 
 impl fmt::Display for Trampoline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -56,6 +73,8 @@ impl Trampoline {
     /// # Safety
     /// This overwrites the target function with the original code. There is no synchronization.
     pub unsafe fn unhook(self) -> Result<(), HookError> {
+        let _guard = self.mutex.lock().unwrap();
+
         trace!(
             "unhook copying {} bytes from {:?} -> {:?}",
             self.from.1,
@@ -203,8 +222,9 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     let trampoline = Trampoline {
         from: (from, code_len),
         address: trampoline.addr(),
-        _code: trampoline,
+        _code: Arc::new(trampoline),
         size: trampoline_len,
+        mutex: Mutex::default(),
     };
 
     Ok(trampoline)

@@ -5,7 +5,11 @@ use super::aligned_bytes::AlignedBytes;
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum PatternError {
     #[error("pattern is invalid. pattern must be a-f, A-F, 0-9, or ?? or ? for wildcards")]
-    Invalid,
+    Pat,
+    #[error("mask is invalid. mask must be x or ? for wildcards")]
+    Mask,
+    #[error("mask is not the same length as the data")]
+    MaskLen,
 }
 
 /// An IDA-style binary pattern
@@ -64,12 +68,12 @@ impl Pattern {
                 _ => {
                     // check if iterator got out of sync, which indicates a partial match
                     let Some(next_sym) = next_sym else {
-                        return Err(PatternError::Invalid);
+                        return Err(PatternError::Pat);
                     };
 
                     // only hex digits are allowed; a-f A-F 0-9
                     if !sym.is_ascii_hexdigit() || !next_sym.is_ascii_hexdigit() {
-                        return Err(PatternError::Invalid);
+                        return Err(PatternError::Pat);
                     }
 
                     let byte = char_to_byte(sym) << 4 | char_to_byte(next_sym);
@@ -120,6 +124,40 @@ impl Pattern {
             mask: unsafe { AlignedBytes::new(&mask, Self::ALIGN).unwrap_unchecked() },
             unpadded_size,
         }
+    }
+
+    pub(crate) fn from_data_with_mask(data: &[u8], mask: &str) -> Result<Self, PatternError> {
+        if mask.len() != data.len() {
+            return Err(PatternError::MaskLen);
+        }
+
+        let mut data = data.to_vec();
+        let mut mask_ = Vec::with_capacity(data.len());
+
+        for sym in mask.chars() {
+            match sym {
+                'x' => mask_.push(0xFF),
+                '?' => mask_.push(0x00),
+                _ => return Err(PatternError::Mask),
+            }
+        }
+
+        let unpadded_size = data.len();
+
+        let count = f32::ceil(unpadded_size as f32 / Self::ALIGN as f32) as usize;
+        let padding_size = count * Self::ALIGN - unpadded_size;
+
+        data.resize(unpadded_size + padding_size, 0);
+        mask_.resize(unpadded_size + padding_size, 0);
+
+        // SAFETY: our align is a power of 2 above
+        let slf = Self {
+            data: unsafe { AlignedBytes::new(&data, Self::ALIGN).unwrap_unchecked() },
+            mask: unsafe { AlignedBytes::new(&mask_, Self::ALIGN).unwrap_unchecked() },
+            unpadded_size,
+        };
+
+        Ok(slf)
     }
 }
 
