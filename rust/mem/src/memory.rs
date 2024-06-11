@@ -2,12 +2,15 @@
 
 use std::{ffi::c_void, mem, ptr};
 
-use windows::Win32::System::{
-    Memory::{
-        VirtualAlloc, VirtualFree, VirtualProtect, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE,
-        PAGE_PROTECTION_FLAGS,
+use windows::Win32::{
+    Foundation::{GetLastError, WIN32_ERROR},
+    System::{
+        Memory::{
+            VirtualAlloc, VirtualFree, VirtualProtect, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE,
+            PAGE_PROTECTION_FLAGS,
+        },
+        SystemInformation::{GetSystemInfo, SYSTEM_INFO},
     },
-    SystemInformation::{GetSystemInfo, SYSTEM_INFO},
 };
 
 use crate::Prot;
@@ -21,6 +24,15 @@ pub enum MemError {
     /// a windows error
     #[error(transparent)]
     Windows(#[from] windows::core::Error),
+    /// a windows error
+    #[error("{0:?}: {}", .0.to_hresult().message())]
+    Win32(windows::Win32::Foundation::WIN32_ERROR),
+}
+
+impl From<WIN32_ERROR> for MemError {
+    fn from(value: WIN32_ERROR) -> Self {
+        Self::Win32(value)
+    }
 }
 
 /// A Windows allocation which will be freed when this type is dropped
@@ -170,7 +182,8 @@ pub fn alloc(mut size: usize, prot: Prot) -> Result<Alloc, MemError> {
 
     let alloc = unsafe { VirtualAlloc(None, size, MEM_COMMIT | MEM_RESERVE, prot.into()) };
     if alloc.is_null() {
-        return Err(MemError::BadAddress);
+        let error = unsafe { GetLastError() };
+        return Err(error.into());
     }
 
     let alloc = Alloc(alloc);
