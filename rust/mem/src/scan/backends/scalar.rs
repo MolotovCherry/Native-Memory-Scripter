@@ -1,6 +1,6 @@
 //! Scalar pattern scanning backend
 
-use crate::scanner::{Pattern, Scan, ScanError};
+use crate::scan::{pattern::Pattern, Scan};
 
 /// Find the first occurrence of a pattern in the binary
 /// using scalar instructions
@@ -10,7 +10,7 @@ use crate::scanner::{Pattern, Scan, ScanError};
 /// * `ptr` - is a valid pointer
 ///
 /// * `size` - corresponds to a valid size of `binary`
-pub unsafe fn find(pattern: &Pattern, ptr: *const u8, size: usize) -> Result<Scan, ScanError> {
+pub unsafe fn find(pattern: &Pattern, ptr: *const u8, size: usize) -> Option<Scan> {
     // SAFETY: safe to call as the pointer will be exactly one byte past the end of the binary
     let binary_end = unsafe { ptr.add(size) };
 
@@ -40,9 +40,9 @@ pub unsafe fn find(pattern: &Pattern, ptr: *const u8, size: usize) -> Result<Sca
             let addr = unsafe { ptr.add(binary_offset) };
             let scan = Scan { addr };
 
-            return Ok(scan);
+            return Some(scan);
         }
     }
 
-    Err(ScanError::NotFound)
+    None
 }

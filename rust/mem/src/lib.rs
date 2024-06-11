@@ -16,7 +16,7 @@ pub mod asm;
 pub mod hook;
 pub mod memory;
 pub mod module;
-pub mod scanner;
+pub mod scan;
 pub mod symbol;
 mod utils;
 

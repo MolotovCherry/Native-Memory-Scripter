@@ -4,15 +4,11 @@ mod scalar;
 #[cfg(target_arch = "x86_64")]
 mod sse42;
 
-use super::{Pattern, Scan, ScanError};
+use super::{pattern::Pattern, Scan};
 
 /// # Safety
 /// address must be valid and have exposed provenance for up to size reads
-pub(crate) unsafe fn find(
-    pattern: &Pattern,
-    ptr: *const u8,
-    size: usize,
-) -> Result<Scan, ScanError> {
+pub(crate) unsafe fn find(pattern: &Pattern, ptr: *const u8, size: usize) -> Option<Scan> {
     #[cfg(target_arch = "x86_64")]
     {
         let avx2 = is_x86_feature_detected!("avx2");

@@ -5,7 +5,7 @@ use std::arch::x86_64::{
     _mm256_movemask_epi8, _mm256_set1_epi8,
 };
 
-use crate::scanner::{Pattern, Scan, ScanError};
+use crate::scan::{pattern::Pattern, Scan};
 
 /// Find the first occurrence of a pattern in the binary
 /// using AVX2 instructions
@@ -18,7 +18,7 @@ use crate::scanner::{Pattern, Scan, ScanError};
 ///
 /// * Currently running CPU supports AVX2
 #[target_feature(enable = "avx2")]
-pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Result<Scan, ScanError> {
+pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Option<Scan> {
     const UNIT_SIZE: usize = 32;
 
     let mut processed_size = 0;
@@ -52,7 +52,7 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Resul
 
                     let scan = Scan { addr };
 
-                    return Ok(scan);
+                    return Some(scan);
                 }
             } else {
                 pattern = _mm256_load_si256(data_base as *const _);
@@ -64,5 +64,5 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Resul
         }
     }
 
-    Err(ScanError::NotFound)
+    None
 }

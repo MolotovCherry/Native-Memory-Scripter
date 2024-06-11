@@ -5,7 +5,7 @@ use std::arch::x86_64::{
     _mm_set1_epi8,
 };
 
-use crate::scanner::{Pattern, Scan, ScanError};
+use crate::scan::{pattern::Pattern, Scan};
 
 /// Find the first occurrence of a pattern in the binary
 /// using SSE4.2 instructions
@@ -18,7 +18,7 @@ use crate::scanner::{Pattern, Scan, ScanError};
 ///
 /// * Currently running CPU supports SSE4.2
 #[target_feature(enable = "sse4.2")]
-pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Result<Scan, ScanError> {
+pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Option<Scan> {
     const UNIT_SIZE: usize = 16;
 
     let mut processed_size = 0;
@@ -50,7 +50,7 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Resul
 
                     let scan = Scan { addr };
 
-                    return Ok(scan);
+                    return Some(scan);
                 }
             } else {
                 pattern = _mm_load_si128(pattern_data.data.as_ptr() as *const _);
@@ -62,5 +62,5 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Resul
         }
     }
 
-    Err(ScanError::NotFound)
+    None
 }

@@ -3,13 +3,13 @@ use std::fmt;
 use super::aligned_bytes::AlignedBytes;
 
 #[derive(Debug, thiserror::Error)]
-pub enum PatternError {
+pub(crate) enum PatternError {
     #[error("pattern is invalid. pattern must be a-f, A-F, 0-9, or ?? or ? for wildcards")]
     Invalid,
 }
 
 /// An IDA-style binary pattern
-pub struct Pattern {
+pub(crate) struct Pattern {
     pub(crate) data: AlignedBytes,
     pub(crate) mask: AlignedBytes,
     pub(crate) unpadded_size: usize,
@@ -35,7 +35,7 @@ impl Pattern {
     /// Pattern::new("48 89 ?? 24 ?? 48 89 6c");
     /// Pattern::new("48 89 ? 24 ? 48 89 6c");
     /// ```
-    pub fn new(pattern: &str) -> Result<Self, PatternError> {
+    pub(crate) fn from_str(pattern: &str) -> Result<Self, PatternError> {
         let char_to_byte = |c| match c {
             c if matches!(c, 'a'..='f') => c as u8 - b'a' + 0xA,
             c if matches!(c, 'A'..='F') => c as u8 - b'A' + 0xA,
@@ -99,12 +99,40 @@ impl Pattern {
 
         Ok(slf)
     }
+
+    pub(crate) fn from_data(data: &[u8]) -> Self {
+        let mut data = data.to_vec();
+
+        let mut mask = Vec::with_capacity(data.len());
+        mask.fill(0xFF);
+
+        let unpadded_size = data.len();
+
+        let count = f32::ceil(unpadded_size as f32 / Self::ALIGN as f32) as usize;
+        let padding_size = count * Self::ALIGN - unpadded_size;
+
+        data.resize(unpadded_size + padding_size, 0);
+        mask.resize(unpadded_size + padding_size, 0);
+
+        // SAFETY: our align is a power of 2 above
+        Self {
+            data: unsafe { AlignedBytes::new(&data, Self::ALIGN).unwrap_unchecked() },
+            mask: unsafe { AlignedBytes::new(&mask, Self::ALIGN).unwrap_unchecked() },
+            unpadded_size,
+        }
+    }
+}
+
+impl From<&[u8]> for Pattern {
+    fn from(value: &[u8]) -> Self {
+        Self::from_data(value)
+    }
 }
 
 impl TryFrom<&str> for Pattern {
     type Error = PatternError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::new(value)
+        Self::from_str(value)
     }
 }
