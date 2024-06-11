@@ -44,6 +44,9 @@ pub enum ModuleError {
     /// no modules were found
     #[error("no modules available")]
     NoModules(windows::core::Error),
+    /// module was not found
+    #[error("module not found")]
+    NotFound,
 }
 
 type Pid = u32;
@@ -237,8 +240,7 @@ impl Module {
     }
 }
 
-/// Get a list of all modules loaded into the process
-pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
+fn enum_modules_cb(mut cb: impl FnMut(Module) -> bool) -> Result<(), ModuleError> {
     let process = *PROCESS;
 
     let hsnap =
@@ -252,8 +254,6 @@ pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
     if let Err(err) = unsafe { Module32FirstW(hsnap, &mut entry) } {
         return Err(ModuleError::NoModules(err));
     };
-
-    let mut modules = Vec::new();
 
     loop {
         let len = entry.szModule.iter().position(|n| *n == 0).unwrap_or(255);
@@ -275,7 +275,9 @@ pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
             name,
         };
 
-        modules.push(module);
+        if cb(module) {
+            break;
+        }
 
         if let Err(err) = unsafe { Module32NextW(hsnap, &mut entry) } {
             if err.code() == ERROR_NO_MORE_FILES.to_hresult() {
@@ -286,5 +288,33 @@ pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
         }
     }
 
+    Ok(())
+}
+
+/// Get a list of all modules loaded into the process
+pub fn enum_modules() -> Result<Vec<Module>, ModuleError> {
+    let mut modules = Vec::new();
+
+    enum_modules_cb(|module| {
+        modules.push(module);
+        false
+    })?;
+
     Ok(modules)
+}
+
+/// Find a module by name. This is case sensitive
+pub fn find_module(name: &str) -> Result<Module, ModuleError> {
+    let mut module_ret = None;
+
+    enum_modules_cb(|module| {
+        if module.name == name {
+            module_ret = Some(module);
+            true
+        } else {
+            false
+        }
+    })?;
+
+    module_ret.ok_or(ModuleError::NotFound)
 }
