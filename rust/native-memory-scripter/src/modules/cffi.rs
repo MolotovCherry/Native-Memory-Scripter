@@ -17,7 +17,6 @@ pub mod cffi {
     };
 
     use cranelift::prelude::{isa::CallConv, *};
-    use libmem::Address;
     use rustpython_vm::{
         builtins::PyTypeRef,
         function::FuncArgs,
