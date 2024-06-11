@@ -25,14 +25,14 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Optio
 
     // SAFETY: this function is only called if the CPU supports SSE4.2
 
-    let mut pattern = unsafe { _mm_load_si128(pattern_data.data.as_ptr() as *const _) };
-    let mut mask = unsafe { _mm_load_si128(pattern_data.mask.as_ptr() as *const _) };
+    let mut pattern = unsafe { _mm_load_si128(pattern_data.data.as_ptr().cast()) };
+    let mut mask = unsafe { _mm_load_si128(pattern_data.mask.as_ptr().cast()) };
     let all_zeros = unsafe { _mm_set1_epi8(0x00) };
 
     let mut chunk = 0;
 
     while chunk < size {
-        let chunk_data = unsafe { _mm_loadu_si128(ptr.add(chunk) as *const _) };
+        let chunk_data = unsafe { _mm_loadu_si128(ptr.add(chunk).cast()) };
         let blend = unsafe { _mm_blendv_epi8(all_zeros, chunk_data, mask) };
         let eq = unsafe { _mm_cmpeq_epi8(pattern, blend) };
 
@@ -43,11 +43,11 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Optio
                 chunk += UNIT_SIZE - 1;
 
                 pattern = unsafe {
-                    _mm_load_si128(pattern_data.data.as_ptr().add(processed_size) as *const _)
+                    _mm_load_si128(pattern_data.data.as_ptr().add(processed_size).cast())
                 };
 
                 mask = unsafe {
-                    _mm_load_si128(pattern_data.mask.as_ptr().add(processed_size) as *const _)
+                    _mm_load_si128(pattern_data.mask.as_ptr().add(processed_size).cast())
                 };
             } else {
                 let addr = unsafe { ptr.add(chunk).sub(processed_size).add(UNIT_SIZE) };
@@ -57,8 +57,8 @@ pub unsafe fn find(pattern_data: &Pattern, ptr: *const u8, size: usize) -> Optio
                 return Some(scan);
             }
         } else {
-            pattern = unsafe { _mm_load_si128(pattern_data.data.as_ptr() as *const _) };
-            mask = unsafe { _mm_load_si128(pattern_data.mask.as_ptr() as *const _) };
+            pattern = unsafe { _mm_load_si128(pattern_data.data.as_ptr().cast()) };
+            mask = unsafe { _mm_load_si128(pattern_data.mask.as_ptr().cast()) };
             processed_size = 0;
         }
 
