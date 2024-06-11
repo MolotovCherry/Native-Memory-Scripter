@@ -26,17 +26,18 @@ fn enum_segments_cb(mut cb: impl FnMut(Segment) -> bool) {
     let mut address = 0;
     let mut mem_info = MEMORY_BASIC_INFORMATION::default();
 
-    let mut written = true;
-    while written {
+    let mut written = 0;
+    while written > 0 {
+        // conditions at top
+        address += mem_info.RegionSize;
+
         written = unsafe {
             VirtualQuery(
                 Some(address as _),
                 &mut mem_info,
                 mem::size_of::<MEMORY_BASIC_INFORMATION>(),
             )
-        } != 0;
-
-        address += mem_info.RegionSize;
+        };
 
         if mem_info.State == MEM_FREE {
             continue;
