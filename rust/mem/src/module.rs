@@ -7,7 +7,6 @@ use std::{
     string::FromUtf16Error,
 };
 
-use sptr::Strict;
 use windows::{
     core::PCWSTR,
     Win32::{
@@ -24,7 +23,7 @@ use windows::{
     },
 };
 
-use crate::{utils::LazyLock, Address};
+use crate::utils::LazyLock;
 
 /// An error for the [Module] type
 #[derive(Debug, thiserror::Error)]
@@ -59,8 +58,11 @@ static PROCESS: LazyLock<(HANDLE, Pid)> =
 #[derive(Debug)]
 pub(crate) struct ModuleHandle {
     path: Vec<u16>,
-    pub(crate) base: Address, // equivalent to HMODULE
+    pub(crate) base: *mut u8, // equivalent to HMODULE
 }
+
+unsafe impl Send for ModuleHandle {}
+unsafe impl Sync for ModuleHandle {}
 
 impl ModuleHandle {
     fn new<P: AsRef<Path>>(path: P) -> Result<Self, ModuleError> {
@@ -111,9 +113,9 @@ pub struct Module {
     pub(crate) handle: ModuleHandle,
 
     /// base address of the module in memory
-    pub base: Address,
+    pub base: *mut u8,
     /// end address of the module in memory
-    pub end: Address,
+    pub end: *mut u8,
     /// the size of the module in memory
     pub size: u32,
     /// the filesystem path to the module
@@ -179,9 +181,14 @@ impl TryFrom<HMODULE> for Module {
         let module = Module {
             handle,
             // provenance will always be OK since external mem
-            base: module_info.lpBaseOfDll.expose_addr(),
+            base: module_info.lpBaseOfDll.cast(),
             // provenance will always be OK since external mem
-            end: module_info.lpBaseOfDll.expose_addr() + module_info.SizeOfImage as usize,
+            end: unsafe {
+                module_info
+                    .lpBaseOfDll
+                    .add(module_info.SizeOfImage as usize)
+                    .cast()
+            },
             size: module_info.SizeOfImage,
             path,
             name,
@@ -267,9 +274,9 @@ fn enum_modules_cb(mut cb: impl FnMut(Module) -> bool) -> Result<(), ModuleError
         let module = Module {
             handle,
             // external mem, provenance OK
-            base: entry.modBaseAddr.expose_addr(),
+            base: entry.modBaseAddr,
             // external mem, provenance OK
-            end: entry.modBaseAddr.expose_addr() + entry.dwSize as usize,
+            end: unsafe { entry.modBaseAddr.add(entry.dwSize as usize) },
             size: entry.modBaseSize,
             path: PathBuf::from(path),
             name,

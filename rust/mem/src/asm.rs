@@ -7,8 +7,6 @@ use capstone::prelude::*;
 use capstone::Insn;
 use keystone_engine::{Arch, Keystone, Mode};
 
-use crate::{Address, AddressUtils as _};
-
 /// An error for the [asm](crate::asm) module
 #[derive(Debug, thiserror::Error)]
 pub enum AsmError {
@@ -36,7 +34,7 @@ pub enum AsmError {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Inst {
     /// the base address of the instruction (if you used `runtime_addr`)
-    pub address: Address,
+    pub address: *const u8,
     /// the byte size of the instruction
     pub size: usize,
     /// the instruction bytes
@@ -46,6 +44,9 @@ pub struct Inst {
     /// the op str
     pub op_str: Option<String>,
 }
+
+unsafe impl Send for Inst {}
+unsafe impl Sync for Inst {}
 
 impl<'a> From<&'a Insn<'a>> for Inst {
     fn from(value: &Insn) -> Self {
@@ -64,11 +65,11 @@ impl Display for Inst {
         if let (Some(mnemonic), Some(op_str)) = (self.mnemonic.as_deref(), self.op_str.as_deref()) {
             write!(
                 f,
-                "{mnemonic} {op_str} @ {:#x} -> {:x?}",
+                "{mnemonic} {op_str} @ {:?} -> {:x?}",
                 self.address, self.bytes
             )
         } else {
-            write!(f, "?? ?? @ {:#x} -> {:x?}", self.address, self.bytes)
+            write!(f, "?? ?? @ {:?} -> {:x?}", self.address, self.bytes)
         }
     }
 }
@@ -129,7 +130,7 @@ pub fn assemble(code: &str) -> Result<Inst, AsmError> {
 /// ```rust,ignore
 /// assemble("jmp [rip]", 0x112233445566);
 /// ```
-pub fn assemble_ex(code: &str, runtime_addr: Address) -> Result<Vec<Inst>, AsmError> {
+pub fn assemble_ex(code: &str, runtime_addr: usize) -> Result<Vec<Inst>, AsmError> {
     if code.is_empty() {
         return Err(AsmError::BadAsm);
     }
@@ -152,15 +153,13 @@ pub fn assemble_ex(code: &str, runtime_addr: Address) -> Result<Vec<Inst>, AsmEr
 /// # Safety
 /// - Address must be valid ptr with exposed provenance
 /// - Address must be valid for max 16 bytes read
-pub unsafe fn disassemble(addr: Address) -> Result<Inst, AsmError> {
+pub unsafe fn disassemble(addr: *const u8) -> Result<Inst, AsmError> {
     let cs = Capstone::new()
         .x86()
         .mode(arch::x86::ArchMode::Mode64)
         .syntax(arch::x86::ArchSyntax::Intel)
         .build()?;
 
-    // SAFETY: caller guarantees addr has provenance for 16 bytes
-    let addr = sptr::from_exposed_addr(addr);
     let code = unsafe { slice::from_raw_parts(addr, 16) };
 
     let insts = cs.disasm_count(code, 0, 1)?;
@@ -179,16 +178,14 @@ pub unsafe fn disassemble(addr: Address) -> Result<Inst, AsmError> {
 /// - Address must be valid ptr with exposed provenance
 /// - Address must be valid for `size` bytes read
 pub unsafe fn disassemble_ex(
-    addr: Address,
+    addr: *const u8,
     size: usize,
-    runtime_addr: Address,
+    runtime_addr: usize,
 ) -> Result<Vec<Inst>, AsmError> {
     if addr.is_null() {
         return Err(AsmError::BadAddress);
     }
 
-    // provenance valid cause caller asserts it was previously exposed
-    let addr = sptr::from_exposed_addr::<u8>(addr);
     let code = unsafe { slice::from_raw_parts(addr, size) };
 
     disassemble_bytes_ex(code, runtime_addr)
@@ -201,17 +198,15 @@ pub unsafe fn disassemble_ex(
 /// - Address must be valid ptr with exposed provenance
 /// - Address must be valid for `size` bytes read
 pub unsafe fn disassemble_ex_count(
-    addr: Address,
+    addr: *const u8,
     size: usize,
-    runtime_addr: Address,
+    runtime_addr: usize,
     instruction_count: usize,
 ) -> Result<Vec<Inst>, AsmError> {
     if addr.is_null() {
         return Err(AsmError::BadAddress);
     }
 
-    // provenance valid cause caller asserts it was previously exposed
-    let addr = sptr::from_exposed_addr::<u8>(addr);
     let code = unsafe { slice::from_raw_parts(addr, size) };
 
     disassemble_bytes_ex_count(code, runtime_addr, instruction_count)
@@ -231,7 +226,7 @@ pub fn disassemble_bytes_count(
 }
 
 /// Disassemble all instructions from bytes, with`runtime_addr`
-pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: Address) -> Result<Vec<Inst>, AsmError> {
+pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: usize) -> Result<Vec<Inst>, AsmError> {
     let cs = Capstone::new()
         .x86()
         .mode(arch::x86::ArchMode::Mode64)
@@ -252,7 +247,7 @@ pub fn disassemble_bytes_ex(code: &[u8], runtime_addr: Address) -> Result<Vec<In
 /// Disassemble up to `instruction_count` instructions from bytes, with`runtime_addr`
 pub fn disassemble_bytes_ex_count(
     code: &[u8],
-    runtime_addr: Address,
+    runtime_addr: usize,
     instruction_count: usize,
 ) -> Result<Vec<Inst>, AsmError> {
     let cs = Capstone::new()
@@ -275,8 +270,8 @@ pub fn disassemble_bytes_ex_count(
 /// Starting at address, get the closest valid length of bytes to `min_len` without overwriting any asm instructions
 ///
 /// # Safety
-/// - address must be valid address with provenance for min_len up to the returned usize
-pub unsafe fn code_len(mut addr: Address, min_len: usize) -> Result<usize, AsmError> {
+/// - address must be valid address for reads for min_len up to the returned usize (16 bytes max)
+pub unsafe fn code_len(mut addr: *const u8, min_len: usize) -> Result<usize, AsmError> {
     if addr.is_null() {
         return Err(AsmError::BadAddress);
     }
@@ -288,7 +283,7 @@ pub unsafe fn code_len(mut addr: Address, min_len: usize) -> Result<usize, AsmEr
         };
 
         len += inst.size;
-        addr += inst.size;
+        addr = unsafe { addr.add(inst.size) };
     }
 
     Ok(len)

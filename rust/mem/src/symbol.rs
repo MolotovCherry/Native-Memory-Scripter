@@ -4,7 +4,7 @@ use std::{ffi::CStr, fmt};
 
 use pelite::{pe::Pe, pe64::PeView};
 
-use crate::{module::Module, Address};
+use crate::module::Module;
 
 /// An error for the [Symbol] type
 #[derive(Debug, thiserror::Error)]
@@ -23,14 +23,14 @@ pub struct Symbol {
     /// the symbol name
     name: String,
     /// the symbol's starting address
-    address: Address,
+    address: *const (),
 }
 
 impl fmt::Display for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Symbol {{ name: {}, address: {:#x} }}",
+            "Symbol {{ name: {}, address: {:?} }}",
             self.name, self.address
         )
     }
@@ -38,7 +38,7 @@ impl fmt::Display for Symbol {
 
 fn enum_symbols_cb(
     module: &Module,
-    mut cb: impl FnMut(Address, &str) -> bool,
+    mut cb: impl FnMut(*mut u8, &str) -> bool,
 ) -> Result<(), SymbolError> {
     // this base address is crate private, so it is guaranteed
     let base = module.handle.base;
@@ -52,9 +52,7 @@ fn enum_symbols_cb(
 
     for (&func, &name) in exports.functions()?.iter().zip(exports.names()?.iter()) {
         // storing as address, but external mem, provenance OK
-        let addr = base + func as usize;
-        // external mem, provenance OK
-        let name = sptr::from_exposed_addr(base + name as usize);
+        let addr = unsafe { base.add(func as usize) };
 
         let name = unsafe { CStr::from_ptr(name as _) };
         let name = name.to_string_lossy();
@@ -74,7 +72,7 @@ pub fn enum_symbols(module: &Module) -> Result<Vec<Symbol>, SymbolError> {
     enum_symbols_cb(module, |addr, name| {
         let sym = Symbol {
             name: name.to_string(),
-            address: addr,
+            address: addr.cast(),
         };
 
         symbols.push(sym);
@@ -94,7 +92,7 @@ pub fn enum_symbols_demangled(module: &Module) -> Result<Vec<Symbol>, SymbolErro
 
         let sym = Symbol {
             name,
-            address: addr,
+            address: addr.cast(),
         };
 
         symbols.push(sym);
@@ -114,7 +112,7 @@ pub fn find_symbol_address(module: &Module, symbol: &str) -> Result<Symbol, Symb
         if symbol == name {
             let sym = Symbol {
                 name: name.to_string(),
-                address: addr,
+                address: addr.cast(),
             };
 
             symbol_out = Some(sym);
@@ -143,7 +141,7 @@ pub fn find_symbol_address_demangled(module: &Module, symbol: &str) -> Result<Sy
         if name.contains(symbol) {
             let sym = Symbol {
                 name,
-                address: addr,
+                address: addr.cast(),
             };
 
             symbol_out = Some(sym);

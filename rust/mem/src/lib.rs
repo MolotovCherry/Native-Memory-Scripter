@@ -6,7 +6,7 @@
 //! defined provenance (making sure you never write/read outside of the alloc)
 
 #![deny(unsafe_op_in_unsafe_fn)]
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 #![allow(unstable_name_collisions)]
 
 #[cfg(not(any(target_arch = "x86_64", target_os = "windows")))]
@@ -16,6 +16,7 @@ pub mod asm;
 pub mod hook;
 pub mod memory;
 pub mod module;
+pub mod scanner;
 pub mod symbol;
 mod utils;
 
@@ -23,19 +24,6 @@ use windows::Win32::System::Memory::{
     PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_WRITECOPY,
     PAGE_PROTECTION_FLAGS, PAGE_READONLY, PAGE_READWRITE, PAGE_WRITECOPY,
 };
-
-/// A memory address
-pub type Address = usize;
-
-trait AddressUtils {
-    fn is_null(&self) -> bool;
-}
-
-impl AddressUtils for Address {
-    fn is_null(&self) -> bool {
-        *self == 0
-    }
-}
 
 /// The protection status of some memory
 #[derive(Debug, strum::Display)]
