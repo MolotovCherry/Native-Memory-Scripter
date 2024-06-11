@@ -15,7 +15,6 @@ pub enum AlignedBytesError {
 }
 
 #[derive(Debug)]
-#[repr(C)]
 pub struct AlignedBytes {
     data: *mut u8,
     len: usize,
