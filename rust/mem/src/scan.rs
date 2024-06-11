@@ -52,8 +52,8 @@ impl Display for Scan {
 /// ```rust,ignore
 /// let binary = [0xab, 0xec, 0x48, 0x89, 0x5c, 0x24, 0xee, 0x48, 0x89, 0x6c];
 ///
-/// let scanner = Scanner::new("48 89 5c 24 ?? 48 89 6c");
-/// let result = unsafe { scanner.find(binary.as_ptr(), binary.len()) };
+/// let pattern = "48 89 5c 24 ?? 48 89 6c";
+/// let result = unsafe { sig_scan(pattern, binary.as_ptr(), binary.len()) };
 ///
 /// println!("{:?}", result);
 /// ```
@@ -84,10 +84,10 @@ pub unsafe fn sig_scan(pattern: &str, addr: *const u8, size: usize) -> Option<Sc
 /// # Example
 ///
 /// ```rust,ignore
+/// let search = [0x24, 0xee, 0x48];
 /// let binary = [0xab, 0xec, 0x48, 0x89, 0x5c, 0x24, 0xee, 0x48, 0x89, 0x6c];
 ///
-/// let scanner = Scanner::new("48 89 5c 24 ?? 48 89 6c");
-/// let result = unsafe { scanner.find(binary.as_ptr(), binary.len()) };
+/// let result = unsafe { data_scan(&search, binary.as_ptr(), binary.len()) };
 ///
 /// println!("{:?}", result);
 /// ```
