@@ -151,7 +151,7 @@ pub fn assemble_ex(code: &str, runtime_addr: usize) -> Result<Vec<Inst>, AsmErro
 /// Disassemble a single instruction at the target address
 ///
 /// # Safety
-/// - Address must be valid ptr with exposed provenance
+/// - Address must be valid ptr
 /// - Address must be valid for max 16 bytes read
 pub unsafe fn disassemble(addr: *const u8) -> Result<Inst, AsmError> {
     let cs = Capstone::new()
@@ -175,7 +175,7 @@ pub unsafe fn disassemble(addr: *const u8) -> Result<Inst, AsmError> {
 /// optional runtime_addr to make detecting actual address easy
 ///
 /// # Safety
-/// - Address must be valid ptr with exposed provenance
+/// - Address must be valid ptr
 /// - Address must be valid for `size` bytes read
 pub unsafe fn disassemble_ex(
     addr: *const u8,
@@ -195,7 +195,7 @@ pub unsafe fn disassemble_ex(
 /// optional runtime_addr to make detecting actual address easy
 ///
 /// # Safety
-/// - Address must be valid ptr with exposed provenance
+/// - Address must be valid ptr
 /// - Address must be valid for `size` bytes read
 pub unsafe fn disassemble_ex_count(
     addr: *const u8,

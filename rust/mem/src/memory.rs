@@ -47,7 +47,7 @@ impl Drop for Alloc {
 /// Read a T from memory address
 ///
 /// # Safety
-/// - Ptr must be valid, aligned, point to valid init data, have provenance for T bytes
+/// - Addr must be valid for tp to T bytes
 /// - Memory at location must be initialized
 /// - Memory at location must contain a valid bitpattern for T
 /// - Beware of any drop impl on T
@@ -87,7 +87,7 @@ pub unsafe fn read_bytes(src: *const u8, count: usize) -> Vec<u8> {
 /// Write T to dst
 ///
 /// # Safety
-/// - dst must be aligned, contain provenance for T bytes
+/// - dst must be valid for up to T bytes
 /// - dst must be valid for writes up to T bytes
 pub unsafe fn write<T>(dst: *mut T, src: T) {
     debug_assert!(!dst.is_null(), "dst must not be null");
@@ -106,7 +106,7 @@ pub unsafe fn write<T>(dst: *mut T, src: T) {
 /// Write bytes to dst
 ///
 /// # Safety
-/// - dst must be aligned, contain provenance for src.len() bytes
+/// - dst must be valid for up to src.len() bytes
 /// - addresses must not overlap
 pub unsafe fn write_bytes(src: &[u8], dst: *mut u8) {
     debug_assert!(!dst.is_null(), "dst must not be null");
@@ -143,7 +143,7 @@ pub unsafe fn set(dst: *mut u8, val: u8, count: usize) {
 /// Change memory protection of a certain region of memory
 ///
 /// # Safety
-/// - address must contain exposed provenance, and for `size` bytes
+/// - address must be valid fpr up to `size` bytes
 /// - any safety requirements of VirtualProtect
 pub unsafe fn prot(addr: *const (), mut size: usize, prot: Prot) -> Result<Prot, MemError> {
     if addr.is_null() {
@@ -174,7 +174,6 @@ pub fn alloc(mut size: usize, prot: Prot) -> Result<Alloc, MemError> {
         return Err(MemError::BadAddress);
     }
 
-    // provenance valid cause it was given from external mem
     let alloc = Alloc(alloc);
 
     Ok(alloc)

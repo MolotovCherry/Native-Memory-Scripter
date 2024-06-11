@@ -78,7 +78,6 @@ impl ModuleHandle {
 
         let slf = Self {
             path,
-            // external ptr, but provenance OK
             base: module.0 as _,
         };
 
@@ -180,9 +179,7 @@ impl TryFrom<HMODULE> for Module {
 
         let module = Module {
             handle,
-            // provenance will always be OK since external mem
             base: module_info.lpBaseOfDll.cast(),
-            // provenance will always be OK since external mem
             end: unsafe {
                 module_info
                     .lpBaseOfDll
@@ -273,9 +270,7 @@ fn enum_modules_cb(mut cb: impl FnMut(Module) -> bool) -> Result<(), ModuleError
 
         let module = Module {
             handle,
-            // external mem, provenance OK
             base: entry.modBaseAddr,
-            // external mem, provenance OK
             end: unsafe { entry.modBaseAddr.add(entry.dwSize as usize) },
             size: entry.modBaseSize,
             path: PathBuf::from(path),
