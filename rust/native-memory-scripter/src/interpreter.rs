@@ -161,15 +161,24 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         .settings(settings)
         .init_stdlib()
         .init_hook(Box::new(|vm| {
-            use crate::modules::{cffi::cffi, info::info, mem::mem};
+            use crate::modules::{
+                cffi::cffi, hook::hook, info::info, mem::mem, module::module, scan::scan,
+                segment::segment, symbol::symbol,
+            };
 
             vm.add_native_module("mem".to_owned(), Box::new(mem::make_module));
             vm.add_native_module("info".to_owned(), Box::new(info::make_module));
             vm.add_native_module("cffi".to_owned(), Box::new(cffi::make_module));
+            vm.add_native_module("hook".to_owned(), Box::new(hook::make_module));
+            vm.add_native_module("module".to_owned(), Box::new(module::make_module));
+            vm.add_native_module("scan".to_owned(), Box::new(scan::make_module));
+            vm.add_native_module("segment".to_owned(), Box::new(segment::make_module));
+            vm.add_native_module("symbol".to_owned(), Box::new(symbol::make_module));
         }))
         .interpreter();
 
     let res = interp.enter(|vm| {
+        // add properties to the modules
         let mem = vm.import("mem", 0)?;
         let prot = crate::modules::mem::mem::_prot::make_module(vm);
         mem.set_attr("Prot", prot, vm)?;
@@ -180,6 +189,8 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         let call_conv = crate::modules::cffi::cffi::_call_conv::make_module(vm);
         cffi.set_attr("CallConv", call_conv, vm)?;
 
+        // Solve stdout/stderr stuff
+        //
         vm.sys_module
             .set_attr("stdout", make_stdio(IoType::StdOut, vm), vm)?;
 
