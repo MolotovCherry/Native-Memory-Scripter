@@ -162,8 +162,8 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         .init_stdlib()
         .init_hook(Box::new(|vm| {
             use crate::modules::{
-                cffi::cffi, hook::hook, info::info, mem::mem, modules::modules, scan::scan,
-                segments::segments, symbols::symbols,
+                cffi::cffi, hook::hook, iat::iat, info::info, mem::mem, modules::modules,
+                scan::scan, segments::segments, symbols::symbols,
             };
 
             vm.add_native_module("mem".to_owned(), Box::new(mem::make_module));
@@ -174,6 +174,7 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
             vm.add_native_module("scan".to_owned(), Box::new(scan::make_module));
             vm.add_native_module("segments".to_owned(), Box::new(segments::make_module));
             vm.add_native_module("symbols".to_owned(), Box::new(symbols::make_module));
+            vm.add_native_module("iat".to_owned(), Box::new(iat::make_module));
         }))
         .interpreter();
 

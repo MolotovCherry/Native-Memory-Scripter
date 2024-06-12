@@ -3,6 +3,7 @@
 pub mod asm;
 pub mod cffi;
 pub mod hook;
+pub mod iat;
 pub mod info;
 pub mod mem;
 pub mod modules;
