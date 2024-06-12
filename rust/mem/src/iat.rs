@@ -34,7 +34,7 @@ pub enum IATSymbolError {
 
 /// Identifier for import symbol
 #[derive(Debug, Clone, PartialEq)]
-pub enum SymbolIdentifier {
+pub enum SymbolIdent {
     /// The symbol's name
     Name(String),
     /// The symbol's ordinal
@@ -45,7 +45,7 @@ pub enum SymbolIdentifier {
 #[derive(Clone)]
 pub struct IATSymbol {
     /// the symbol name or ordinal
-    pub identifier: SymbolIdentifier,
+    pub identifier: SymbolIdent,
     /// the dll the symbol belongs to
     pub dll_name: String,
     /// the address to the original function stored at the iat entry
@@ -150,7 +150,7 @@ unsafe impl Sync for IATSymbol {}
 
 fn enum_iat_symbols_cb(
     module: &Module,
-    mut cb: impl FnMut(&str, (*mut u64, *const ()), SymbolIdentifier) -> bool,
+    mut cb: impl FnMut(&str, (*mut u64, *const ()), SymbolIdent) -> bool,
 ) -> Result<(), IATSymbolError> {
     // this base address is crate private, so it is guaranteed
     let base = module.handle.base;
@@ -185,10 +185,10 @@ fn enum_iat_symbols_cb(
                 Import::ByName { name, .. } => {
                     let name = CStr::from_bytes_with_nul(name.c_str())?;
                     let name = name.to_string_lossy();
-                    SymbolIdentifier::Name(name.to_string())
+                    SymbolIdent::Name(name.to_string())
                 }
 
-                Import::ByOrdinal { ord } => SymbolIdentifier::Ordinal(ord),
+                Import::ByOrdinal { ord } => SymbolIdent::Ordinal(ord),
             };
 
             if cb(&dll_name, thunk_data, ident) {
@@ -231,9 +231,9 @@ pub fn enum_iat_symbols_demangled(module: &Module) -> Result<Vec<IATSymbol>, IAT
 
     enum_iat_symbols_cb(module, |dll_name, (iat, original_fn), ident| {
         let ident = match ident {
-            SymbolIdentifier::Name(n) => {
+            SymbolIdent::Name(n) => {
                 let demangled = symbols::demangle_symbol(&n).unwrap_or(n);
-                SymbolIdentifier::Name(demangled)
+                SymbolIdent::Name(demangled)
             }
 
             v => v,
@@ -260,7 +260,7 @@ pub fn enum_iat_symbols_demangled(module: &Module) -> Result<Vec<IATSymbol>, IAT
 /// Find the first specific iat symbol ident or ordinal
 pub fn find_iat_symbol(
     module: &Module,
-    ident: &SymbolIdentifier,
+    ident: &SymbolIdent,
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
@@ -293,7 +293,7 @@ pub fn find_iat_symbol(
 pub fn find_dll_iat_symbol(
     module: &Module,
     dll: &str,
-    ident: &SymbolIdentifier,
+    ident: &SymbolIdent,
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
@@ -330,14 +330,14 @@ pub fn find_iat_symbol_demangled(
 
     enum_iat_symbols_cb(module, |dll_name, (iat, original_fn), import_ident| {
         let is_match = match import_ident {
-            SymbolIdentifier::Name(ref n) => {
+            SymbolIdent::Name(ref n) => {
                 let demangled = symbols::demangle_symbol(n);
                 let demangled = demangled.as_deref().unwrap_or(n);
 
                 demangled.contains(name)
             }
 
-            SymbolIdentifier::Ordinal(_) => false,
+            SymbolIdent::Ordinal(_) => false,
         };
 
         if is_match {
@@ -375,14 +375,14 @@ pub fn find_dll_iat_symbol_demangled(
 
     enum_iat_symbols_cb(module, |dll_name, (iat, original_fn), import_ident| {
         let is_match = match import_ident {
-            SymbolIdentifier::Name(ref n) => {
+            SymbolIdent::Name(ref n) => {
                 let demangled = symbols::demangle_symbol(n);
                 let demangled = demangled.as_deref().unwrap_or(n);
 
                 demangled.contains(name)
             }
 
-            SymbolIdentifier::Ordinal(_) => false,
+            SymbolIdent::Ordinal(_) => false,
         };
 
         if dll == dll_name && is_match {
