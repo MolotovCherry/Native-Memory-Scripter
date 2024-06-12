@@ -12,8 +12,6 @@ use cranelift_module::{default_libcall_names, Linkage, Module as _};
 use rustpython_vm::prelude::*;
 use rustpython_vm::vm::thread::ThreadedVirtualMachine;
 
-use crate::modules::Address;
-
 use self::callback::__jit_cb;
 use super::{args::ArgLayout, ret::Ret, types::Type};
 
@@ -53,7 +51,7 @@ pub fn jit_py_wrapper(
     args: (&[Type], Type),
     call_conv: CallConv,
     vm: &VirtualMachine,
-) -> PyResult<(JITModule, *mut Data, Address, u32)> {
+) -> PyResult<(JITModule, *mut Data, *const u8, u32)> {
     let mut flag_builder = settings::builder();
     flag_builder.set("use_colocated_libcalls", "false").unwrap();
     flag_builder.set("is_pic", "true").unwrap();
@@ -211,5 +209,5 @@ pub fn jit_py_wrapper(
     let code = module.get_finalized_function(func);
 
     // we cast leaked data to a raw pointer so that a mutable reference does not exist anymore and we can call the callback with &Data
-    Ok((module, leaked_data, code as _, code_size))
+    Ok((module, leaked_data, code, code_size))
 }

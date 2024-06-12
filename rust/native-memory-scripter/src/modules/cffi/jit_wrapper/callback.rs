@@ -12,13 +12,7 @@ pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: &mut Ret) {
 
         let first = iter.next().unwrap().as_u64();
         let second = iter.next().unwrap().as_u64();
-        let third = iter.next().unwrap().as_u64();
-        let fourth = iter.next().unwrap().as_u64();
-        let fifth = iter.next().unwrap().as_u128();
 
-        py_args.prepend_arg(vm.new_pyobj(fifth));
-        py_args.prepend_arg(vm.new_pyobj(fourth));
-        py_args.prepend_arg(vm.new_pyobj(third));
         py_args.prepend_arg(vm.new_pyobj(second));
         py_args.prepend_arg(vm.new_pyobj(first));
 

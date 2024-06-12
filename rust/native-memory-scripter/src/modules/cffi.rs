@@ -38,13 +38,16 @@ pub mod cffi {
     #[pyclass(name)]
     #[derive(Debug, Clone, PyPayload)]
     pub struct Callable {
-        addr: usize,
+        addr: *const u8,
         code_size: u32,
         trampoline: Arc<Mutex<Option<Trampoline>>>,
         params: (Vec<Type>, Type),
         #[allow(clippy::type_complexity)]
         cb_mem: Arc<Mutex<Option<(JITWrapper, RawSendable<Data>)>>>,
     }
+
+    unsafe impl Send for Callable {}
+    unsafe impl Sync for Callable {}
 
     impl Constructor for Callable {
         type Args = (PyObjectRef, FuncArgs);
@@ -112,8 +115,8 @@ pub mod cffi {
     #[pyclass(with(Constructor))]
     impl Callable {
         #[pygetset]
-        pub fn addr(&self) -> usize {
-            self.addr
+        pub fn addr(&self) -> Address {
+            self.addr as _
         }
 
         #[pygetset]
@@ -131,9 +134,9 @@ pub mod cffi {
                 ));
             }
 
-            let res = unsafe { mem::hook::hook(from as _, self.addr as _) };
+            let res = unsafe { mem::hook::hook(from as _, self.addr) };
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
-            // todo: fix trampoline. The value needs to be put inside to be saved or it'll get dropped
+
             let trampoline = Trampoline::new(trampoline, (&self.params.0, self.params.1), vm)?;
 
             *lock = Some(trampoline);

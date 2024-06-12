@@ -25,11 +25,11 @@ toml = "0.8.14"
 native-plugin-lib = { git = "https://github.com/MolotovCherry/Native-Plugin-Lib" }
 owo-colors = "4.0.0"
 thiserror = "1.0.61"
-rustpython = { git = "https://github.com/MolotovCherry/RustPython", features = [
+rustpython = { git = "https://github.com/MolotovCherry/RustPython", branch = "io-fix", features = [
     "stdlib",
     "freeze-stdlib",
 ] }
-rustpython-vm = { git = "https://github.com/MolotovCherry/RustPython", features = [
+rustpython-vm = { git = "https://github.com/MolotovCherry/RustPython", branch = "io-fix", features = [
     "freeze-stdlib",
     "threading",
     "jit",
