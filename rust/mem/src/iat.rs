@@ -174,21 +174,14 @@ fn enum_iat_symbols_cb(
             view.rva_to_va(image.OriginalFirstThunk)? as *const IMAGE_THUNK_DATA64;
         let mut thunk = view.rva_to_va(image.FirstThunk)? as *mut IMAGE_THUNK_DATA64;
 
-        // get the address we have to write to in the iat
-        let mut iat_addrs = Vec::new();
-        while unsafe { (*original_thunk).u1.AddressOfData } != 0 {
-            let original_fn = unsafe { (*thunk).u1.Function };
-            iat_addrs.push((thunk as *mut u64, original_fn as *const ()));
-
-            original_thunk = unsafe { original_thunk.add(1) };
-            thunk = unsafe { thunk.add(1) };
-        }
-
         // Import Name Table for this imported DLL
         let int = desc.int()?;
 
-        for (iat_addr, import) in iat_addrs.into_iter().zip(int) {
+        for import in int {
             let import = import?;
+
+            let original_fn = unsafe { (*thunk).u1.Function };
+            let thunk_data = (thunk as *mut u64, original_fn as *const ());
 
             let ident = match import {
                 Import::ByName { name, .. } => {
@@ -200,9 +193,12 @@ fn enum_iat_symbols_cb(
                 Import::ByOrdinal { ord } => SymbolIdentifier::Ordinal(ord),
             };
 
-            if cb(&dll_name, iat_addr, ident) {
+            if cb(&dll_name, thunk_data, ident) {
                 break;
             }
+
+            original_thunk = unsafe { original_thunk.add(1) };
+            thunk = unsafe { thunk.add(1) };
         }
     }
 
