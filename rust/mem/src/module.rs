@@ -246,10 +246,18 @@ fn enum_modules_cb(mut cb: impl FnMut(Module) -> bool) -> Result<(), ModuleError
     };
 
     loop {
-        let len = entry.szModule.iter().position(|n| *n == 0).unwrap_or(255);
+        let len = entry
+            .szModule
+            .iter()
+            .position(|n| *n == 0)
+            .unwrap_or(entry.szModule.len());
         let name = String::from_utf16(&entry.szModule[..len])?;
 
-        let len = entry.szExePath.iter().position(|n| *n == 0).unwrap_or(259);
+        let len = entry
+            .szExePath
+            .iter()
+            .position(|n| *n == 0)
+            .unwrap_or(entry.szExePath.len());
         let path = String::from_utf16(&entry.szExePath[..len])?;
 
         let handle = ModuleHandle::new(&path)?;
