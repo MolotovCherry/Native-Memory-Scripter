@@ -36,17 +36,18 @@ fn enum_symbols_cb(
     // SAFETY: module field is crate private, it cannot be changed
     //         and we only support 64-bit. Additionally, each module is backed by
     //         an increased refcount, which keeps them valid for the duration of Module
-    let view = unsafe { PeView::module(base as _) };
+    let view = unsafe { PeView::module(base.cast()) };
 
     let exports = view.exports()?;
 
     for (&func, &name) in exports.functions()?.iter().zip(exports.names()?.iter()) {
-        let addr = unsafe { base.add(func as usize) };
+        let func = unsafe { base.add(func as usize) };
+        let name = unsafe { base.add(name as usize) };
 
-        let name = unsafe { CStr::from_ptr(name as _) };
+        let name = unsafe { CStr::from_ptr(name.cast()) };
         let name = name.to_string_lossy();
 
-        if cb(addr, &name) {
+        if cb(func, &name) {
             break;
         }
     }
