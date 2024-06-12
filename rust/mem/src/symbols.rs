@@ -41,8 +41,8 @@ fn enum_symbols_cb(
     let exports = view.exports()?;
 
     for (&func, &name) in exports.functions()?.iter().zip(exports.names()?.iter()) {
-        let func = unsafe { base.add(func as usize) };
-        let name = unsafe { base.add(name as usize) };
+        let func = view.rva_to_va(func)? as *mut u8;
+        let name = view.rva_to_va(name)? as *mut u8;
 
         let name = unsafe { CStr::from_ptr(name.cast()) };
         let name = name.to_string_lossy();
