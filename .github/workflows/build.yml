@@ -28,11 +28,13 @@ jobs:
 
       - name: Build Release
         if: github.event_name == 'release'
-        run: cargo build --release
+        working-directory: rust
+        run: cargo build -p native-memory-scripter --release
 
       - name: Build Debug
         if: github.event_name != 'release'
-        run: cargo build
+        working-directory: rust
+        run: cargo build -p native-memory-scripter
 
       - name: Upload Artifacts
         if: github.event_name != 'release'
@@ -40,12 +42,12 @@ jobs:
         with:
           name: build
           path: |
-            target/*/*.dll
+            rust/target/*/*.dll
 
       - name: Zip files up
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path target/*/*.dll | Compress-Archive -CompressionLevel Optimal -DestinationPath "native-memory-scripter-x64.zip"
+          Get-ChildItem -Path rust/target/*/*.dll | Compress-Archive -CompressionLevel Optimal -DestinationPath "native-memory-scripter-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
