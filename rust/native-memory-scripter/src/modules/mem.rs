@@ -7,8 +7,8 @@ pub mod mem {
 
     use mem::{memory::Alloc, Prot};
     use rustpython_vm::{
-        builtins::PyByteArray, convert::ToPyObject as _, prelude::*, pyclass, pymodule,
-        types::Constructor, PyPayload, VirtualMachine,
+        builtins::PyByteArray, convert::ToPyObject as _, prelude::*, pyclass, pymodule, PyPayload,
+        VirtualMachine,
     };
 
     use crate::modules::Address;
@@ -23,7 +23,7 @@ pub mod mem {
     #[pyfunction]
     fn alloc(size: usize, prot: PyRef<PyProt>, vm: &VirtualMachine) -> PyResult<PyAlloc> {
         mem::memory::alloc(size, prot.0)
-            .map(|a| PyAlloc(a))
+            .map(PyAlloc)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))
     }
 
@@ -98,7 +98,7 @@ pub mod mem {
 
     #[pyclass(no_attr, name = "Prot")]
     #[derive(Debug, Copy, Clone, PyPayload)]
-    struct PyProt(Prot);
+    pub struct PyProt(Prot);
 
     #[pyclass]
     impl PyProt {
@@ -110,6 +110,12 @@ pub mod mem {
         #[pymethod(magic)]
         fn str(&self) -> String {
             self.0.to_string()
+        }
+    }
+
+    impl From<Prot> for PyProt {
+        fn from(prot: Prot) -> Self {
+            Self(prot)
         }
     }
 

@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 pub mod asm;
 pub mod cffi;
 pub mod hook;

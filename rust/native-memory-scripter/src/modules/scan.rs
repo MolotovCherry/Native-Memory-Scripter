@@ -3,11 +3,13 @@ use rustpython_vm::pymodule;
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod scan {
+    use crate::modules::Address;
+
     /// Search for data starting at address
     ///
     /// unsafe fn
     #[pyfunction]
-    fn data_scan(data: Vec<u8>, address: usize, scan_size: usize) -> Option<usize> {
+    fn data_scan(data: Vec<u8>, address: usize, scan_size: usize) -> Option<Address> {
         let scan = unsafe { mem::scan::data_scan(&data, address as *const _, scan_size) };
         scan.map(|s| s.addr as _)
     }
@@ -22,7 +24,7 @@ pub mod scan {
         mask: String,
         address: usize,
         scan_size: usize,
-    ) -> Option<usize> {
+    ) -> Option<Address> {
         let scan = unsafe { mem::scan::pattern_scan(&pattern, &mask, address as _, scan_size) };
         scan.map(|s| s.addr as _)
     }

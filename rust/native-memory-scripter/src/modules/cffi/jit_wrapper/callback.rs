@@ -5,7 +5,7 @@ use crate::modules::cffi::ret::Ret;
 use super::Data;
 
 pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: &mut Ret) {
-    let result = data.vm.shared_run(|vm| {
+    let result = data.vm.run(|vm| {
         let mut iter = unsafe { data.layout.iter(args) };
 
         let mut py_args = FuncArgs::default();

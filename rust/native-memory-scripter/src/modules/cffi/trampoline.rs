@@ -8,11 +8,13 @@ use rustpython_vm::{
     prelude::{PyObjectRef, PyResult, VirtualMachine},
 };
 
+use crate::modules::Address;
+
 use super::{args::ArgMemory, jit_wrapper::JITWrapper, ret::Ret, types::Type};
 
 #[derive(Debug)]
 pub struct Trampoline {
-    addr: usize,
+    addr: Address,
     arg_mem: ArgMemory,
     args: (Vec<Type>, Type),
     jit: OnceLock<JITWrapper>,

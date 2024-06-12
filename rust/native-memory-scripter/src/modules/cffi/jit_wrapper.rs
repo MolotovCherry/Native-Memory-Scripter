@@ -9,9 +9,10 @@ use std::{
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
-use libmem::Address;
 use rustpython_vm::prelude::*;
 use rustpython_vm::vm::thread::ThreadedVirtualMachine;
+
+use crate::modules::Address;
 
 use self::callback::__jit_cb;
 use super::{args::ArgLayout, ret::Ret, types::Type};
