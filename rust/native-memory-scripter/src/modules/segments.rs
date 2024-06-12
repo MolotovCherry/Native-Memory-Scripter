@@ -3,7 +3,7 @@ use rustpython_vm::pymodule;
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod segments {
-    use mem::segment::Segment;
+    use mem::segments::Segment;
     use rustpython_vm::{
         convert::ToPyObject as _, pyclass, PyObjectRef, PyPayload, VirtualMachine,
     };
@@ -12,7 +12,7 @@ pub mod segments {
 
     #[pyfunction(name = "enum")]
     fn enum_(vm: &VirtualMachine) -> Vec<PyObjectRef> {
-        mem::segment::enum_segments()
+        mem::segments::enum_segments()
             .into_iter()
             .map(|segment| PySegment(segment).into_pyobject(vm))
             .collect()
@@ -20,7 +20,7 @@ pub mod segments {
 
     #[pyfunction]
     fn find_segment(address: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
-        mem::segment::find_segment(address as _).map(|segment| PySegment(segment).to_pyobject(vm))
+        mem::segments::find_segment(address as _).map(|segment| PySegment(segment).to_pyobject(vm))
     }
 
     #[pyattr]

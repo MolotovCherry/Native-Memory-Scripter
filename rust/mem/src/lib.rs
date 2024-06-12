@@ -15,10 +15,10 @@ compile_error!("only x86_64 windows is supported");
 pub mod asm;
 pub mod hook;
 pub mod memory;
-pub mod module;
+pub mod modules;
 pub mod scan;
-pub mod segment;
-pub mod symbol;
+pub mod segments;
+pub mod symbols;
 mod utils;
 
 use windows::Win32::System::Memory::{

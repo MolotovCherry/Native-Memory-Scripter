@@ -4,7 +4,7 @@ use std::ffi::CStr;
 
 use pelite::{pe::Pe, pe64::PeView};
 
-use crate::module::Module;
+use crate::modules::Module;
 
 /// An error for the [Symbol] type
 #[derive(Copy, Clone, Debug, thiserror::Error)]
