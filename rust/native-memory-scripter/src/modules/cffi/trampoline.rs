@@ -8,13 +8,11 @@ use rustpython_vm::{
     prelude::{PyObjectRef, PyResult, VirtualMachine},
 };
 
-use crate::modules::Address;
-
 use super::{args::ArgMemory, jit_wrapper::JITWrapper, ret::Ret, types::Type};
 
 #[derive(Debug)]
 pub struct Trampoline {
-    addr: Address,
+    mem_tramp: mem::hook::Trampoline,
     arg_mem: ArgMemory,
     args: (Vec<Type>, Type),
     jit: OnceLock<JITWrapper>,
@@ -22,16 +20,16 @@ pub struct Trampoline {
 }
 
 impl Trampoline {
-    pub fn new(addr: usize, args: (&[Type], Type), vm: &VirtualMachine) -> PyResult<Self> {
-        if addr == 0 {
-            return Err(vm.new_runtime_error("address is unexpectedly null".to_owned()));
-        }
-
+    pub fn new(
+        trampoline: mem::hook::Trampoline,
+        args: (&[Type], Type),
+        vm: &VirtualMachine,
+    ) -> PyResult<Self> {
         let arg_mem = ArgMemory::new(args.0)
             .ok_or_else(|| vm.new_runtime_error("failed to create ArgMemory".to_owned()))?;
 
         let slf = Self {
-            addr,
+            mem_tramp: trampoline,
             arg_mem,
             args: (args.0.to_vec(), args.1),
             jit: OnceLock::new(),
@@ -86,8 +84,8 @@ impl Trampoline {
             .unwrap();
 
         let mut builder = JITBuilder::with_isa(isa, default_libcall_names());
-        let tramp_name = format!("__trampoline_{:X}", self.addr);
-        builder.symbol(&*tramp_name, self.addr as *const u8);
+        let tramp_name = format!("__trampoline_{:?}", self.mem_tramp.address);
+        builder.symbol(&*tramp_name, self.mem_tramp.address);
         let mut module = JITModule::new(builder);
 
         let mut ctx = module.make_context();
@@ -127,7 +125,7 @@ impl Trampoline {
 
         let func = module
             .declare_function(
-                &format!("__jit_trampoline_{:X}", self.addr),
+                &format!("__jit_trampoline_{:?}", self.mem_tramp.address),
                 Linkage::Local,
                 &sig_fn,
             )

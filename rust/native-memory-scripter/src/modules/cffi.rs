@@ -134,8 +134,7 @@ pub mod cffi {
             let res = unsafe { mem::hook::hook(from as _, self.addr as _) };
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
             // todo: fix trampoline. The value needs to be put inside to be saved or it'll get dropped
-            let trampoline =
-                Trampoline::new(trampoline.address as _, (&self.params.0, self.params.1), vm)?;
+            let trampoline = Trampoline::new(trampoline, (&self.params.0, self.params.1), vm)?;
 
             *lock = Some(trampoline);
 

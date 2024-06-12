@@ -32,6 +32,7 @@ pub mod hook {
             self.0.address as _
         }
 
+        /// Size of the code in the trampoline
         #[pygetset]
         fn size(&self) -> usize {
             self.0.size
