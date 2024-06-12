@@ -14,6 +14,7 @@ compile_error!("only x86_64 windows is supported");
 
 pub mod asm;
 pub mod hook;
+pub mod iat;
 pub mod memory;
 pub mod modules;
 pub mod scan;

@@ -16,7 +16,7 @@ use windows::Win32::{
 use crate::Prot;
 
 /// An error for the [memory](crate::memory) module
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum MemError {
     /// address is invalid
     #[error("bad address")]
@@ -71,7 +71,7 @@ pub unsafe fn read<T>(addr: *const T) -> T {
 
     debug_assert!(!addr.is_null(), "ptr must not be null");
 
-    unsafe { ptr::read(addr) }
+    unsafe { ptr::read_volatile(addr) }
 }
 
 /// Read bytes from address
@@ -111,7 +111,7 @@ pub unsafe fn write<T>(dst: *mut T, src: T) {
     }
 
     unsafe {
-        ptr::write(dst, src);
+        ptr::write_volatile(dst, src);
     }
 }
 
