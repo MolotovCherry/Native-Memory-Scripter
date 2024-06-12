@@ -52,12 +52,12 @@ pub mod segments {
 
         #[pymethod(magic)]
         fn repr(&self) -> String {
-            format!("{self:?}")
+            format!("{:?}", self.0)
         }
 
         #[pymethod(magic)]
         fn str(&self) -> String {
-            format!("{self:?}")
+            format!("{:?}", self.0)
         }
     }
 }
