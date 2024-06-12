@@ -170,8 +170,6 @@ fn enum_iat_symbols_cb(
 
         // Get all RVAs
         let image = desc.image();
-        let mut original_thunk =
-            view.rva_to_va(image.OriginalFirstThunk)? as *const IMAGE_THUNK_DATA64;
         let mut thunk = view.rva_to_va(image.FirstThunk)? as *mut IMAGE_THUNK_DATA64;
 
         // Import Name Table for this imported DLL
@@ -197,7 +195,6 @@ fn enum_iat_symbols_cb(
                 break;
             }
 
-            original_thunk = unsafe { original_thunk.add(1) };
             thunk = unsafe { thunk.add(1) };
         }
     }
@@ -260,10 +257,40 @@ pub fn enum_iat_symbols_demangled(module: &Module) -> Result<Vec<IATSymbol>, IAT
     Ok(imports)
 }
 
-/// Find a specific iat symbol in a dll with ident or ordinal
-///
-/// Note that dll name is case sensitive (it also comes with ".dll" extension)
+/// Find the first specific iat symbol ident or ordinal
 pub fn find_iat_symbol(
+    module: &Module,
+    ident: &SymbolIdentifier,
+) -> Result<Option<IATSymbol>, IATSymbolError> {
+    let mut out_sym = None;
+
+    enum_iat_symbols_cb(module, |dll_name, (iat, original_fn), import_ident| {
+        if ident == &import_ident {
+            let sym = IATSymbol {
+                identifier: import_ident,
+                dll_name: dll_name.to_string(),
+                fn_address: original_fn,
+                iat_address: iat,
+                lock: Arc::default(),
+                fn_address_backup: original_fn,
+                iat_address_backup: iat,
+            };
+
+            out_sym = Some(sym);
+
+            return true;
+        }
+
+        false
+    })?;
+
+    Ok(out_sym)
+}
+
+/// Find the first specific iat symbol ident or ordinal in a specific dll
+///
+/// Note that dll name is an exact case sensitive match (with ".dll" extension)
+pub fn find_dll_iat_symbol(
     module: &Module,
     dll: &str,
     ident: &SymbolIdentifier,
@@ -293,11 +320,53 @@ pub fn find_iat_symbol(
     Ok(out_sym)
 }
 
-/// Find a specific iat symbol in a dll with demangled ident name. If you want to find an ordinal, use [find_iat_symbol] instead
+/// Find a specific iat symbol demangled ident name. If you want to find an ordinal, use [find_iat_symbol] instead
+/// The search is a fuzzy contains search, but is still case sensitive
+pub fn find_iat_symbol_demangled(
+    module: &Module,
+    name: &str,
+) -> Result<Option<IATSymbol>, IATSymbolError> {
+    let mut out_sym = None;
+
+    enum_iat_symbols_cb(module, |dll_name, (iat, original_fn), import_ident| {
+        let is_match = match import_ident {
+            SymbolIdentifier::Name(ref n) => {
+                let demangled = symbols::demangle_symbol(n);
+                let demangled = demangled.as_deref().unwrap_or(n);
+
+                demangled.contains(name)
+            }
+
+            SymbolIdentifier::Ordinal(_) => false,
+        };
+
+        if is_match {
+            let sym = IATSymbol {
+                identifier: import_ident,
+                dll_name: dll_name.to_string(),
+                fn_address: original_fn,
+                iat_address: iat,
+                lock: Arc::default(),
+                fn_address_backup: original_fn,
+                iat_address_backup: iat,
+            };
+
+            out_sym = Some(sym);
+
+            return true;
+        }
+
+        false
+    })?;
+
+    Ok(out_sym)
+}
+
+/// Find a specific iat symbol demangled ident name. If you want to find an ordinal, use [find_iat_symbol] instead
 /// The search is a fuzzy contains search, but is still case sensitive
 ///
-/// Note that dll name is case sensitive (it also comes with ".dll" extension)
-pub fn find_iat_symbol_demangled(
+/// Note that dll name is an exact case sensitive match (with ".dll" extension)
+pub fn find_dll_iat_symbol_demangled(
     module: &Module,
     dll: &str,
     name: &str,
