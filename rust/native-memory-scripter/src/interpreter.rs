@@ -162,18 +162,18 @@ fn run_interpreter<R>(settings: Settings, enter: impl FnOnce(&VirtualMachine) ->
         .init_stdlib()
         .init_hook(Box::new(|vm| {
             use crate::modules::{
-                cffi::cffi, hook::hook, info::info, mem::mem, module::module, scan::scan,
-                segment::segment, symbol::symbol,
+                cffi::cffi, hook::hook, info::info, mem::mem, modules::modules, scan::scan,
+                segments::segments, symbols::symbols,
             };
 
             vm.add_native_module("mem".to_owned(), Box::new(mem::make_module));
             vm.add_native_module("info".to_owned(), Box::new(info::make_module));
             vm.add_native_module("cffi".to_owned(), Box::new(cffi::make_module));
             vm.add_native_module("hook".to_owned(), Box::new(hook::make_module));
-            vm.add_native_module("module".to_owned(), Box::new(module::make_module));
+            vm.add_native_module("modules".to_owned(), Box::new(modules::make_module));
             vm.add_native_module("scan".to_owned(), Box::new(scan::make_module));
-            vm.add_native_module("segment".to_owned(), Box::new(segment::make_module));
-            vm.add_native_module("symbol".to_owned(), Box::new(symbol::make_module));
+            vm.add_native_module("segments".to_owned(), Box::new(segments::make_module));
+            vm.add_native_module("symbols".to_owned(), Box::new(symbols::make_module));
         }))
         .interpreter();
 

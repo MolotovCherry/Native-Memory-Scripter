@@ -2,7 +2,7 @@ use rustpython_vm::pymodule;
 
 #[allow(clippy::module_inception)]
 #[pymodule]
-pub mod module {
+pub mod modules {
     use std::ops::Deref;
 
     use mem::module::Module;

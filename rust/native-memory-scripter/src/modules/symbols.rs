@@ -2,13 +2,13 @@ use rustpython_vm::pymodule;
 
 #[allow(clippy::module_inception)]
 #[pymodule]
-pub mod symbol {
+pub mod symbols {
     use std::fmt::Debug;
 
     use mem::symbol::Symbol;
     use rustpython_vm::{pyclass, PyObjectRef, PyPayload, PyRef, PyResult, VirtualMachine};
 
-    use crate::modules::{module::module::PyModule, Address};
+    use crate::modules::{modules::modules::PyModule, Address};
 
     #[pyfunction]
     fn demangle(symbol_name: String) -> Option<String> {

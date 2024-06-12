@@ -2,7 +2,7 @@ use rustpython_vm::pymodule;
 
 #[allow(clippy::module_inception)]
 #[pymodule]
-pub mod segment {
+pub mod segments {
     use mem::segment::Segment;
     use rustpython_vm::{
         convert::ToPyObject as _, pyclass, PyObjectRef, PyPayload, VirtualMachine,
