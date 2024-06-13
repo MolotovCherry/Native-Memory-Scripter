@@ -45,14 +45,14 @@ pub enum SymbolIdent {
 #[derive(Clone)]
 pub struct IATSymbol {
     /// the symbol name or ordinal
-    pub identifier: SymbolIdent,
+    pub ident: SymbolIdent,
     /// the dll the symbol belongs to
-    pub dll_name: String,
+    pub dll: String,
     /// the address to the original function stored at the iat entry
     pub orig_fn: *const (),
     /// the address in the iat table where the actual pointer to the function is stored
     /// note: you cannot write to this without first making it writable
-    pub iat: *const u64,
+    pub iat_entry: *const u64,
     /// to prevent data races
     lock: Arc<Mutex<()>>,
     // these are used as backup addresses since the others are public and can be modified
@@ -63,18 +63,18 @@ pub struct IATSymbol {
 impl fmt::Debug for IATSymbol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let IATSymbol {
-            identifier,
-            dll_name,
+            ident,
+            dll,
             orig_fn,
-            iat,
+            iat_entry,
             ..
         } = self;
 
         f.debug_struct("IATSymbol")
-            .field("identifier", &identifier)
-            .field("dll_name", &dll_name)
+            .field("ident", &ident)
+            .field("dll", &dll)
             .field("orig_fn", &orig_fn)
-            .field("iat", &iat)
+            .field("iat_entry", &iat_entry)
             .finish()
     }
 }
@@ -196,15 +196,15 @@ fn enum_iat_symbols_cb(
 pub fn enum_iat_symbols(module: &Module) -> Result<Vec<IATSymbol>, IATSymbolError> {
     let mut imports = Vec::new();
 
-    enum_iat_symbols_cb(module, |dll_name, (iat, orig_fn), ident| {
+    enum_iat_symbols_cb(module, |dll, (iat_entry, orig_fn), ident| {
         let sym = IATSymbol {
-            identifier: ident,
-            dll_name: dll_name.to_string(),
+            ident,
+            dll: dll.to_string(),
             orig_fn,
-            iat,
+            iat_entry,
             lock: Arc::default(),
             orig_fn_backup: orig_fn,
-            iat_backup: iat,
+            iat_backup: iat_entry,
         };
 
         imports.push(sym);
@@ -219,7 +219,7 @@ pub fn enum_iat_symbols(module: &Module) -> Result<Vec<IATSymbol>, IATSymbolErro
 pub fn enum_iat_symbols_demangled(module: &Module) -> Result<Vec<IATSymbol>, IATSymbolError> {
     let mut imports = Vec::new();
 
-    enum_iat_symbols_cb(module, |dll_name, (iat, original_fn), ident| {
+    enum_iat_symbols_cb(module, |dll, (iat_entry, original_fn), ident| {
         let ident = match ident {
             SymbolIdent::Name(n) => {
                 let demangled = symbols::demangle_symbol(&n).unwrap_or(n);
@@ -230,13 +230,13 @@ pub fn enum_iat_symbols_demangled(module: &Module) -> Result<Vec<IATSymbol>, IAT
         };
 
         let sym = IATSymbol {
-            identifier: ident,
-            dll_name: dll_name.to_string(),
+            ident,
+            dll: dll.to_string(),
             orig_fn: original_fn,
-            iat,
+            iat_entry,
             lock: Arc::default(),
             orig_fn_backup: original_fn,
-            iat_backup: iat,
+            iat_backup: iat_entry,
         };
 
         imports.push(sym);
@@ -254,13 +254,13 @@ pub fn find_iat_symbol(
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
-    enum_iat_symbols_cb(module, |dll_name, (iat, orig_fn), import_ident| {
+    enum_iat_symbols_cb(module, |dll, (iat, orig_fn), import_ident| {
         if ident == &import_ident {
             let sym = IATSymbol {
-                identifier: import_ident,
-                dll_name: dll_name.to_string(),
+                ident: import_ident,
+                dll: dll.to_string(),
                 orig_fn,
-                iat,
+                iat_entry: iat,
                 lock: Arc::default(),
                 orig_fn_backup: orig_fn,
                 iat_backup: iat,
@@ -287,16 +287,16 @@ pub fn find_dll_iat_symbol(
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
-    enum_iat_symbols_cb(module, |dll_name, (iat, orig_fn), import_ident| {
+    enum_iat_symbols_cb(module, |dll_name, (iat_entry, orig_fn), import_ident| {
         if dll == dll_name && ident == &import_ident {
             let sym = IATSymbol {
-                identifier: import_ident,
-                dll_name: dll_name.to_string(),
+                ident: import_ident,
+                dll: dll_name.to_string(),
                 orig_fn,
-                iat,
+                iat_entry,
                 lock: Arc::default(),
                 orig_fn_backup: orig_fn,
-                iat_backup: iat,
+                iat_backup: iat_entry,
             };
 
             out_sym = Some(sym);
@@ -318,7 +318,7 @@ pub fn find_iat_symbol_demangled(
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
-    enum_iat_symbols_cb(module, |dll_name, (iat, orig_fn), import_ident| {
+    enum_iat_symbols_cb(module, |dll, (iat_entry, orig_fn), import_ident| {
         let is_match = match import_ident {
             SymbolIdent::Name(ref n) => {
                 let demangled = symbols::demangle_symbol(n);
@@ -332,13 +332,13 @@ pub fn find_iat_symbol_demangled(
 
         if is_match {
             let sym = IATSymbol {
-                identifier: import_ident,
-                dll_name: dll_name.to_string(),
+                ident: import_ident,
+                dll: dll.to_string(),
                 orig_fn,
-                iat,
+                iat_entry,
                 lock: Arc::default(),
                 orig_fn_backup: orig_fn,
-                iat_backup: iat,
+                iat_backup: iat_entry,
             };
 
             out_sym = Some(sym);
@@ -363,7 +363,7 @@ pub fn find_dll_iat_symbol_demangled(
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
-    enum_iat_symbols_cb(module, |dll_name, (iat, orig_fn), import_ident| {
+    enum_iat_symbols_cb(module, |dll_name, (iat_entry, orig_fn), import_ident| {
         let is_match = match import_ident {
             SymbolIdent::Name(ref n) => {
                 let demangled = symbols::demangle_symbol(n);
@@ -377,13 +377,13 @@ pub fn find_dll_iat_symbol_demangled(
 
         if dll == dll_name && is_match {
             let sym = IATSymbol {
-                identifier: import_ident,
-                dll_name: dll_name.to_string(),
+                ident: import_ident,
+                dll: dll_name.to_string(),
                 orig_fn,
-                iat,
+                iat_entry,
                 lock: Arc::default(),
                 orig_fn_backup: orig_fn,
-                iat_backup: iat,
+                iat_backup: iat_entry,
             };
 
             out_sym = Some(sym);
