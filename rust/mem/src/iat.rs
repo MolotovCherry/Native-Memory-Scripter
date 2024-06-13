@@ -2,7 +2,7 @@
 
 use std::{
     ffi::{CStr, FromBytesWithNulError},
-    fmt, mem, ptr,
+    fmt, mem,
     sync::{Arc, Mutex},
 };
 
@@ -83,7 +83,7 @@ impl IATSymbol {
     /// Get the function address the iat symbol is pointing to
     pub fn fn_addr(&self) -> *const () {
         let _guard = self.lock.lock().unwrap();
-        unsafe { ptr::read(self.iat_backup) as _ }
+        unsafe { memory::read(self.iat_backup) as _ }
     }
 
     /// Set the function address the iat symbol is pointing to
