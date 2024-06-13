@@ -38,11 +38,7 @@ pub mod iat {
     }
 
     #[pyfunction]
-    fn find_symbol_name(
-        module: &PyModule,
-        name: String,
-        vm: &VirtualMachine,
-    ) -> PyResult<Option<PyObjectRef>> {
+    fn find(module: &PyModule, name: String, vm: &VirtualMachine) -> PyResult<Option<PyObjectRef>> {
         let name = SymbolIdent::Name(name);
         let symbols =
             find_iat_symbol(module, &name).map_err(|e| vm.new_runtime_error(format!("{e}")))?;
@@ -53,7 +49,7 @@ pub mod iat {
     }
 
     #[pyfunction]
-    fn find_symbol_ordinal(
+    fn find_ordinal(
         module: &PyModule,
         ord: u16,
         vm: &VirtualMachine,
@@ -68,7 +64,7 @@ pub mod iat {
     }
 
     #[pyfunction]
-    fn find_dll_symbol_name(
+    fn find_with_dll(
         module: &PyModule,
         name: String,
         dll: String,
@@ -84,7 +80,7 @@ pub mod iat {
     }
 
     #[pyfunction]
-    fn find_dll_symbol_ordinal(
+    fn find_with_dll_ordinal(
         module: &PyModule,
         ord: u16,
         dll: String,
@@ -100,7 +96,7 @@ pub mod iat {
     }
 
     #[pyfunction]
-    fn find_symbol_name_demangled(
+    fn find_demangled(
         module: &PyModule,
         name: String,
         vm: &VirtualMachine,
@@ -114,7 +110,7 @@ pub mod iat {
     }
 
     #[pyfunction]
-    fn find_dll_symbol_name_demangled(
+    fn find_with_dll_demangled(
         module: &PyModule,
         name: String,
         dll: String,
@@ -137,7 +133,7 @@ pub mod iat {
     impl PyIATSymbol {
         #[pygetset]
         fn name(&self) -> Option<String> {
-            match self.0.identifier {
+            match self.0.ident {
                 SymbolIdent::Name(ref n) => Some(n.clone()),
                 SymbolIdent::Ordinal(_) => None,
             }
@@ -145,7 +141,7 @@ pub mod iat {
 
         #[pygetset]
         fn ordinal(&self) -> Option<u16> {
-            match self.0.identifier {
+            match self.0.ident {
                 SymbolIdent::Name(_) => None,
                 SymbolIdent::Ordinal(o) => Some(o),
             }
@@ -153,7 +149,7 @@ pub mod iat {
 
         #[pygetset]
         fn dll_name(&self) -> String {
-            self.0.dll_name.clone()
+            self.0.dll.clone()
         }
 
         /// Address of original fn stored at this iat entry
@@ -165,7 +161,7 @@ pub mod iat {
         /// You can write a u64 here to hook it somewhere else, but make sure you first make protection writeable
         #[pygetset]
         fn iat(&self) -> usize {
-            self.0.iat as _
+            self.0.entry as _
         }
 
         /// unsafe fn
