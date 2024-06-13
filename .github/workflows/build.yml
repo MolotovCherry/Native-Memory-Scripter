@@ -25,6 +25,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
+          workspaces: "rust -> target"
 
       - name: Build Release
         if: github.event_name == 'release'
