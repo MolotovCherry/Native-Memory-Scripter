@@ -169,5 +169,5 @@ pub fn demangle_symbol(symbol: &str) -> Option<String> {
 
     let name = Name::new(symbol, NameMangling::Mangled, Language::Unknown);
 
-    name.demangle(DemangleOptions::name_only())
+    name.demangle(DemangleOptions::complete())
 }
