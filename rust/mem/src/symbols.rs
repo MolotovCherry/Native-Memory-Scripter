@@ -166,8 +166,13 @@ pub fn find_symbol_address_demangled(
 pub fn demangle_symbol(symbol: &str) -> Option<String> {
     use symbolic_common::{Language, Name, NameMangling};
     use symbolic_demangle::{Demangle, DemangleOptions};
+    use undname::Flags;
+
+    // prefer undname first because it's more accurate on msvc than existing popular implemenations
+    if let Ok(name) = undname::demangle(symbol.into(), Flags::default()) {
+        return Some(name.to_string());
+    }
 
     let name = Name::new(symbol, NameMangling::Mangled, Language::Unknown);
-
     name.demangle(DemangleOptions::complete())
 }
