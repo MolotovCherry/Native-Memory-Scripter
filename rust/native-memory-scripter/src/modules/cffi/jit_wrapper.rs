@@ -11,6 +11,7 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
 use rustpython_vm::prelude::*;
 use rustpython_vm::vm::thread::ThreadedVirtualMachine;
+use tracing::info;
 
 use self::callback::__jit_cb;
 use super::{args::ArgLayout, ret::Ret, types::Type};
@@ -62,6 +63,9 @@ pub fn jit_py_wrapper(
     flag_builder.set("enable_jump_tables", "true").unwrap();
     flag_builder.set("opt_level", "speed").unwrap();
 
+    let jit_cb_name = format!("__jit_cb_{name}");
+    let name = format!("__jit_native_py_{name}");
+
     // SAFETY: We are always on a supported platform. Win x64;
     let isa_builder = cranelift_native::builder_with_options(true)
         .unwrap_or_else(|_| unsafe { unreachable_unchecked() });
@@ -72,7 +76,7 @@ pub fn jit_py_wrapper(
 
     let mut builder = JITBuilder::with_isa(isa, default_libcall_names());
     // add external function to symbols
-    builder.symbol("__jit_cb", __jit_cb as *const u8);
+    builder.symbol(&jit_cb_name, __jit_cb as *const u8);
     let mut module = JITModule::new(builder);
 
     let mut ctx = module.make_context();
@@ -103,8 +107,9 @@ pub fn jit_py_wrapper(
     cb_sig_fn.params.push(AbiParam::new(types::R64));
 
     // declare and import fn
+
     let jit_callback = module
-        .declare_function("__jit_cb", Linkage::Import, &cb_sig_fn)
+        .declare_function(&jit_cb_name, Linkage::Import, &cb_sig_fn)
         .unwrap();
 
     //
@@ -128,7 +133,7 @@ pub fn jit_py_wrapper(
     //
 
     let func = module
-        .declare_function(&format!("__jit_native_py{name}"), Linkage::Local, &sig_fn)
+        .declare_function(&name, Linkage::Local, &sig_fn)
         .unwrap();
 
     ctx.func.signature = sig_fn;
@@ -207,6 +212,8 @@ pub fn jit_py_wrapper(
 
     // Get a raw pointer to the generated code.
     let code = module.get_finalized_function(func);
+
+    info!("defined {name}() ({code:?}) -> {jit_cb_name}()");
 
     // we cast leaked data to a raw pointer so that a mutable reference does not exist anymore and we can call the callback with &Data
     Ok((module, leaked_data, code, code_size))

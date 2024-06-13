@@ -60,6 +60,9 @@ pub struct IATSymbol {
     entry_backup: *mut u64,
 }
 
+unsafe impl Send for IATSymbol {}
+unsafe impl Sync for IATSymbol {}
+
 impl fmt::Debug for IATSymbol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let IATSymbol {
@@ -76,6 +79,14 @@ impl fmt::Debug for IATSymbol {
             .field("orig_fn", &orig_fn)
             .field("entry", &entry)
             .finish()
+    }
+}
+
+impl Drop for IATSymbol {
+    fn drop(&mut self) {
+        unsafe {
+            _ = self.unhook();
+        }
     }
 }
 
@@ -134,9 +145,6 @@ impl IATSymbol {
         Ok(())
     }
 }
-
-unsafe impl Send for IATSymbol {}
-unsafe impl Sync for IATSymbol {}
 
 fn enum_iat_symbols_cb(
     module: &Module,

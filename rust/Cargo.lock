@@ -185,6 +185,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05efc5cfd9110c8416e471df0e96702d58690178e206e61b7173706673c93706"
+dependencies = [
+ "memchr",
+ "regex-automata 0.4.7",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1055,6 +1066,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hooker"
+version = "0.1.0"
+dependencies = [
+ "mem",
+ "pelite",
+ "tracing",
+ "tracing-subscriber",
+ "windows 0.57.0",
+]
+
+[[package]]
 name = "iana-time-zone"
 version = "0.1.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1579,6 +1601,7 @@ dependencies = [
  "symbolic-demangle",
  "thiserror",
  "tracing",
+ "undname",
  "windows 0.57.0",
 ]
 
@@ -1632,15 +1655,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87dfd01fe195c66b572b37921ad8803d010623c0aca821bea2302239d155cdae"
 dependencies = [
  "adler",
-]
-
-[[package]]
-name = "msvc-demangler"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4c25a3bb7d880e8eceab4822f3141ad0700d20f025991c1f03bd3d00219a5fc"
-dependencies = [
- "bitflags 2.5.0",
 ]
 
 [[package]]
@@ -1732,6 +1746,12 @@ name = "no-std-compat"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
+
+[[package]]
+name = "nonmax"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "610a5acd306ec67f907abe5567859a3c693fb9886eb1f012ab8f2a47bef3db51"
 
 [[package]]
 name = "nu-ansi-term"
@@ -2234,7 +2254,7 @@ dependencies = [
 [[package]]
 name = "rustpython"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "atty",
  "cfg-if",
@@ -2266,7 +2286,7 @@ dependencies = [
 [[package]]
 name = "rustpython-codegen"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "ahash",
  "bitflags 2.5.0",
@@ -2283,11 +2303,11 @@ dependencies = [
 [[package]]
 name = "rustpython-common"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "ascii",
  "bitflags 2.5.0",
- "bstr",
+ "bstr 0.2.17",
  "cfg-if",
  "itertools",
  "libc",
@@ -2311,7 +2331,7 @@ dependencies = [
 [[package]]
 name = "rustpython-compiler"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "rustpython-codegen",
  "rustpython-compiler-core",
@@ -2321,7 +2341,7 @@ dependencies = [
 [[package]]
 name = "rustpython-compiler-core"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "bitflags 2.5.0",
  "itertools",
@@ -2334,7 +2354,7 @@ dependencies = [
 [[package]]
 name = "rustpython-derive"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "rustpython-compiler",
  "rustpython-derive-impl",
@@ -2344,7 +2364,7 @@ dependencies = [
 [[package]]
 name = "rustpython-derive-impl"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "itertools",
  "maplit",
@@ -2382,7 +2402,7 @@ dependencies = [
 [[package]]
 name = "rustpython-jit"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "cranelift 0.88.2",
  "cranelift-jit 0.88.2",
@@ -2450,7 +2470,7 @@ dependencies = [
 [[package]]
 name = "rustpython-pylib"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "glob",
  "rustpython-compiler-core",
@@ -2460,7 +2480,7 @@ dependencies = [
 [[package]]
 name = "rustpython-sre_engine"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "bitflags 2.5.0",
  "num_enum",
@@ -2470,7 +2490,7 @@ dependencies = [
 [[package]]
 name = "rustpython-stdlib"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "adler32",
  "ahash",
@@ -2541,13 +2561,13 @@ dependencies = [
 [[package]]
 name = "rustpython-vm"
 version = "0.3.1"
-source = "git+https://github.com/MolotovCherry/RustPython#693086f2a264ec426fdb80983da110d9a153d7c2"
+source = "git+https://github.com/MolotovCherry/RustPython?branch=io-fix#472a4397305636e05741fde19be43ff9805f4b55"
 dependencies = [
  "ahash",
  "ascii",
  "atty",
  "bitflags 2.5.0",
- "bstr",
+ "bstr 0.2.17",
  "caseless",
  "cfg-if",
  "chrono",
@@ -2883,7 +2903,6 @@ checksum = "424fa2c9bf2c862891b9cfd354a752751a6730fd838a4691e7f6c2c7957b9daf"
 dependencies = [
  "cc",
  "cpp_demangle",
- "msvc-demangler",
  "rustc-demangle",
  "symbolic-common",
 ]
@@ -3274,6 +3293,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b72f89f0ca32e4db1c04e2a72f5345d59796d4866a1ee0609084569f73683dc8"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "undname"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e518324507d3ec7c77eb653c5988e2b279c7884350c901c0bcf18bb11dd0db31"
+dependencies = [
+ "arrayvec",
+ "bitflags 2.5.0",
+ "bstr 1.9.1",
+ "bumpalo",
+ "nonmax",
+ "smallvec",
+ "thiserror",
 ]
 
 [[package]]

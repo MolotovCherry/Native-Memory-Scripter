@@ -3,37 +3,42 @@ use std::{hint::unreachable_unchecked, mem::MaybeUninit, sync::OnceLock};
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
+use mem::iat::IATSymbol;
 use rustpython_vm::{
     convert::ToPyObject,
     prelude::{PyObjectRef, PyResult, VirtualMachine},
 };
+use tracing::info;
 
 use super::{args::ArgMemory, jit_wrapper::JITWrapper, ret::Ret, types::Type};
 
 #[derive(Debug)]
+pub enum Hook {
+    Jmp(mem::hook::Trampoline),
+    #[allow(clippy::upper_case_acronyms)]
+    IAT(IATSymbol),
+}
+
+#[derive(Debug)]
 pub struct Trampoline {
-    mem_tramp: mem::hook::Trampoline,
+    hook: Hook,
     arg_mem: ArgMemory,
     args: (Vec<Type>, Type),
     jit: OnceLock<JITWrapper>,
-    trampoline_cb: OnceLock<extern "fastcall" fn(*const (), *mut Ret)>,
+    jit_call: OnceLock<extern "fastcall" fn(*const (), *mut Ret)>,
 }
 
 impl Trampoline {
-    pub fn new(
-        trampoline: mem::hook::Trampoline,
-        args: (&[Type], Type),
-        vm: &VirtualMachine,
-    ) -> PyResult<Self> {
+    pub fn new(hook: Hook, args: (&[Type], Type), vm: &VirtualMachine) -> PyResult<Self> {
         let arg_mem = ArgMemory::new(args.0)
             .ok_or_else(|| vm.new_runtime_error("failed to create ArgMemory".to_owned()))?;
 
         let slf = Self {
-            mem_tramp: trampoline,
+            hook,
             arg_mem,
             args: (args.0.to_vec(), args.1),
             jit: OnceLock::new(),
-            trampoline_cb: OnceLock::new(),
+            jit_call: OnceLock::new(),
         };
 
         Ok(slf)
@@ -42,11 +47,12 @@ impl Trampoline {
     pub fn call(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<PyObjectRef> {
         self.arg_mem.fill(args, vm)?;
 
-        let trampoline = if let Some(&_fn) = self.trampoline_cb.get() {
+        let trampoline = if let Some(&_fn) = self.jit_call.get() {
             _fn
         } else {
             let _fn = self.compile()?;
-            _ = self.trampoline_cb.set(_fn);
+            _ = self.jit_call.set(_fn);
+
             _fn
         };
 
@@ -75,6 +81,14 @@ impl Trampoline {
         flag_builder.set("enable_jump_tables", "true").unwrap();
         flag_builder.set("opt_level", "speed").unwrap();
 
+        let hook_address = match &self.hook {
+            Hook::Jmp(h) => h.address,
+            Hook::IAT(i) => i.orig_fn as _,
+        };
+
+        let tramp_name = format!("__trampoline_{:?}", hook_address);
+        let jitpoline_name = format!("__jitpoline_{:?}", hook_address);
+
         // SAFETY: We are always on a supported platform. Win x64;
         let isa_builder = cranelift_native::builder_with_options(true)
             .unwrap_or_else(|_| unsafe { unreachable_unchecked() });
@@ -84,8 +98,7 @@ impl Trampoline {
             .unwrap();
 
         let mut builder = JITBuilder::with_isa(isa, default_libcall_names());
-        let tramp_name = format!("__trampoline_{:?}", self.mem_tramp.address);
-        builder.symbol(&*tramp_name, self.mem_tramp.address);
+        builder.symbol(&tramp_name, hook_address);
         let mut module = JITModule::new(builder);
 
         let mut ctx = module.make_context();
@@ -124,11 +137,7 @@ impl Trampoline {
         sig_fn.params.push(AbiParam::new(types::I64));
 
         let func = module
-            .declare_function(
-                &format!("__jit_trampoline_{:?}", self.mem_tramp.address),
-                Linkage::Local,
-                &sig_fn,
-            )
+            .declare_function(&jitpoline_name, Linkage::Local, &sig_fn)
             .unwrap();
 
         ctx.func.signature = sig_fn;
@@ -186,7 +195,11 @@ impl Trampoline {
 
         // Get a raw pointer to the generated code.
         let code = module.get_finalized_function(func);
-        let _fn = unsafe { std::mem::transmute(code) };
+        let _fn = unsafe {
+            std::mem::transmute::<*const u8, extern "fastcall" fn(*const (), *mut Ret)>(code)
+        };
+
+        info!("defined {jitpoline_name}() ({code:?}) -> {tramp_name}()");
 
         Ok(_fn)
     }

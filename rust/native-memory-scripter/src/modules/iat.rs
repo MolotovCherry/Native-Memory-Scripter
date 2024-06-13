@@ -3,6 +3,8 @@ use rustpython_vm::pymodule;
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod iat {
+    use std::ops::Deref;
+
     use mem::iat::{
         enum_iat_symbols, enum_iat_symbols_demangled, find_dll_iat_symbol,
         find_dll_iat_symbol_demangled, find_iat_symbol, find_iat_symbol_demangled, IATSymbol,
@@ -127,7 +129,15 @@ pub mod iat {
     #[pyattr]
     #[pyclass(name = "IATSymbol")]
     #[derive(Debug, PyPayload)]
-    struct PyIATSymbol(IATSymbol);
+    pub struct PyIATSymbol(IATSymbol);
+
+    impl Deref for PyIATSymbol {
+        type Target = IATSymbol;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
 
     #[pyclass]
     impl PyIATSymbol {

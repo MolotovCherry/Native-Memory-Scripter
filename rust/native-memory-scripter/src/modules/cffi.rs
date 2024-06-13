@@ -28,10 +28,13 @@ pub mod cffi {
 
     use super::{
         jit_wrapper::{jit_py_wrapper, Data, JITWrapper},
-        trampoline::Trampoline,
+        trampoline::{Hook, Trampoline},
         types::Type,
     };
-    use crate::{modules::Address, utils::RawSendable};
+    use crate::{
+        modules::{iat::iat::PyIATSymbol, Address},
+        utils::RawSendable,
+    };
 
     #[allow(non_camel_case_types)]
     #[pyattr]
@@ -76,7 +79,7 @@ pub mod cffi {
                 .map_err(|_| vm.new_type_error("ret expected Type".to_owned()))?;
             let ret = (***ret).0;
 
-            let name = args.0.class().__name__(vm).to_string();
+            let name = args.0.get_attr("__name__", vm)?.str(vm)?.to_string();
 
             let fn_args = args
                 .1
@@ -137,7 +140,29 @@ pub mod cffi {
             let res = unsafe { mem::hook::hook(from as _, self.addr) };
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
-            let trampoline = Trampoline::new(trampoline, (&self.params.0, self.params.1), vm)?;
+            let hook = Hook::Jmp(trampoline);
+            let trampoline = Trampoline::new(hook, (&self.params.0, self.params.1), vm)?;
+
+            *lock = Some(trampoline);
+
+            Ok(true)
+        }
+
+        #[pymethod]
+        fn hook_iat(&self, entry: PyRef<PyIATSymbol>, vm: &VirtualMachine) -> PyResult<bool> {
+            let mut lock = self.trampoline.lock().unwrap();
+            if lock.is_some() {
+                return Err(vm.new_runtime_error(
+                    "this callable is already hooking something. create a new callable to hook something else"
+                        .to_owned(),
+                ));
+            }
+
+            let res = unsafe { entry.hook(self.addr.cast()) };
+            res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
+
+            let hook = Hook::IAT((**entry).clone());
+            let trampoline = Trampoline::new(hook, (&self.params.0, self.params.1), vm)?;
 
             *lock = Some(trampoline);
 
@@ -160,11 +185,15 @@ pub mod cffi {
 
     impl Drop for Callable {
         fn drop(&mut self) {
-            if let Ok(mut lock) = self.cb_mem.lock() {
-                if let Some((jit, leaked)) = lock.take() {
-                    unsafe {
-                        jit.0.free_memory();
-                        _ = Box::from_raw(leaked.0.as_ptr());
+            let count = Arc::strong_count(&self.trampoline);
+            // only drop if this is the last clone
+            if count == 1 {
+                if let Ok(mut lock) = self.cb_mem.lock() {
+                    if let Some((jit, leaked)) = lock.take() {
+                        unsafe {
+                            jit.0.free_memory();
+                            _ = Box::from_raw(leaked.0.as_ptr());
+                        }
                     }
                 }
             }
