@@ -52,12 +52,12 @@ pub struct IATSymbol {
     pub orig_fn: *const (),
     /// the address in the iat table where the actual pointer to the function is stored
     /// note: you cannot write to this without first making it writable
-    pub iat_entry: *const u64,
+    pub entry: *const u64,
     /// to prevent data races
     lock: Arc<Mutex<()>>,
     // these are used as backup addresses since the others are public and can be modified
     orig_fn_backup: *const (),
-    iat_backup: *mut u64,
+    entry_backup: *mut u64,
 }
 
 impl fmt::Debug for IATSymbol {
@@ -66,7 +66,7 @@ impl fmt::Debug for IATSymbol {
             ident,
             dll,
             orig_fn,
-            iat_entry,
+            entry,
             ..
         } = self;
 
@@ -74,7 +74,7 @@ impl fmt::Debug for IATSymbol {
             .field("ident", &ident)
             .field("dll", &dll)
             .field("orig_fn", &orig_fn)
-            .field("iat_entry", &iat_entry)
+            .field("entry", &entry)
             .finish()
     }
 }
@@ -83,7 +83,7 @@ impl IATSymbol {
     /// Get the function address the iat symbol is pointing to
     pub fn fn_addr(&self) -> *const () {
         let _guard = self.lock.lock().unwrap();
-        unsafe { memory::read(self.iat_backup) as _ }
+        unsafe { memory::read(self.entry_backup) as _ }
     }
 
     /// Set the function address the iat symbol is pointing to
@@ -96,15 +96,15 @@ impl IATSymbol {
 
         // first we need to make this region writable
         let old =
-            unsafe { memory::prot(self.iat_backup.cast(), mem::size_of::<u64>(), Prot::XRW)? };
+            unsafe { memory::prot(self.entry_backup.cast(), mem::size_of::<u64>(), Prot::XRW)? };
 
         unsafe {
-            memory::write(self.iat_backup, address as _);
+            memory::write(self.entry_backup, address as _);
         }
 
         // set it back to original now
         unsafe {
-            memory::prot(self.iat_backup.cast(), mem::size_of::<u64>(), old)?;
+            memory::prot(self.entry_backup.cast(), mem::size_of::<u64>(), old)?;
         }
 
         Ok(())
@@ -120,15 +120,15 @@ impl IATSymbol {
 
         // first we need to make this region writable
         let old =
-            unsafe { memory::prot(self.iat_backup.cast(), mem::size_of::<u64>(), Prot::XRW)? };
+            unsafe { memory::prot(self.entry_backup.cast(), mem::size_of::<u64>(), Prot::XRW)? };
 
         unsafe {
-            memory::write(self.iat_backup, self.orig_fn_backup as _);
+            memory::write(self.entry_backup, self.orig_fn_backup as _);
         }
 
         // set it back to original now
         unsafe {
-            memory::prot(self.iat_backup.cast(), mem::size_of::<u64>(), old)?;
+            memory::prot(self.entry_backup.cast(), mem::size_of::<u64>(), old)?;
         }
 
         Ok(())
@@ -196,15 +196,15 @@ fn enum_iat_symbols_cb(
 pub fn enum_iat_symbols(module: &Module) -> Result<Vec<IATSymbol>, IATSymbolError> {
     let mut imports = Vec::new();
 
-    enum_iat_symbols_cb(module, |dll, (iat_entry, orig_fn), ident| {
+    enum_iat_symbols_cb(module, |dll, (entry, orig_fn), ident| {
         let sym = IATSymbol {
             ident,
             dll: dll.to_string(),
             orig_fn,
-            iat_entry,
+            entry,
             lock: Arc::default(),
             orig_fn_backup: orig_fn,
-            iat_backup: iat_entry,
+            entry_backup: entry,
         };
 
         imports.push(sym);
@@ -219,7 +219,7 @@ pub fn enum_iat_symbols(module: &Module) -> Result<Vec<IATSymbol>, IATSymbolErro
 pub fn enum_iat_symbols_demangled(module: &Module) -> Result<Vec<IATSymbol>, IATSymbolError> {
     let mut imports = Vec::new();
 
-    enum_iat_symbols_cb(module, |dll, (iat_entry, original_fn), ident| {
+    enum_iat_symbols_cb(module, |dll, (entry, original_fn), ident| {
         let ident = match ident {
             SymbolIdent::Name(n) => {
                 let demangled = symbols::demangle_symbol(&n).unwrap_or(n);
@@ -233,10 +233,10 @@ pub fn enum_iat_symbols_demangled(module: &Module) -> Result<Vec<IATSymbol>, IAT
             ident,
             dll: dll.to_string(),
             orig_fn: original_fn,
-            iat_entry,
+            entry,
             lock: Arc::default(),
             orig_fn_backup: original_fn,
-            iat_backup: iat_entry,
+            entry_backup: entry,
         };
 
         imports.push(sym);
@@ -254,16 +254,16 @@ pub fn find_iat_symbol(
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
-    enum_iat_symbols_cb(module, |dll, (iat, orig_fn), import_ident| {
+    enum_iat_symbols_cb(module, |dll, (entry, orig_fn), import_ident| {
         if ident == &import_ident {
             let sym = IATSymbol {
                 ident: import_ident,
                 dll: dll.to_string(),
                 orig_fn,
-                iat_entry: iat,
+                entry,
                 lock: Arc::default(),
                 orig_fn_backup: orig_fn,
-                iat_backup: iat,
+                entry_backup: entry,
             };
 
             out_sym = Some(sym);
@@ -287,16 +287,16 @@ pub fn find_dll_iat_symbol(
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
-    enum_iat_symbols_cb(module, |dll_name, (iat_entry, orig_fn), import_ident| {
+    enum_iat_symbols_cb(module, |dll_name, (entry, orig_fn), import_ident| {
         if dll == dll_name && ident == &import_ident {
             let sym = IATSymbol {
                 ident: import_ident,
                 dll: dll_name.to_string(),
                 orig_fn,
-                iat_entry,
+                entry,
                 lock: Arc::default(),
                 orig_fn_backup: orig_fn,
-                iat_backup: iat_entry,
+                entry_backup: entry,
             };
 
             out_sym = Some(sym);
@@ -318,7 +318,7 @@ pub fn find_iat_symbol_demangled(
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
-    enum_iat_symbols_cb(module, |dll, (iat_entry, orig_fn), import_ident| {
+    enum_iat_symbols_cb(module, |dll, (entry, orig_fn), import_ident| {
         let is_match = match import_ident {
             SymbolIdent::Name(ref n) => {
                 let demangled = symbols::demangle_symbol(n);
@@ -335,10 +335,10 @@ pub fn find_iat_symbol_demangled(
                 ident: import_ident,
                 dll: dll.to_string(),
                 orig_fn,
-                iat_entry,
+                entry,
                 lock: Arc::default(),
                 orig_fn_backup: orig_fn,
-                iat_backup: iat_entry,
+                entry_backup: entry,
             };
 
             out_sym = Some(sym);
@@ -363,7 +363,7 @@ pub fn find_dll_iat_symbol_demangled(
 ) -> Result<Option<IATSymbol>, IATSymbolError> {
     let mut out_sym = None;
 
-    enum_iat_symbols_cb(module, |dll_name, (iat_entry, orig_fn), import_ident| {
+    enum_iat_symbols_cb(module, |dll_name, (entry, orig_fn), import_ident| {
         let is_match = match import_ident {
             SymbolIdent::Name(ref n) => {
                 let demangled = symbols::demangle_symbol(n);
@@ -380,10 +380,10 @@ pub fn find_dll_iat_symbol_demangled(
                 ident: import_ident,
                 dll: dll_name.to_string(),
                 orig_fn,
-                iat_entry,
+                entry,
                 lock: Arc::default(),
                 orig_fn_backup: orig_fn,
-                iat_backup: iat_entry,
+                entry_backup: entry,
             };
 
             out_sym = Some(sym);
