@@ -34,6 +34,7 @@ This software:
 - may be compiled in its unmodified form
 - modifications and compiling with modifications are allowed under the condition that you submit your changes back to the main repo
 - cannot be redistributed
+- cannot be used/re-used in your own projects
 - cannot be used for any commercial purposes
 - cannot be sold
 - code cannot be used in any way for any purpose. it is copyrighted
