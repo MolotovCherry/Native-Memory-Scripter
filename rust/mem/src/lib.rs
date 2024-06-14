@@ -21,6 +21,7 @@ pub mod scan;
 pub mod segments;
 pub mod symbols;
 mod utils;
+pub mod vtable;
 
 use windows::Win32::System::Memory::{
     PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_WRITECOPY,
