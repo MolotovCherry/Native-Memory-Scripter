@@ -1,68 +1,77 @@
-// #[pyattr]
-// #[pyclass(name = "Vmt")]
-// #[derive(PyPayload)]
-// struct PyVmt(usize, Sendable<Mutex<Vmt>>);
+use rustpython_vm::pymodule;
 
-// impl Debug for PyVmt {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "Vmt")
-//     }
-// }
+#[allow(clippy::module_inception)]
+#[pymodule]
+pub mod vmt {
+    use std::fmt::Debug;
 
-// impl Constructor for PyVmt {
-//     type Args = usize;
+    use mem::vtable::VTable;
+    use rustpython_vm::{
+        builtins::PyTypeRef, pyclass, types::Constructor, PyObjectRef, PyPayload, PyResult,
+        VirtualMachine,
+    };
 
-//     fn py_new(_cls: PyTypeRef, args: Self::Args, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
-//         let vmt = Vmt::new(args);
-//         let slf = Self(args, Sendable(Mutex::new(vmt))).into_pyobject(vm);
+    use crate::modules::Address;
 
-//         Ok(slf)
-//     }
-// }
+    #[pyattr]
+    #[pyclass(name = "VTable")]
+    #[derive(PyPayload)]
+    struct PyVTable(VTable);
 
-// #[pyclass(with(Constructor))]
-// impl PyVmt {
-//     #[pymethod]
-//     fn hook(&self, index: usize, dst: usize) {
-//         let mut lock = self.1.lock().unwrap();
+    impl Debug for PyVTable {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{:?}", self.0)
+        }
+    }
 
-//         unsafe {
-//             lock.hook(index, dst);
-//         }
-//     }
+    impl Constructor for PyVTable {
+        type Args = Address;
 
-//     #[pymethod]
-//     fn unhook(&self, index: usize) {
-//         let mut lock = self.1.lock().unwrap();
+        fn py_new(_cls: PyTypeRef, args: Self::Args, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+            let vmt = VTable::new(args as _);
+            let slf = Self(vmt).into_pyobject(vm);
 
-//         unsafe {
-//             lock.unhook(index);
-//         }
-//     }
+            Ok(slf)
+        }
+    }
 
-//     #[pymethod]
-//     fn get_original(&self, index: usize) -> Option<usize> {
-//         let lock = self.1.lock().unwrap();
+    #[pyclass(with(Constructor))]
+    impl PyVTable {
+        /// Hook an index of the virtual method table
+        ///
+        /// unsafe fn
+        #[pymethod]
+        fn hook(&self, index: usize, dst: Address, vm: &VirtualMachine) -> PyResult<()> {
+            let res = unsafe { self.0.hook(index, dst as _) };
+            res.map_err(|e| vm.new_runtime_error(e.to_string()))
+        }
 
-//         unsafe { lock.get_original(index) }
-//     }
+        #[pymethod]
+        fn unhook(&self, index: usize, vm: &VirtualMachine) -> PyResult<()> {
+            let res = unsafe { self.0.unhook(index) };
+            res.map_err(|e| vm.new_runtime_error(e.to_string()))
+        }
 
-//     #[pymethod]
-//     fn reset(&self) {
-//         let mut lock = self.1.lock().unwrap();
+        #[pymethod]
+        fn get_original(&self, index: usize) -> Option<usize> {
+            let res = self.0.get_original(index);
+            res.map(|ptr| ptr as _)
+        }
 
-//         unsafe {
-//             lock.reset();
-//         }
-//     }
+        #[pymethod]
+        fn reset(&self, vm: &VirtualMachine) -> PyResult<()> {
+            let res = unsafe { self.0.reset() };
+            res.map_err(|e| vm.new_runtime_error(e.to_string()))
+        }
 
-//     #[pymethod(magic)]
-//     fn repr(&self) -> String {
-//         format!("Vmt {{ address: {} }}", self.0)
-//     }
+        #[pymethod(magic)]
+        fn repr(&self) -> String {
+            format!("{self:?}")
+        }
 
-//     #[pymethod(magic)]
-//     fn str(&self) -> String {
-//         self.repr()
-//     }
-// }
+        #[pymethod(magic)]
+        fn str(&self) -> String {
+            self.repr()
+        }
+    }
+}

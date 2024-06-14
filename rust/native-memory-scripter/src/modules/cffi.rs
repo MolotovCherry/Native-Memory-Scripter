@@ -3,7 +3,6 @@ mod jit_wrapper;
 mod ret;
 pub mod trampoline;
 mod types;
-mod vm;
 
 use rustpython_vm::pymodule;
 
