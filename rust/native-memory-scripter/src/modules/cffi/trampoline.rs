@@ -54,7 +54,7 @@ impl Trampoline {
         Ok(slf)
     }
 
-    pub fn call(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+    pub unsafe fn call(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<PyObjectRef> {
         self.arg_mem.fill(args, vm)?;
 
         let fn_ = if let Some(&_fn) = self.jit_call.get() {
@@ -77,6 +77,30 @@ impl Trampoline {
         let ret = unsafe { ret.assume_init().to_pyobject(self.args.1, vm) };
 
         Ok(ret)
+    }
+
+    pub unsafe fn unhook(&self, vm: &VirtualMachine) -> PyResult<()> {
+        match &self.hook {
+            Hook::Jmp(j) => {
+                let res = unsafe { j.unhook() };
+                res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
+            }
+
+            Hook::IAT(i) => {
+                let res = unsafe { i.unhook() };
+                res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
+            }
+
+            Hook::Vmt(v) => {
+                let res = v.unhook(v.index());
+                res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
+            }
+
+            // direct addr, no unhooking to do
+            Hook::Addr(_) => (),
+        }
+
+        Ok(())
     }
 
     /// Compile the jit trampoline wrapper

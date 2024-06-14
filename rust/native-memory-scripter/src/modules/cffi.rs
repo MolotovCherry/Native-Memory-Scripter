@@ -47,7 +47,7 @@ pub mod cffi {
         #[pymethod]
         fn call(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
             let _lock = self.lock.lock().unwrap();
-            self.trampoline.call(&args.args, vm)
+            unsafe { self.trampoline.call(&args.args, vm) }
         }
     }
 
@@ -273,6 +273,19 @@ pub mod cffi {
             Ok(true)
         }
 
+        /// unsafe fn
+        #[pymethod]
+        fn unhook(&self, vm: &VirtualMachine) -> PyResult<()> {
+            let lock = self.trampoline.lock().unwrap();
+            if let Some(trampoline) = &*lock {
+                unsafe {
+                    trampoline.unhook(vm)?;
+                }
+            }
+
+            Ok(())
+        }
+
         #[pymethod]
         fn call_trampoline(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
             let lock = self.trampoline.lock().unwrap();
@@ -283,7 +296,7 @@ pub mod cffi {
                 ));
             };
 
-            trampoline.call(&args.args, vm)
+            unsafe { trampoline.call(&args.args, vm) }
         }
     }
 
