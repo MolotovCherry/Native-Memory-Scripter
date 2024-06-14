@@ -13,10 +13,11 @@ If you'd like to write a native mod script, see the documentation [here](https:/
 - Segment search (pages)
 - External symbol search in modules with name demangling support
 - Import address table search and hooking
-- Pattern scanning for bytes in memory
+- Pattern scanning for bytes in memory (supports AVX2, SSE4.2, and regular scalar scanning)
 - Memory manipulation (read, write, set, and allocate memory)
-- Call native functions from python, and hook (vmt, iat, and jmp hooks) native functions with a python callback, along with trampoline to call the original
+- Call native functions from python, and hook (vmt, iat, and jmp) native functions with a python callback, along with trampoline to call the original
   - Powered by a JIT compiler
+- Written in Rust 🦀
 
 # Building
 
