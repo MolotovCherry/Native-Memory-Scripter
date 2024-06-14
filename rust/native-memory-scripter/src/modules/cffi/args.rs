@@ -358,25 +358,34 @@ pub struct ArgMemory {
     offsets: Vec<usize>,
     args: Vec<Type>,
     lock: Mutex<()>,
+    is_alloc: bool,
 }
 
 unsafe impl Send for ArgMemory {}
 
 impl ArgMemory {
-    pub fn new(args: &[Type]) -> Option<Self> {
-        let (layout, offsets) = get_layout(args)?;
+    pub fn new(args: &[Type]) -> Self {
+        let Some((layout, offsets)) = get_layout(args) else {
+            return Self {
+                ptr: RawSendable(NonNull::dangling()),
+                layout: unsafe { Layout::from_size_align_unchecked(0, 1) },
+                offsets: Vec::new(),
+                args: args.to_vec(),
+                lock: Mutex::new(()),
+                is_alloc: false,
+            };
+        };
 
         let memory = unsafe { alloc::alloc(layout) };
 
-        let slf = Self {
+        Self {
             ptr: RawSendable(unsafe { NonNull::new_unchecked(memory) }),
             layout,
             offsets,
             args: args.to_vec(),
             lock: Mutex::new(()),
-        };
-
-        Some(slf)
+            is_alloc: true,
+        }
     }
 
     pub fn offsets(&self) -> &[usize] {
@@ -392,6 +401,10 @@ impl ArgMemory {
     pub fn fill(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<()> {
         if args.len() != self.args.len() {
             return Err(vm.new_runtime_error("incorrect number of args".to_owned()));
+        }
+
+        if self.args.is_empty() {
+            return Ok(());
         }
 
         let _lock = self.lock.lock().unwrap();
@@ -583,8 +596,10 @@ impl ArgMemory {
 
 impl Drop for ArgMemory {
     fn drop(&mut self) {
-        unsafe {
-            alloc::dealloc(self.ptr.as_ptr(), self.layout);
+        if self.is_alloc {
+            unsafe {
+                alloc::dealloc(self.ptr.as_ptr(), self.layout);
+            }
         }
     }
 }

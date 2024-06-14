@@ -11,9 +11,7 @@ pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: &mut Ret) {
         let mut py_args = FuncArgs::default();
 
         let first = iter.next().unwrap().as_u64();
-        let second = iter.next().unwrap().as_u64();
 
-        py_args.prepend_arg(vm.new_pyobj(second));
         py_args.prepend_arg(vm.new_pyobj(first));
 
         if let Err(e) = data.callable.call_with_args(py_args, vm) {

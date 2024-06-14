@@ -7,6 +7,12 @@ pub struct RawSendable<T>(pub NonNull<T>);
 unsafe impl<T> Send for RawSendable<T> {}
 unsafe impl<T> Sync for RawSendable<T> {}
 
+impl<T> RawSendable<T> {
+    pub fn new(ptr: *mut T) -> Self {
+        Self(NonNull::new(ptr).unwrap())
+    }
+}
+
 impl<T> Debug for RawSendable<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)

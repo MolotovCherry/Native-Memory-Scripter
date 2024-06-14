@@ -11,13 +11,13 @@ use rustpython_vm::pymodule;
 pub mod cffi {
     use std::{
         ops::Deref,
-        ptr::NonNull,
         sync::{Arc, Mutex},
     };
 
     use cranelift::prelude::{isa::CallConv, *};
     use rustpython_vm::{
         builtins::PyTypeRef,
+        convert::ToPyObject,
         function::FuncArgs,
         prelude::{PyObjectRef, VirtualMachine, *},
         pyclass, pymodule,
@@ -26,14 +26,93 @@ pub mod cffi {
     };
 
     use super::{
-        jit_wrapper::{jit_py_wrapper, Data, JITWrapper},
+        jit_wrapper::{jit_py_wrapper, DataWrapper},
         trampoline::{Hook, Trampoline},
         types::Type,
     };
-    use crate::{
-        modules::{iat::iat::PyIATSymbol, Address},
-        utils::RawSendable,
+    use crate::modules::{
+        iat::iat::PyIATSymbol, symbols::symbols::PySymbol, vmt::vmt::PyVTable, Address,
     };
+
+    #[pyattr]
+    #[pyclass(name)]
+    #[derive(Debug, Clone, PyPayload)]
+    pub struct NativeCall {
+        trampoline: Arc<Trampoline>,
+        lock: Arc<Mutex<()>>,
+    }
+
+    #[pyclass(with(Constructor))]
+    impl NativeCall {
+        #[pymethod]
+        fn call(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+            let _lock = self.lock.lock().unwrap();
+            self.trampoline.call(&args.args, vm)
+        }
+    }
+
+    impl Constructor for NativeCall {
+        type Args = (PyObjectRef, FuncArgs);
+
+        fn py_new(_cls: PyTypeRef, args: Self::Args, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+            // usize address or symbol is OK for first param
+            let address = if let Ok(addr) = args.0.try_to_value::<usize>(vm) {
+                Some(addr)
+            } else if let Ok(sym) = args.0.downcast_exact::<PySymbol>(vm) {
+                Some(sym.address())
+            } else {
+                None
+            };
+
+            let Some(address) = address else {
+                return Err(vm.new_runtime_error(
+                    "first param must be a usize address or Symbol".to_owned(),
+                ));
+            };
+
+            let calling_conv = args
+                .1
+                .get_kwarg("conv", _call_conv::WindowsFastcall.into_pyobject(vm));
+
+            let call_conv = calling_conv
+                .downcast_exact::<PyCallConv>(vm)
+                .map_err(|_| vm.new_type_error("conv expected CallConv".to_owned()))?;
+            let calling_conv = ****call_conv;
+
+            let ret = args
+                .1
+                .get_kwarg("ret", PyType(Type::Void).into_pyobject(vm));
+
+            let ret = ret
+                .downcast_exact::<PyType>(vm)
+                .map_err(|_| vm.new_type_error("ret expected Type".to_owned()))?;
+            let ret = (***ret).0;
+
+            let fn_args = args
+                .1
+                .args
+                .into_iter()
+                .map(|a| {
+                    a.downcast_exact::<PyType>(vm).map(|t| ****t).map_err(|s| {
+                        vm.new_type_error(format!(
+                            "expected Type, found {}",
+                            s.class().__name__(vm)
+                        ))
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let hook = Hook::Addr(address as _);
+            let trampoline = Trampoline::new(hook, (&fn_args, ret), calling_conv)?;
+
+            let call = Self {
+                trampoline: Arc::new(trampoline),
+                lock: Arc::default(),
+            };
+
+            Ok(call.to_pyobject(vm))
+        }
+    }
 
     #[allow(non_camel_case_types)]
     #[pyattr]
@@ -44,8 +123,9 @@ pub mod cffi {
         code_size: u32,
         trampoline: Arc<Mutex<Option<Trampoline>>>,
         params: (Vec<Type>, Type),
+        call_conv: CallConv,
         #[allow(clippy::type_complexity)]
-        cb_mem: Arc<Mutex<Option<(JITWrapper, RawSendable<Data>)>>>,
+        _cb_mem: DataWrapper,
     }
 
     unsafe impl Send for Callable {}
@@ -94,20 +174,16 @@ pub mod cffi {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let (module, leaked_data, address, code_size) =
+            let (module, address, code_size) =
                 jit_py_wrapper(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
 
             let callable = Callable {
                 addr: address,
                 code_size,
                 params: (fn_args, ret),
-
-                cb_mem: Arc::new(Mutex::new(Some((
-                    JITWrapper(module),
-                    RawSendable(unsafe { NonNull::new_unchecked(leaked_data) }),
-                )))),
-
+                _cb_mem: module,
                 trampoline: Arc::default(),
+                call_conv: calling_conv,
             };
 
             Ok(callable.into_pyobject(vm))
@@ -140,7 +216,8 @@ pub mod cffi {
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
             let hook = Hook::Jmp(trampoline);
-            let trampoline = Trampoline::new(hook, (&self.params.0, self.params.1), vm)?;
+            let trampoline =
+                Trampoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
 
             *lock = Some(trampoline);
 
@@ -161,7 +238,35 @@ pub mod cffi {
             res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
 
             let hook = Hook::IAT((**entry).clone());
-            let trampoline = Trampoline::new(hook, (&self.params.0, self.params.1), vm)?;
+            let trampoline =
+                Trampoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
+
+            *lock = Some(trampoline);
+
+            Ok(true)
+        }
+
+        #[pymethod]
+        fn hook_vmt(
+            &self,
+            vtable: PyRef<PyVTable>,
+            index: usize,
+            vm: &VirtualMachine,
+        ) -> PyResult<bool> {
+            let mut lock = self.trampoline.lock().unwrap();
+            if lock.is_some() {
+                return Err(vm.new_runtime_error(
+                    "this callable is already hooking something. create a new callable to hook something else"
+                        .to_owned(),
+                ));
+            }
+
+            let res = unsafe { vtable.hook(index, self.addr as _) };
+            res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
+
+            let hook = Hook::Vmt(VTableHook(index, vtable));
+            let trampoline =
+                Trampoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
 
             *lock = Some(trampoline);
 
@@ -182,20 +287,31 @@ pub mod cffi {
         }
     }
 
-    impl Drop for Callable {
+    //
+    // VTableHook
+    // This will auto-unhook the index when dropped. Won't affect drop of the actual vtable itself
+    // since the vtable is refcounted
+    //
+    #[derive(Debug)]
+    pub struct VTableHook(usize, PyRef<PyVTable>);
+
+    impl VTableHook {
+        pub fn index(&self) -> usize {
+            self.0
+        }
+    }
+
+    impl Deref for VTableHook {
+        type Target = PyRef<PyVTable>;
+
+        fn deref(&self) -> &Self::Target {
+            &self.1
+        }
+    }
+
+    impl Drop for VTableHook {
         fn drop(&mut self) {
-            let count = Arc::strong_count(&self.trampoline);
-            // only drop if this is the last clone
-            if count == 1 {
-                if let Ok(mut lock) = self.cb_mem.lock() {
-                    if let Some((jit, leaked)) = lock.take() {
-                        unsafe {
-                            jit.0.free_memory();
-                            _ = Box::from_raw(leaked.0.as_ptr());
-                        }
-                    }
-                }
-            }
+            let _ = unsafe { self.1.unhook(self.0) };
         }
     }
 

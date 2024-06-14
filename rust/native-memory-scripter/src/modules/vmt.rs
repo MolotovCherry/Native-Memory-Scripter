@@ -3,7 +3,7 @@ use rustpython_vm::pymodule;
 #[allow(clippy::module_inception)]
 #[pymodule]
 pub mod vmt {
-    use std::fmt::Debug;
+    use std::{fmt::Debug, ops::Deref};
 
     use mem::vtable::VTable;
     use rustpython_vm::{
@@ -16,7 +16,15 @@ pub mod vmt {
     #[pyattr]
     #[pyclass(name = "VTable")]
     #[derive(PyPayload)]
-    struct PyVTable(VTable);
+    pub struct PyVTable(VTable);
+
+    impl Deref for PyVTable {
+        type Target = VTable;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
 
     impl Debug for PyVTable {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

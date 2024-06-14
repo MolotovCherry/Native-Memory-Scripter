@@ -70,7 +70,7 @@ pub mod symbols {
     #[pyattr]
     #[pyclass(name = "Symbol")]
     #[derive(PyPayload)]
-    struct PySymbol(Symbol);
+    pub struct PySymbol(Symbol);
 
     impl Debug for PySymbol {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -86,7 +86,7 @@ pub mod symbols {
         }
 
         #[pygetset]
-        fn address(&self) -> Address {
+        pub fn address(&self) -> Address {
             self.0.address as _
         }
 

@@ -3,7 +3,7 @@ mod callback;
 use std::{
     hint::unreachable_unchecked,
     mem,
-    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
 };
 
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
@@ -13,32 +13,74 @@ use rustpython_vm::prelude::*;
 use rustpython_vm::vm::thread::ThreadedVirtualMachine;
 use tracing::info;
 
+use crate::utils::RawSendable;
+
 use self::callback::__jit_cb;
 use super::{args::ArgLayout, ret::Ret, types::Type};
 
-pub struct JITWrapper(pub JITModule);
+#[derive(Clone)]
+pub struct JITWrapper(Arc<Mutex<Option<JITModule>>>);
+
+impl JITWrapper {
+    pub fn new(module: JITModule) -> Self {
+        Self(Arc::new(Mutex::new(Some(module))))
+    }
+}
 
 impl std::fmt::Debug for JITWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "JITModule")
+        write!(f, "JITWrapper")
     }
 }
 
-impl Deref for JITWrapper {
-    type Target = JITModule;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Drop for JITWrapper {
+    fn drop(&mut self) {
+        let count = Arc::strong_count(&self.0);
+        // only drop if this is the last clone
+        if count == 1 {
+            let mut lock = self.0.lock().unwrap();
+            if let Some(jit) = lock.take() {
+                unsafe {
+                    jit.free_memory();
+                }
+            }
+        }
     }
 }
 
-impl DerefMut for JITWrapper {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+#[allow(clippy::complexity)]
+#[derive(Clone)]
+pub struct DataWrapper(Arc<Mutex<Option<(JITModule, RawSendable<Data>)>>>);
+
+impl DataWrapper {
+    fn new(module: JITModule, data: *mut Data) -> Self {
+        Self(Arc::new(Mutex::new(Some((module, RawSendable::new(data))))))
     }
 }
 
-pub struct Data {
+impl std::fmt::Debug for DataWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Data")
+    }
+}
+
+impl Drop for DataWrapper {
+    fn drop(&mut self) {
+        let count = Arc::strong_count(&self.0);
+        // only drop if this is the last clone
+        if count == 1 {
+            let mut lock = self.0.lock().unwrap();
+            if let Some((jit, data)) = lock.take() {
+                unsafe {
+                    jit.free_memory();
+                    drop(Box::from_raw(data.as_ptr()));
+                }
+            }
+        }
+    }
+}
+
+struct Data {
     vm: ThreadedVirtualMachine,
     callable: PyObjectRef,
     params: (Vec<Type>, Type),
@@ -52,7 +94,7 @@ pub fn jit_py_wrapper(
     args: (&[Type], Type),
     call_conv: CallConv,
     vm: &VirtualMachine,
-) -> PyResult<(JITModule, *mut Data, *const u8, u32)> {
+) -> PyResult<(DataWrapper, *const u8, u32)> {
     let mut flag_builder = settings::builder();
     flag_builder.set("use_colocated_libcalls", "false").unwrap();
     flag_builder.set("is_pic", "true").unwrap();
@@ -216,5 +258,6 @@ pub fn jit_py_wrapper(
     info!("defined {name}() ({code:?}) -> {jit_cb_name}()");
 
     // we cast leaked data to a raw pointer so that a mutable reference does not exist anymore and we can call the callback with &Data
-    Ok((module, leaked_data, code, code_size))
+    let data = DataWrapper::new(module, leaked_data as *mut _);
+    Ok((data, code, code_size))
 }

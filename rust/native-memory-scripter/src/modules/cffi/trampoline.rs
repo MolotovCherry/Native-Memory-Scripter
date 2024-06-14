@@ -10,13 +10,19 @@ use rustpython_vm::{
 };
 use tracing::info;
 
-use super::{args::ArgMemory, jit_wrapper::JITWrapper, ret::Ret, types::Type};
+use super::{args::ArgMemory, cffi::VTableHook, jit_wrapper::JITWrapper, ret::Ret, types::Type};
 
 #[derive(Debug)]
 pub enum Hook {
+    // regular jmp hook
     Jmp(mem::hook::Trampoline),
+    // import address table hook
     #[allow(clippy::upper_case_acronyms)]
     IAT(IATSymbol),
+    // vtable index hook
+    Vmt(VTableHook),
+    // no hook, just call this address plz
+    Addr(*const u8),
 }
 
 #[derive(Debug)]
@@ -24,20 +30,24 @@ pub struct Trampoline {
     hook: Hook,
     arg_mem: ArgMemory,
     args: (Vec<Type>, Type),
-    jit: OnceLock<JITWrapper>,
+    _jit: OnceLock<JITWrapper>,
+    conv: CallConv,
     jit_call: OnceLock<extern "fastcall" fn(*const (), *mut Ret)>,
 }
 
+unsafe impl Send for Trampoline {}
+unsafe impl Sync for Trampoline {}
+
 impl Trampoline {
-    pub fn new(hook: Hook, args: (&[Type], Type), vm: &VirtualMachine) -> PyResult<Self> {
-        let arg_mem = ArgMemory::new(args.0)
-            .ok_or_else(|| vm.new_runtime_error("failed to create ArgMemory".to_owned()))?;
+    pub fn new(hook: Hook, args: (&[Type], Type), conv: CallConv) -> PyResult<Self> {
+        let arg_mem = ArgMemory::new(args.0);
 
         let slf = Self {
             hook,
             arg_mem,
+            conv,
             args: (args.0.to_vec(), args.1),
-            jit: OnceLock::new(),
+            _jit: OnceLock::new(),
             jit_call: OnceLock::new(),
         };
 
@@ -47,7 +57,7 @@ impl Trampoline {
     pub fn call(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<PyObjectRef> {
         self.arg_mem.fill(args, vm)?;
 
-        let trampoline = if let Some(&_fn) = self.jit_call.get() {
+        let fn_ = if let Some(&_fn) = self.jit_call.get() {
             _fn
         } else {
             let _fn = self.compile()?;
@@ -57,7 +67,7 @@ impl Trampoline {
         };
 
         let mut ret = MaybeUninit::<Ret>::uninit();
-        trampoline(self.arg_mem.mem(), ret.as_mut_ptr());
+        fn_(self.arg_mem.mem(), ret.as_mut_ptr());
 
         // we have nothing to write in the void case
         if matches!(self.args.1, Type::Void) {
@@ -84,6 +94,8 @@ impl Trampoline {
         let hook_address = match &self.hook {
             Hook::Jmp(h) => h.address,
             Hook::IAT(i) => i.orig_fn as _,
+            Hook::Vmt(v) => v.get_original(v.index()).unwrap().cast(),
+            Hook::Addr(ptr) => *ptr,
         };
 
         let tramp_name = format!("__trampoline_{:?}", hook_address);
@@ -109,7 +121,7 @@ impl Trampoline {
         //
 
         let mut tp_sig_fn = module.make_signature();
-        tp_sig_fn.call_conv = CallConv::WindowsFastcall;
+        tp_sig_fn.call_conv = self.conv;
 
         for &arg in &self.args.0 {
             let ty: types::Type = arg.into();
@@ -201,14 +213,8 @@ impl Trampoline {
 
         info!("defined {jitpoline_name}() ({code:?}) -> {tramp_name}()");
 
-        Ok(_fn)
-    }
-}
+        _ = self._jit.set(JITWrapper::new(module));
 
-impl Drop for Trampoline {
-    fn drop(&mut self) {
-        if let Some(jit) = self.jit.take() {
-            unsafe { jit.0.free_memory() }
-        }
+        Ok(_fn)
     }
 }
