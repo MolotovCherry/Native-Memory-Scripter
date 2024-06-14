@@ -5,6 +5,19 @@ Native Memory Scripter is a plugin which allows you to create a native plugin by
 # Modders
 If you'd like to write a native mod script, see the documentation [here](https://molotovcherry.github.io/Native-Memory-Scripter/)
 
+# Features
+- Use Python to manipulate memory
+- Assembly of plaintext asm / disassembly of bytes
+- Virtual method table hooking
+- Module search, loading, and unloading
+- Segment search (pages)
+- External symbol search in modules with name demangling support
+- Import address table search and hooking
+- Pattern scanning for bytes in memory
+- Memory manipulation (read, write, set, and allocate memory)
+- Call native functions from python, and hook (vmt, iat, and jmp hooks) native functions with a python callback, along with trampoline to call the original
+  - Powered by a JIT compiler
+
 # Building
 
 To build:
