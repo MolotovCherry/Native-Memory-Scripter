@@ -1,6 +1,6 @@
 //! This module allows one to interact with Virtual Method Tables (VMTs) from OOP objects.
 
-use std::{mem, sync::Mutex};
+use std::{fmt, mem, sync::Mutex};
 
 use crate::{
     memory::{self, MemError},
@@ -16,7 +16,6 @@ pub enum VTableError {
 }
 
 /// VTable
-#[derive(Debug)]
 pub struct VTable {
     /// Pointer to the base vtable address
     base: *mut u64,
@@ -26,6 +25,14 @@ pub struct VTable {
 
 unsafe impl Send for VTable {}
 unsafe impl Sync for VTable {}
+
+impl fmt::Debug for VTable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let VTable { base, .. } = self;
+
+        f.debug_tuple("VTable").field(&base).finish()
+    }
+}
 
 #[derive(Debug)]
 struct VTableEntry {
