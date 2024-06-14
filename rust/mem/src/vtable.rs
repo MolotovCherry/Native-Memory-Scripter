@@ -15,7 +15,17 @@ pub enum VTableError {
     Mem(#[from] MemError),
 }
 
+#[derive(Debug)]
+struct VTableEntry {
+    /// The original address of the vtable entry
+    orig_fn: *const (),
+    /// The index of the vtable entry
+    index: usize,
+}
+
 /// VTable
+///
+/// When dropped, will auto unhook everything
 pub struct VTable {
     /// Pointer to the base vtable address
     base: *mut u64,
@@ -34,12 +44,10 @@ impl fmt::Debug for VTable {
     }
 }
 
-#[derive(Debug)]
-struct VTableEntry {
-    /// The original address of the vtable entry
-    orig_fn: *const (),
-    /// The index of the vtable entry
-    index: usize,
+impl Drop for VTable {
+    fn drop(&mut self) {
+        _ = unsafe { self.reset() };
+    }
 }
 
 impl VTable {
@@ -112,7 +120,7 @@ impl VTable {
         Ok(())
     }
 
-    /// Get the original vtable pointer for index
+    /// Get the original vtable fn pointer for index
     pub fn get_original(&self, index: usize) -> Option<*const ()> {
         let lock = self.entries.lock().unwrap();
         lock.iter().find(|e| e.index == index).map(|e| e.orig_fn)
