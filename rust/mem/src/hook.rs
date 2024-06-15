@@ -26,7 +26,8 @@ pub enum HookError {
 }
 
 /// The trampoline to call the original function.
-/// Once this type is dropped, it is _impossible_ to unhook and restore the original function back to normal!
+///
+/// Once this type is dropped, it will automatically unhook itself!
 /// Also, the trampoline code will be dropped and no longer be accessible, so you mustn't call the trampoline
 /// if the memory was dropped.
 #[derive(Debug)]
