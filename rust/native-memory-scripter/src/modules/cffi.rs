@@ -119,7 +119,7 @@ pub mod cffi {
     #[pyclass(name)]
     #[derive(Debug, Clone, PyPayload)]
     pub struct Callable {
-        addr: *const u8,
+        address: *const u8,
         code_size: u32,
         trampoline: Arc<Mutex<Option<Trampoline>>>,
         params: (Vec<Type>, Type),
@@ -178,7 +178,7 @@ pub mod cffi {
                 jit_py_wrapper(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
 
             let callable = Callable {
-                addr: address,
+                address,
                 code_size,
                 params: (fn_args, ret),
                 _cb_mem: module,
@@ -193,8 +193,8 @@ pub mod cffi {
     #[pyclass(with(Constructor))]
     impl Callable {
         #[pygetset]
-        pub fn addr(&self) -> Address {
-            self.addr as _
+        pub fn address(&self) -> Address {
+            self.address as _
         }
 
         #[pygetset]
@@ -212,7 +212,7 @@ pub mod cffi {
                 ));
             }
 
-            let res = unsafe { mem::hook::hook(from as _, self.addr) };
+            let res = unsafe { mem::hook::hook(from as _, self.address) };
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
             let hook = Hook::Jmp(trampoline);
@@ -234,7 +234,7 @@ pub mod cffi {
                 ));
             }
 
-            let res = unsafe { entry.hook(self.addr.cast()) };
+            let res = unsafe { entry.hook(self.address.cast()) };
             res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
 
             let hook = Hook::IAT((**entry).clone());
@@ -261,7 +261,7 @@ pub mod cffi {
                 ));
             }
 
-            let res = unsafe { vtable.hook(index, self.addr as _) };
+            let res = unsafe { vtable.hook(index, self.address as _) };
             res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
 
             let hook = Hook::Vmt(VTableHook(index, vtable));

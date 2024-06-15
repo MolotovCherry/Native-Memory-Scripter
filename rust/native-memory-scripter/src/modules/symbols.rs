@@ -43,12 +43,12 @@ pub mod symbols {
 
     /// Find the address of a symbol in a module. Case sensitive.
     #[pyfunction]
-    fn find_address(
+    fn find(
         module: PyRef<PyModule>,
-        symbol_name: String,
+        name: String,
         vm: &VirtualMachine,
     ) -> PyResult<Option<Address>> {
-        let res = mem::symbols::find_symbol_address(&module, &symbol_name)
+        let res = mem::symbols::find_symbol_address(&module, &name)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
         Ok(res.map(|sym| sym.address as _))
@@ -56,12 +56,12 @@ pub mod symbols {
 
     /// Find the address of a demangled symbol in a module. Case sensitive.
     #[pyfunction]
-    fn find_address_demangled(
+    fn find_demangled(
         module: PyRef<PyModule>,
-        demangled_symbol_name: String,
+        name: String,
         vm: &VirtualMachine,
     ) -> PyResult<Option<Address>> {
-        let res = mem::symbols::find_symbol_address(&module, &demangled_symbol_name)
+        let res = mem::symbols::find_symbol_address(&module, &name)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
         Ok(res.map(|sym| sym.address as _))

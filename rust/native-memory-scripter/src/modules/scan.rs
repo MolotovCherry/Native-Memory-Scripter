@@ -9,7 +9,7 @@ pub mod scan {
     ///
     /// unsafe fn
     #[pyfunction]
-    fn data_scan(data: Vec<u8>, address: usize, scan_size: usize) -> Option<Address> {
+    fn data(data: Vec<u8>, address: Address, scan_size: usize) -> Option<Address> {
         let scan = unsafe { mem::scan::data_scan(&data, address as *const _, scan_size) };
         scan.map(|s| s.addr as _)
     }
@@ -19,10 +19,10 @@ pub mod scan {
     ///
     /// unsafe fn
     #[pyfunction]
-    fn pattern_scan(
+    fn pattern(
         pattern: Vec<u8>,
         mask: String,
-        address: usize,
+        address: Address,
         scan_size: usize,
     ) -> Option<Address> {
         let scan = unsafe { mem::scan::pattern_scan(&pattern, &mask, address as _, scan_size) };
@@ -34,7 +34,7 @@ pub mod scan {
     ///
     /// unsafe fn
     #[pyfunction]
-    fn sig_scan(sig: String, address: usize, scan_size: usize) -> Option<Address> {
+    fn sig(sig: String, address: Address, scan_size: usize) -> Option<Address> {
         let res = unsafe { mem::scan::sig_scan(&sig, address as _, scan_size) };
         res.map(|s| s.addr as _)
     }
