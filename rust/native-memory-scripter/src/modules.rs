@@ -5,6 +5,7 @@ pub mod cffi;
 pub mod hook;
 pub mod iat;
 pub mod info;
+pub mod log;
 pub mod mem;
 pub mod modules;
 pub mod scan;
