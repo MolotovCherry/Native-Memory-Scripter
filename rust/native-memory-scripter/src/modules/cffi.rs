@@ -21,7 +21,7 @@ pub mod cffi {
         function::FuncArgs,
         prelude::{PyObjectRef, VirtualMachine, *},
         pyclass, pymodule,
-        types::{Callable, Constructor},
+        types::{Callable, Constructor, Unconstructible},
         PyPayload,
     };
 
@@ -48,7 +48,6 @@ pub mod cffi {
     impl Callable for NativeCall {
         type Args = FuncArgs;
 
-        #[inline]
         fn call(zelf: &Py<Self>, args: FuncArgs, vm: &VirtualMachine) -> PyResult {
             let _lock = zelf.lock.lock().unwrap();
             unsafe { zelf.trampoline.call(&args.args, vm) }
@@ -194,7 +193,23 @@ pub mod cffi {
         }
     }
 
-    #[pyclass(with(Constructor))]
+    impl Callable for PyCallable {
+        type Args = FuncArgs;
+
+        fn call(zelf: &Py<Self>, args: FuncArgs, vm: &VirtualMachine) -> PyResult {
+            let lock = zelf.trampoline.lock().unwrap();
+
+            let Some(trampoline) = &*lock else {
+                return Err(vm.new_runtime_error(
+                    "cannot call trampoline because no function was hooked".to_owned(),
+                ));
+            };
+
+            unsafe { trampoline.call(&args.args, vm) }
+        }
+    }
+
+    #[pyclass(with(Constructor, Callable))]
     impl PyCallable {
         #[pygetset]
         pub fn address(&self) -> Address {
@@ -289,19 +304,6 @@ pub mod cffi {
 
             Ok(())
         }
-
-        #[pymethod]
-        fn call_trampoline(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
-            let lock = self.trampoline.lock().unwrap();
-
-            let Some(trampoline) = &*lock else {
-                return Err(vm.new_runtime_error(
-                    "cannot call trampoline because no function was hooked".to_owned(),
-                ));
-            };
-
-            unsafe { trampoline.call(&args.args, vm) }
-        }
     }
 
     //
@@ -347,7 +349,9 @@ pub mod cffi {
         }
     }
 
-    #[pyclass]
+    impl Unconstructible for PyType {}
+
+    #[pyclass(with(Unconstructible))]
     impl PyType {
         #[pymethod(magic)]
         fn repr(&self) -> String {
@@ -424,7 +428,9 @@ pub mod cffi {
         }
     }
 
-    #[pyclass()]
+    impl Unconstructible for PyCallConv {}
+
+    #[pyclass(with(Unconstructible))]
     impl PyCallConv {
         #[pymethod(magic)]
         fn repr(&self) -> String {
