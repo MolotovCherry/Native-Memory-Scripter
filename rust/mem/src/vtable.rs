@@ -98,13 +98,12 @@ impl VTable {
     /// # Safety
     /// Overwrites vtable fn pointer if it was altered. Take great care
     pub unsafe fn unhook(&self, index: usize) -> Result<(), VTableError> {
-        let mut lock = self.entries.lock().unwrap();
+        let lock = self.entries.lock().unwrap();
 
-        let Some(item_idx) = lock.iter().position(|i| i.index == index) else {
+        let Some(item) = lock.iter().find(|i| i.index == index) else {
             return Ok(());
         };
 
-        let item = lock.remove(item_idx);
         let index_ptr = unsafe { self.base.add(item.index) };
 
         let old = unsafe { memory::prot(index_ptr.cast(), mem::size_of::<u64>(), Prot::XRW)? };
@@ -131,22 +130,21 @@ impl VTable {
     /// # Safety
     /// Overwrites all vtable fn pointers that were altered. Take great care
     pub unsafe fn reset(&self) -> Result<(), VTableError> {
-        let mut lock = self.entries.lock().unwrap();
-        lock.drain(..).try_for_each(|e| {
-            let index_ptr = unsafe { self.base.add(e.index) };
+        let lock = self.entries.lock().unwrap();
+
+        for item in &*lock {
+            let index_ptr = unsafe { self.base.add(item.index) };
 
             let old = unsafe { memory::prot(index_ptr.cast(), mem::size_of::<u64>(), Prot::XRW)? };
 
             unsafe {
-                memory::write(index_ptr, e.orig_fn as u64);
+                memory::write(index_ptr, item.orig_fn as u64);
             }
 
             unsafe {
                 memory::prot(index_ptr.cast(), mem::size_of::<u64>(), old)?;
             }
-
-            Ok::<_, VTableError>(())
-        })?;
+        }
 
         Ok(())
     }
