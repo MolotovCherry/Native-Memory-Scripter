@@ -10,7 +10,9 @@ pub mod iat {
         find_dll_iat_symbol_demangled, find_iat_symbol, find_iat_symbol_demangled, IATSymbol,
         SymbolIdent,
     };
-    use rustpython_vm::{prelude::*, pyclass, PyObjectRef, PyPayload, PyResult};
+    use rustpython_vm::{
+        function::FuncArgs, prelude::*, pyclass, PyObjectRef, PyPayload, PyResult,
+    };
 
     use crate::modules::{modules::modules::PyModule, Address};
 
@@ -40,59 +42,56 @@ pub mod iat {
     }
 
     #[pyfunction]
-    fn find(module: &PyModule, name: String, vm: &VirtualMachine) -> PyResult<Option<PyObjectRef>> {
-        let name = SymbolIdent::Name(name);
-        let symbols =
-            find_iat_symbol(module, &name).map_err(|e| vm.new_runtime_error(format!("{e}")))?;
-
-        let symbol = symbols.map(|sym| PyIATSymbol(sym).into_pyobject(vm));
-
-        Ok(symbol)
-    }
-
-    #[pyfunction]
-    fn find_ordinal(
+    fn find(
         module: &PyModule,
-        ord: u16,
+        args: FuncArgs,
         vm: &VirtualMachine,
     ) -> PyResult<Option<PyObjectRef>> {
-        let name = SymbolIdent::Ordinal(ord);
-        let symbols =
-            find_iat_symbol(module, &name).map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+        // 2 arg mode : module + name (str) / ordinal (u16)
+        // 3 arg mode : module + dll name (str) + name (str) / ordinal (u16)
 
-        let symbol = symbols.map(|sym| PyIATSymbol(sym).into_pyobject(vm));
+        let len = args.args.len();
 
-        Ok(symbol)
-    }
+        if ![1, 2].contains(&len) {
+            return Err(vm.new_runtime_error("this fn only supports 2 or 3 args".to_owned()));
+        }
 
-    #[pyfunction]
-    fn find_with_dll(
-        module: &PyModule,
-        name: String,
-        dll: String,
-        vm: &VirtualMachine,
-    ) -> PyResult<Option<PyObjectRef>> {
-        let name = SymbolIdent::Name(name);
-        let symbols = find_dll_iat_symbol(module, &dll, &name)
-            .map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+        let dll_name = if len == 2 {
+            let name = args.args[0].try_to_value::<String>(vm)?;
+            Some(name)
+        } else {
+            None
+        };
 
-        let symbol = symbols.map(|sym| PyIATSymbol(sym).into_pyobject(vm));
+        let name = {
+            let idx = match len {
+                1 => 0,
+                2 => 1,
+                _ => unreachable!(),
+            };
 
-        Ok(symbol)
-    }
+            let _str = args.args[idx].try_to_value::<String>(vm);
+            let _ord = args.args[idx].try_to_value::<u16>(vm);
 
-    #[pyfunction]
-    fn find_with_dll_ordinal(
-        module: &PyModule,
-        ord: u16,
-        dll: String,
-        vm: &VirtualMachine,
-    ) -> PyResult<Option<PyObjectRef>> {
-        let name = SymbolIdent::Ordinal(ord);
-        let symbols = find_dll_iat_symbol(module, &dll, &name)
-            .map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+            if let Ok(_str) = _str {
+                SymbolIdent::Name(_str)
+            } else if let Ok(_ord) = _ord {
+                SymbolIdent::Ordinal(_ord)
+            } else {
+                return Err(vm.new_type_error("name field only supports str or u16".to_owned()));
+            }
+        };
 
-        let symbol = symbols.map(|sym| PyIATSymbol(sym).into_pyobject(vm));
+        let res = if len == 1 {
+            find_iat_symbol(module, &name).map_err(|e| vm.new_runtime_error(e.to_string()))?
+        } else if let Some(dll_name) = dll_name {
+            find_dll_iat_symbol(module, &dll_name, &name)
+                .map_err(|e| vm.new_runtime_error(e.to_string()))?
+        } else {
+            unreachable!()
+        };
+
+        let symbol = res.map(|sym| PyIATSymbol(sym).into_pyobject(vm));
 
         Ok(symbol)
     }
@@ -100,28 +99,52 @@ pub mod iat {
     #[pyfunction]
     fn find_demangled(
         module: &PyModule,
-        name: String,
+        args: FuncArgs,
         vm: &VirtualMachine,
     ) -> PyResult<Option<PyObjectRef>> {
-        let symbols = find_iat_symbol_demangled(module, &name)
-            .map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+        // 2 arg mode : module + name (str)
+        // 3 arg mode : module + dll name (str) + name (str)
 
-        let symbol = symbols.map(|sym| PyIATSymbol(sym).into_pyobject(vm));
+        let len = args.args.len();
 
-        Ok(symbol)
-    }
+        if ![1, 2].contains(&len) {
+            return Err(vm.new_runtime_error("this fn only supports 2 or 3 args".to_owned()));
+        }
 
-    #[pyfunction]
-    fn find_with_dll_demangled(
-        module: &PyModule,
-        name: String,
-        dll: String,
-        vm: &VirtualMachine,
-    ) -> PyResult<Option<PyObjectRef>> {
-        let symbols = find_dll_iat_symbol_demangled(module, &dll, &name)
-            .map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+        let dll_name = if len == 2 {
+            let name = args.args[0].try_to_value::<String>(vm)?;
+            Some(name)
+        } else {
+            None
+        };
 
-        let symbol = symbols.map(|sym| PyIATSymbol(sym).into_pyobject(vm));
+        let name = {
+            let idx = match len {
+                1 => 0,
+                2 => 1,
+                _ => unreachable!(),
+            };
+
+            let _str = args.args[idx].try_to_value::<String>(vm);
+
+            if let Ok(_str) = _str {
+                _str
+            } else {
+                return Err(vm.new_type_error("name field only supports str".to_owned()));
+            }
+        };
+
+        let res = if len == 1 {
+            find_iat_symbol_demangled(module, &name)
+                .map_err(|e| vm.new_runtime_error(e.to_string()))?
+        } else if let Some(dll_name) = dll_name {
+            find_dll_iat_symbol_demangled(module, &dll_name, &name)
+                .map_err(|e| vm.new_runtime_error(e.to_string()))?
+        } else {
+            unreachable!()
+        };
+
+        let symbol = res.map(|sym| PyIATSymbol(sym).into_pyobject(vm));
 
         Ok(symbol)
     }
