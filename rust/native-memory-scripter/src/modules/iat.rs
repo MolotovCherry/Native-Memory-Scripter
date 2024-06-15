@@ -119,13 +119,7 @@ pub mod iat {
         };
 
         let name = {
-            let idx = match len {
-                1 => 0,
-                2 => 1,
-                _ => unreachable!(),
-            };
-
-            let _str = args.args[idx].try_to_value::<String>(vm);
+            let _str = args.args[len - 1].try_to_value::<String>(vm);
 
             if let Ok(_str) = _str {
                 _str
