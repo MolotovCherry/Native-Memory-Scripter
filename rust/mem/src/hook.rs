@@ -74,7 +74,7 @@ impl Trampoline {
     /// # Safety
     /// This overwrites the target function with the original code. There is no synchronization.
     pub unsafe fn unhook(&self) -> Result<(), HookError> {
-        self._unhook()
+        unsafe { self._unhook() }
     }
 
     /// Create a callable function to the trampoline
@@ -90,7 +90,7 @@ impl Trampoline {
         unsafe { mem::transmute_copy(&self._code.addr()) }
     }
 
-    fn _unhook(&self) -> Result<(), HookError> {
+    unsafe fn _unhook(&self) -> Result<(), HookError> {
         let _guard = self.mutex.lock().unwrap();
 
         trace!(
@@ -119,7 +119,7 @@ impl Trampoline {
 
 impl Drop for Trampoline {
     fn drop(&mut self) {
-        _ = self._unhook();
+        _ = unsafe { self._unhook() };
     }
 }
 
