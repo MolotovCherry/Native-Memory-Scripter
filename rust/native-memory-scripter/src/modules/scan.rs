@@ -34,8 +34,8 @@ pub mod scan {
     ///
     /// unsafe fn
     #[pyfunction]
-    fn sig_scan(sig: String, addr: usize, scan_size: usize) -> Option<usize> {
-        let res = unsafe { mem::scan::sig_scan(&sig, addr as _, scan_size) };
+    fn sig_scan(sig: String, address: usize, scan_size: usize) -> Option<Address> {
+        let res = unsafe { mem::scan::sig_scan(&sig, address as _, scan_size) };
         res.map(|s| s.addr as _)
     }
 }

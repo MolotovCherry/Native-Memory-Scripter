@@ -31,11 +31,11 @@ pub mod mem {
     ///
     /// unsafe fn
     #[pyfunction]
-    fn read(src: Address, size: usize, vm: &VirtualMachine) -> Option<PyObjectRef> {
+    fn read(src: Address, size: usize, vm: &VirtualMachine) -> PyObjectRef {
         let bytes = unsafe { mem::memory::read_bytes(src as _, size) };
         let bytes: PyByteArray = bytes.into();
 
-        Some(bytes.to_pyobject(vm))
+        bytes.to_pyobject(vm)
     }
 
     /// Set dst address + size to byte

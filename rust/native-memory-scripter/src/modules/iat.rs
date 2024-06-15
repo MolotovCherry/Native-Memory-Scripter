@@ -164,13 +164,13 @@ pub mod iat {
 
         /// Address of original fn stored at this iat entry
         #[pygetset]
-        fn orig_fn(&self) -> usize {
+        fn orig_fn(&self) -> Address {
             self.0.orig_fn as _
         }
 
         /// You can write a u64 here to hook it somewhere else, but make sure you first make protection writeable
         #[pygetset]
-        fn iat(&self) -> usize {
+        fn iat(&self) -> Address {
             self.0.entry as _
         }
 

@@ -1,4 +1,4 @@
-# Prot
+# Object: Prot
 
 The protection flags.
 
@@ -30,6 +30,6 @@ Executable + Read + Write flag
 
 ## Example
 ```python
-import mem
-flag = mem.Prot.X
+import memory
+flag = memory.Prot.X
 ```

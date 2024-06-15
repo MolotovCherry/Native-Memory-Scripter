@@ -19,7 +19,7 @@ pub mod segments {
     }
 
     #[pyfunction]
-    fn find_segment(address: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
+    fn find(address: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
         mem::segments::find_segment(address as _).map(|segment| PySegment(segment).to_pyobject(vm))
     }
 
