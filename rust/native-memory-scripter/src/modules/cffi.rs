@@ -17,11 +17,11 @@ pub mod cffi {
     use cranelift::prelude::{isa::CallConv, *};
     use rustpython_vm::{
         builtins::PyTypeRef,
-        convert::ToPyObject,
+        convert::ToPyObject as _,
         function::FuncArgs,
         prelude::{PyObjectRef, VirtualMachine, *},
         pyclass, pymodule,
-        types::Constructor,
+        types::{Callable, Constructor},
         PyPayload,
     };
 
@@ -42,12 +42,16 @@ pub mod cffi {
         lock: Arc<Mutex<()>>,
     }
 
-    #[pyclass(with(Constructor))]
-    impl NativeCall {
-        #[pymethod]
-        fn call(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
-            let _lock = self.lock.lock().unwrap();
-            unsafe { self.trampoline.call(&args.args, vm) }
+    #[pyclass(with(Constructor, Callable))]
+    impl NativeCall {}
+
+    impl Callable for NativeCall {
+        type Args = FuncArgs;
+
+        #[inline]
+        fn call(zelf: &Py<Self>, args: FuncArgs, vm: &VirtualMachine) -> PyResult {
+            let _lock = zelf.lock.lock().unwrap();
+            unsafe { zelf.trampoline.call(&args.args, vm) }
         }
     }
 
@@ -116,9 +120,9 @@ pub mod cffi {
 
     #[allow(non_camel_case_types)]
     #[pyattr]
-    #[pyclass(name)]
+    #[pyclass(name = "Callable")]
     #[derive(Debug, Clone, PyPayload)]
-    pub struct Callable {
+    pub struct PyCallable {
         address: *const u8,
         code_size: u32,
         trampoline: Arc<Mutex<Option<Trampoline>>>,
@@ -128,10 +132,10 @@ pub mod cffi {
         _cb_mem: DataWrapper,
     }
 
-    unsafe impl Send for Callable {}
-    unsafe impl Sync for Callable {}
+    unsafe impl Send for PyCallable {}
+    unsafe impl Sync for PyCallable {}
 
-    impl Constructor for Callable {
+    impl Constructor for PyCallable {
         type Args = (PyObjectRef, FuncArgs);
 
         fn py_new(_cls: PyTypeRef, args: Self::Args, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
@@ -177,7 +181,7 @@ pub mod cffi {
             let (module, address, code_size) =
                 jit_py_wrapper(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
 
-            let callable = Callable {
+            let callable = PyCallable {
                 address,
                 code_size,
                 params: (fn_args, ret),
@@ -191,7 +195,7 @@ pub mod cffi {
     }
 
     #[pyclass(with(Constructor))]
-    impl Callable {
+    impl PyCallable {
         #[pygetset]
         pub fn address(&self) -> Address {
             self.address as _
