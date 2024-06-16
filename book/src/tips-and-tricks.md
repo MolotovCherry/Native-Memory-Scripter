@@ -23,7 +23,7 @@ class Foo:
         self.some_ptr = some_ptr
 
     def pack(self):
-        return struct.pack('IQL', self.bar, self.baz, self.some_ptr)
+        return struct.pack('IQP', self.bar, self.baz, self.some_ptr)
 
     @classmethod
     def unpack(cls, packed):
