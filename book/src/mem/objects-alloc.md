@@ -4,7 +4,7 @@ An allocation.
 
 ## Drop
 
-```admonish info title=""
+```admonish danger title=""
 Memory will be automatically freed when gc collects this.
 ```
 

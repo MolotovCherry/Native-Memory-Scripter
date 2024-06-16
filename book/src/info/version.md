@@ -6,9 +6,12 @@ gets the [version](./object-version.md) of the plugin
 [version](./object-version.md)
 
 ## Example
+
+~~~admonish example title=""
 ```python
 import info
 version = info.version
 if version.major == 0 and version.minor == 1:
     pass
 ```
+~~~

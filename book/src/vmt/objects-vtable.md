@@ -8,7 +8,7 @@ Hook a c++ vtable.
 
 ## Drop
 
-```admonish info title=""
+```admonish danger title=""
 When this is deleted, it will automatically reset all hooks.
 ```
 

@@ -9,15 +9,16 @@ Call a native function from Python.
 - `**kwargs` - `ret` for the [`Type`](./type.md) return value, and `conv` to change the [calling convention](./callconv.md).
 
 ## Drop
-```admonish note title=""
+```admonish danger title=""
 The allocated code will automatically be freed when this is deleted or reclaimed.
 ```
 
 ## Magic
 This object implements `__call__()`. You may call this object with your args and it will call the underlying native function.
 
-## Examples
+## Example
 
+~~~admonish example title=""
 ```python
 import modules
 import symbols
@@ -38,3 +39,4 @@ one(obj)
 two = cffi.NativeCall(two, cffi.Type.U64)
 two(obj)
 ```
+~~~

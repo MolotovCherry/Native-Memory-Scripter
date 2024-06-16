@@ -50,8 +50,9 @@ Python type: `int`
 #### Bool
 Python type: `boolean`
 
-## Examples
+## Example
 
+~~~admonish example title=""
 ```python
 import cffi
 
@@ -60,3 +61,4 @@ def foo():
 
 c = cffi.Callable(foo, cffi.Types.U64)
 ```
+~~~

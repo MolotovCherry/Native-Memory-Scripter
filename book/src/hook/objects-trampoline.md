@@ -3,7 +3,7 @@
 An import address table symbol.
 
 ## Drop
-```admonish note title=""
+```admonish danger title=""
 Trampoline will free the underlying trampoline code, and unhook the target.
 ```
 

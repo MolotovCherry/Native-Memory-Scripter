@@ -9,7 +9,7 @@ Hook a function and use a python function as the hooks callback.
 - `**kwargs` - `ret` for the [`Type`](./type.md) return value, and `conv` to change the [calling convention](./callconv.md).
 
 ## Drop
-```admonish note title=""
+```admonish danger title=""
 The allocated callback code and trampoline code will automatically be freed when this is deleted or reclaimed.
 ```
 
@@ -74,8 +74,9 @@ This function is unsafe 🐉
 #### Exceptions
 If virtual protect fails.
 
-## Examples
+## Example
 
+~~~admonish example title=""
 ```python
 import modules
 import symbols
@@ -97,3 +98,4 @@ callable.hook(create)
 # unhook the callback
 callable.unhook()
 ```
+~~~

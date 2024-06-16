@@ -3,7 +3,7 @@
 An import address table symbol.
 
 ## Drop
-```admonish note title=""
+```admonish danger title=""
 IAT entry will automatically unhook itself once deleted or garbage collected.
 ```
 

@@ -11,8 +11,9 @@ This is the default. It's also just a alias for WindowsFastcall.
 
 ### SystemV
 
-## Examples
+## Example
 
+~~~admonish example title=""
 ```python
 import cffi
 
@@ -21,3 +22,4 @@ def foo():
 
 c = cffi.Callable(foo, cffi.Types.U64, conv = cffi.CallConv.C)
 ```
+~~~

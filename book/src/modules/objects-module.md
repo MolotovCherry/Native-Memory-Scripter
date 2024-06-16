@@ -3,7 +3,7 @@
 A module.
 
 ## Drop
-```admonish note title=""
+```admonish danger title=""
 Module will unload once gc collects this.
 
 An unloaded module does not necessarily mean it's unloaded from memory. Windows holds a refcount, and when free library is called, the refcount decreases by 1. This handle increases refcount by 1 when it's made so it's always safe to use as long as the handle is alive, thus it's safe to decrease it by 1.

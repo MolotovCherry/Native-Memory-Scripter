@@ -29,7 +29,10 @@ Read + Write flag
 Executable + Read + Write flag
 
 ## Example
+
+~~~admonish example title=""
 ```python
 import mem
 flag = mem.Prot.X
 ```
+~~~

@@ -10,6 +10,8 @@
 
 - [Best Practices](./best-practices.md)
 
+- [Tips and Tricks](./tips-and-tricks.md)
+
 - [Here be Dragons 🐉](./here-be-dragons.md)
 
 # Modules
