@@ -20,6 +20,11 @@ after = ["links"]
 [output]
 
 [output.html]
+git-repository-url = "https://github.com/MolotovCherry/Native-Memory-Scripter"
+edit-url-template = "https://github.com/MolotovCherry/Native-Memory-Scripter/edit/main/book/{path}"
+smart-punctuation = true
+default-theme = "latte"
+preferred-dark-theme = "mocha"
 additional-js = ["./theme/pagetoc.js"]
 additional-css = [
     './theme/catppuccin.css',
@@ -28,10 +33,6 @@ additional-css = [
     './theme/custom.css',
     "./theme/pagetoc.css",
 ]
-git-repository-url = "https://github.com/MolotovCherry/Native-Memory-Scripter"
-edit-url-template = "https://github.com/MolotovCherry/Native-Memory-Scripter/edit/main/book/{path}"
-default-theme = "latte"
-preferred-dark-theme = "mocha"
 
 [output.html.fold]
 enable = true
