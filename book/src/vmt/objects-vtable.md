@@ -9,7 +9,7 @@ Hook a c++ vtable.
 ## Drop
 
 ```admonish info title=""
-When this is deleted, it will automatically reset all hooks to default.
+When this is deleted, it will automatically reset all hooks.
 ```
 
 ## Methods
