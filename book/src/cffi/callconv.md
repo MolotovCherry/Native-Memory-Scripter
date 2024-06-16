@@ -5,9 +5,11 @@ These types are meant to be used in [`NativeCall`](./objects-nativecall.md) and 
 ## Calling Conventions
 
 ### C
-This is the default. It's also just a alias for WindowsFastcall.
+This is the default.
 
 ### WindowsFastcall
+
+### Stdcall
 
 ### SystemV
 

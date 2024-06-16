@@ -464,6 +464,10 @@ pub mod cffi {
         #[pyattr]
         pub(super) const WindowsFastcall: PyCallConv = PyCallConv(CallConv::WindowsFastcall);
 
+        /// same as cdecl on Windows
+        #[pyattr]
+        pub(super) const Stdcall: PyCallConv = PyCallConv(CallConv::WindowsFastcall);
+
         /// systemv
         #[pyattr]
         pub(super) const SystemV: PyCallConv = PyCallConv(CallConv::SystemV);
