@@ -56,7 +56,7 @@ Python type: `boolean`
 ```python
 import cffi
 
-def foo():
+def foo(arg: int):
     pass
 
 c = cffi.Callable(foo, cffi.Types.U64)
