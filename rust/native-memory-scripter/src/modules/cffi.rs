@@ -222,7 +222,7 @@ pub mod cffi {
         }
 
         #[pymethod]
-        fn hook(&self, from: Address, vm: &VirtualMachine) -> PyResult<bool> {
+        fn hook(&self, from: PyObjectRef, vm: &VirtualMachine) -> PyResult<bool> {
             let mut lock = self.trampoline.lock().unwrap();
             if lock.is_some() {
                 return Err(vm.new_runtime_error(
@@ -231,7 +231,15 @@ pub mod cffi {
                 ));
             }
 
-            let res = unsafe { mem::hook::hook(from as _, self.address) };
+            let address = if let Ok(addr) = from.try_to_value::<Address>(vm) {
+                addr
+            } else if let Ok(addr) = from.downcast_exact::<PySymbol>(vm) {
+                addr.address()
+            } else {
+                return Err(vm.new_type_error("only supported types are int and Symbol".to_owned()));
+            };
+
+            let res = unsafe { mem::hook::hook(address as _, self.address) };
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
             let hook = Hook::Jmp(trampoline);

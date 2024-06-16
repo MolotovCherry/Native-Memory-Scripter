@@ -1,4 +1,4 @@
-# Function: find_address
+# Function: find
 
 Returns the memory address of a symbol. The search is case-sensitive and must be an exact match.
 
@@ -8,8 +8,8 @@ This function is safe
 ```
 
 ### Parameters
-- <code>module: [`Module`](./modules/module.md)</code> - the module to search through.
-- `symbol_name: str` - the name of the symbol to search for. case-sensitive exact search.
+- <code>module: [`Module`](../modules/objects-module.md)</code> - the module to search through.
+- `name: str` - the name of the symbol to search for. case-sensitive exact search.
 
 ### Exceptions
 If module memory is invalid, or cannot find any exports.

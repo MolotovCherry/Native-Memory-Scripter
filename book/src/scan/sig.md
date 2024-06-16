@@ -1,6 +1,6 @@
-# Function: pattern_scan
+# Function: sig
 
-Searches `address` for `scan_size` bytes for a match given some bytes and a pattern.
+Searches `address` for `scan_size` bytes for a given IDA-style signature.
 
 ```admonish danger title=""
 This function is unsafe 🐉
@@ -10,8 +10,7 @@ This function is unsafe 🐉
 ```
 
 ### Parameters
-- `pattern: bytearray` - the data to search for. if some bytes are masked out, it's customary to leave them at `0`.
-- `mask: str` - the mask for the bytes. use `x` for a known byte and `?` for an unknown byte. example, `xx?x?xx?`
+- `sig: str` - an IDA-style signature to search for, e.g. `11 22 33 ?? 44 ?? 55 ?? ??`, where `11` is a known byte and `??` is an unknown byte.
 - `address: int` - the starting address to look for the pattern at.
 - `scan_size: int` - how many bytes to search for from the starting address.
 

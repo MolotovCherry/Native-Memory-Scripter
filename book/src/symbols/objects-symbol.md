@@ -1,6 +1,6 @@
 # Object: Symbol
 
-A [`Module`](./modules/module.md)'s external symbol.
+A [`Module`](../modules/objects-module.md)'s external symbol.
 
 ## Properties
 

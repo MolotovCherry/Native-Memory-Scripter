@@ -11,8 +11,8 @@ pub mod symbols {
     use crate::modules::{modules::modules::PyModule, Address};
 
     #[pyfunction]
-    fn demangle(symbol_name: String) -> Option<String> {
-        mem::symbols::demangle_symbol(&symbol_name)
+    fn demangle(name: String) -> Option<String> {
+        mem::symbols::demangle_symbol(&name)
     }
 
     /// Return a list of all symbols for a module

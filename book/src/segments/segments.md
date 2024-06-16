@@ -1,3 +1,3 @@
 # segments
 
-This module finds segments (pages) within a [`Module`](./modules/module.md).
+This module finds segments (pages) within a [`Module`](../modules/objects-module.md).

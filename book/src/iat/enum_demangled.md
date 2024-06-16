@@ -1,13 +1,16 @@
 # Function: enum_demangled
 
-Return a demangled list of import address table enties for a given [`Module`](../modules/objects-module.md)
+Returns a list of all import address table entries in a [`Module`](../modules/objects-module.md) and demangles the names.
 
 ```admonish success title=""
 This function is safe
 ```
 
+### Parameters
+- <code>module: [`Module`](../modules/objects-module.md)</code> - the module to get the symbols for.
+
 ### Exceptions
-If module memory is invalid, failed to convert rva to va, or failed to get information from the module.
+If module in memory is invalid or cannot otherwise be read.
 
 ### Return Value
-Returns a <code>[[`IATSymbol`](./objects-iatsymbol.md)]</code>.
+Returns a <code>[[IATSymbol](./objects-iatsymbol.md)]</code>

@@ -9,7 +9,7 @@ This function is safe
 ```
 
 ### Parameters
-- `symbol_name: str` - the mangled symbol to demangle.
+- `name: str` - the mangled symbol to demangle.
 
 ### Return Value
 On success, it returns `str` representing the demangled symbol. On failure, it returns `None`.

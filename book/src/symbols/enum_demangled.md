@@ -1,6 +1,6 @@
 # Function: enum_demangled
 
-Returns a list of all demangled symbols for a [`Module`](./modules/module.md).
+Returns a list of all demangled symbols for a [`Module`](../modules/objects-module.md).
 
 
 ```admonish success title=""
@@ -8,7 +8,7 @@ This function is safe
 ```
 
 ### Parameters
-- <code>module: [`Module`](./modules/module.md)</code> - the module to get all demangled symbols from.
+- <code>module: [`Module`](../modules/objects-module.md)</code> - the module to get all demangled symbols from.
 
 ### Exceptions
 If module memory is invalid, or cannot find any exports.

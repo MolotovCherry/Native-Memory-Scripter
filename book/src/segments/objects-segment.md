@@ -1,6 +1,6 @@
 # Object: Segment
 
-A [Module](./modules/module.md)'s external symbol.
+A [`Module`](../modules/objects-module.md)'s external symbol.
 
 ## Properties
 
@@ -13,5 +13,5 @@ The end address of the segment.
 #### size: int
 The size of the segment.
 
-#### prot: [`Prot`](./memory/objects-prot.md)
+#### prot: [`Prot`](../mem/objects-prot.md)
 The protection of the segment.

@@ -26,3 +26,7 @@ additional-css = [
 ]
 default-theme = "latte"
 preferred-dark-theme = "mocha"
+
+[output.linkcheck]
+follow-web-links = false
+traverse-parent-directories = false

@@ -6,6 +6,12 @@ Hook a c++ vtable.
 
 - `address: int` - the base address of the vtable.
 
+## Drop
+
+```admonish info title=""
+When this is deleted, it will automatically reset all hooks to default.
+```
+
 ## Methods
 
 ### hook

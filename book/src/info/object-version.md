@@ -1,6 +1,6 @@
 # Version
 
-represents the plugins version
+represents the plugin's version
 
 ## Properties
 

@@ -9,5 +9,5 @@ This function is unsafe 🐉
 ```
 
 ### Parameters
-- `src: bytearray` - the bytes to write to target
+- `src: bytearray` - the bytes to write to target.
 - `dst: int` - the destination address to write to.

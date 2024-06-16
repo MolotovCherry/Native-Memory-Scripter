@@ -1,4 +1,4 @@
-# Function: find_address_demangled
+# Function: find_demangled
 
 Returns the memory address of a demangled symbol. The search is fuzzy, but case-sensitive.
 
@@ -8,8 +8,8 @@ This function is safe
 ```
 
 ### Parameters
-- <code>module: [`Module`](./modules/module.md)</code> - the module to search through.
-- `symbol_name: str` - the name of the symbol to search for. case-sensitive fuzzy search.
+- <code>module: [`Module`](../modules/objects-module.md)</code> - the module to search through.
+- `name: str` - the name of the symbol to search for. case-sensitive fuzzy search.
 
 ### Exceptions
 If module memory is invalid, or cannot find any exports.

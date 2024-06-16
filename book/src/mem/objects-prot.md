@@ -30,6 +30,6 @@ Executable + Read + Write flag
 
 ## Example
 ```python
-import memory
-flag = memory.Prot.X
+import mem
+flag = mem.Prot.X
 ```

@@ -1,4 +1,4 @@
-# Function: data_scan
+# Function: data
 
 Scan for a given set of bytes starting at `address` for `scan_size` bytes.
 

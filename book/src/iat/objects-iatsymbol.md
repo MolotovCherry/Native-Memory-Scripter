@@ -2,43 +2,45 @@
 
 An import address table symbol.
 
+## Drop
+```admonish note title=""
+IAT entry will automatically unhook itself once deleted or garbage collected.
+```
+
 ## Properties
 
 #### name: Optional[str]
-The name of the iat symbol.
+The name of the symbol.
 
 #### ordinal: Optional[int]
 The ordinal of the symbol.
 
 #### dll_name: str
-The name of the associated dll.
+The name of the dll.
 
 #### orig_fn: int
-The address of the original function belonging to this iat entry.
+A pointer to the original iat entry function.
 
-#### iat
-The address of the iat symbol where you can write to hook it.
+#### iat: int
+A pointer to this IAT entry. Writing an address to this will hook it.
 
 ## Methods
 
 ### hook
-
 Hook this iat entry.
 
 ```admonish danger title=""
 This function is unsafe 🐉
 
-- `address` must point to a valid fn with correct abi, parameters, and return.
+- `address` must point to a `xr` function with the same signature as the original (abi, parameters, and return).
 ```
 
-#### Exceptions
-If changing protection status failed.
+- `address: int` - the function address to redirect the iat entry to.
 
-#### Parameters
-- `address: int` - the address to change the iat entry to.
+#### Exceptions
+If virtual protect fails.
 
 ### unhook
-
 Unhook this iat entry.
 
 ```admonish danger title=""
@@ -46,4 +48,4 @@ This function is unsafe 🐉
 ```
 
 #### Exceptions
-If changing protection status failed.
+If virtual protect fails.
