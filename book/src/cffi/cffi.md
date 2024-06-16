@@ -3,7 +3,9 @@
 This module allows you to call C functions from python, or use python callbacks for your hooks, as well as allowing you to call the trampoline.
 
 ## How?
-This leverages a JIT compiler to create the needed machine code on the fly to wrap the C functions and call your python function, translating the arguments/return values in the process.
+This leverages a JIT compiler to generate a machine code wrapper on the fly which has the same signature as the original native function. This wrapper then translates the native args to python, calls your python function with the args, and translates the return value back to native. In this way, it's transparent, just as if it were the real function. This also generates a trampoline to call the original code.
+
+In the case of [`NativeCall`](./objects-nativecall.md) -- just the trampoline portion is used.
 
 ```admonish tip title="Python functions can JIT"
 The bundled python interpreter is also compiled with JIT support to make your python functions run faster, though this may compile only under limited circumstances right now.
