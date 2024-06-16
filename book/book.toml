@@ -15,17 +15,27 @@ command = "mdbook-admonish"
 assets_version = "3.0.2"    # do not edit: managed by `mdbook-admonish install`
 after = ["links"]
 
+[preprocessor.pagetoc]
+
 [output]
 
 [output.html]
+additional-js = ["./theme/pagetoc.js"]
 additional-css = [
     './theme/catppuccin.css',
     './theme/catppuccin-admonish.css',
     './theme/mdbook-admonish.css',
     './theme/custom.css',
+    "./theme/pagetoc.css",
 ]
+git-repository-url = "https://github.com/MolotovCherry/Native-Memory-Scripter"
+edit-url-template = "https://github.com/MolotovCherry/Native-Memory-Scripter/edit/main/book/{path}"
 default-theme = "latte"
 preferred-dark-theme = "mocha"
+
+[output.html.fold]
+enable = true
+level = 0
 
 [output.linkcheck]
 follow-web-links = false

@@ -42,6 +42,11 @@ jobs:
         with:
             crate: mdbook-linkcheck
 
+      - name: Install mdbook-pagetoc
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: mdbook-pagetoc
+
       - name: Install mdbook
         uses: baptiste0928/cargo-install@v3
         with:

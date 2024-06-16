@@ -1,6 +1,6 @@
 # Tips and Tricks
 
-~~~admonish tip title = "Use the `struct` module" collapsible = true
+~~~admonish tip title="Use the `struct` module" collapsible=true
 Use the python `struct` module to pack and unpack custom structs over ffi.
 
 Let's say you received a ptr to a struct:

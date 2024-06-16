@@ -1,9 +1,35 @@
+/**
+* Mocha
+*/
+
 .mocha :is(.admonition) {
-  background-color: var(--sidebar-bg);
+    background-color: var(--sidebar-bg);
 }
+
+.mocha :is(.admonition) code {
+    background: var(--bg);
+}
+
+/**
+* Macchiato
+*/
+
 .macchiato :is(.admonition) {
-  background-color: var(--sidebar-bg);
+    background-color: var(--sidebar-bg);
 }
+
+.macchiato :is(.admonition) code {
+    background: var(--bg);
+}
+
+/**
+* Frappe
+*/
+
 .frappe :is(.admonition) {
-  background-color: var(--sidebar-bg);
+    background-color: var(--sidebar-bg);
+}
+
+.frappe :is(.admonition) code {
+    background: var(--bg);
 }
