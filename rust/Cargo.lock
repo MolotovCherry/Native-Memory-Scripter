@@ -1066,17 +1066,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hooker"
-version = "0.1.0"
-dependencies = [
- "mem",
- "pelite",
- "tracing",
- "tracing-subscriber",
- "windows 0.57.0",
-]
-
-[[package]]
 name = "iana-time-zone"
 version = "0.1.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
