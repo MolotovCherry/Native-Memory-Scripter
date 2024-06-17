@@ -5,7 +5,7 @@ An allocation.
 ## Drop
 
 ```admonish danger title=""
-Memory will be automatically freed when gc collects this.
+Memory will be automatically freed when deleted or gc reclaims it.
 ```
 
 ## Properties
