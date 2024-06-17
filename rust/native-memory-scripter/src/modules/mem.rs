@@ -13,11 +13,16 @@ pub mod mem {
 
     use crate::modules::Address;
 
-    // todo: implement this
-    // #[pyfunction]
-    // fn deep_pointer(base: usize, offsets: Vec<usize>) -> usize {
-    //     unsafe { libmem::deep_pointer::<()>(base, &offsets) as usize }
-    // }
+    /// Calculates a deep pointer address by applying a series of offsets to a base address and dereferencing intermediate pointers.
+    ///
+    /// unsafe fn
+    #[pyfunction]
+    fn deep_pointer(base: Address, offsets: Vec<usize>, vm: &VirtualMachine) -> PyResult<Address> {
+        let res = unsafe { mem::memory::deep_pointer(base as _, &offsets) };
+        let address = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+
+        Ok(address as _)
+    }
 
     /// Allocate memory. Once python object is dropped, memory is automatically deallocated
     #[pyfunction]

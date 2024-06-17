@@ -192,7 +192,30 @@ pub fn alloc(mut size: usize, prot: Prot) -> Result<Alloc, MemError> {
     Ok(alloc)
 }
 
-// TODO: DeepPointer
+/// Calculates a deep pointer address by applying a series of
+/// offsets to a base address and dereferencing intermediate pointers.
+///
+/// - `base` is the starting address from which to calculate the deep pointer
+/// - `offsets` is an array of offsets used to navigate through the memory addresses.
+///
+/// # Safety
+/// - `base` must be a valid pointer pointing to a pointer
+/// - `offsets` must be correct and offset it to a valid pointer each time
+pub unsafe fn deep_pointer(
+    mut base: *const *const (),
+    offsets: &[usize],
+) -> Result<*const (), MemError> {
+    if base.is_null() || offsets.is_empty() {
+        return Err(MemError::BadAddress);
+    }
+
+    for offset in offsets {
+        base = unsafe { read(base.cast()) };
+        base = unsafe { base.add(*offset) };
+    }
+
+    Ok(base.cast())
+}
 
 fn get_page_size() -> u32 {
     let mut sysinfo = SYSTEM_INFO::default();

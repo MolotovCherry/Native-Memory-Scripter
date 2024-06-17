@@ -58,6 +58,7 @@
 
 - [mem](./mem/mem.md)
     - [alloc](./mem/alloc.md)
+    - [deep_pointer](./mem/deep_pointer.md)
     - [read](./mem/read.md)
     - [set](./mem/set.md)
     - [write](./mem/write.md)
