@@ -419,6 +419,19 @@ pub mod cffi {
         const Char: PyType = PyType(Type::Char(types::I8));
         #[pyattr]
         const WChar: PyType = PyType(Type::WChar(types::I16));
+
+        /// Only valid in argument position
+        #[pyfunction(name = "StructArg")]
+        fn struct_arg(size: u32) -> PyType {
+            PyType(Type::StructArg(size))
+        }
+
+        /// only valid in argument return position
+        #[pyattr]
+        #[pyfunction(name = "StructReturn")]
+        fn struct_return(size: u32) -> PyType {
+            PyType(Type::StructReturn(size))
+        }
     }
 
     //

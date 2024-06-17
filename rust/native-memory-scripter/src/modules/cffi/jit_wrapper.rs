@@ -15,7 +15,7 @@ use tracing::info;
 
 use crate::utils::RawSendable;
 
-use self::callback::__jit_cb;
+use self::{callback::__jit_cb, codegen::ir::ArgumentPurpose};
 use super::{args::ArgLayout, ret::Ret, types::Type};
 
 #[derive(Clone)]
@@ -84,7 +84,7 @@ struct Data {
     vm: ThreadedVirtualMachine,
     callable: PyObjectRef,
     params: (Vec<Type>, Type),
-    layout: ArgLayout,
+    layout: Option<ArgLayout>,
 }
 
 // generate a c wrapper according to specs
@@ -95,6 +95,21 @@ pub fn jit_py_wrapper(
     call_conv: CallConv,
     vm: &VirtualMachine,
 ) -> PyResult<(DataWrapper, *const u8, u32)> {
+    // arguments cannot be StructReturn
+    if args.0.iter().any(|i| i.is_sret()) {
+        return Err(vm.new_type_error("StructReturn cannot be used as an arg".to_owned()));
+    }
+
+    // arguments cannot be StructReturn
+    if args.0.iter().any(|i| i.is_void()) {
+        return Err(vm.new_type_error("Void cannot be used as an arg".to_owned()));
+    }
+
+    // return cannot be StructArg
+    if args.1.is_sarg() {
+        return Err(vm.new_type_error("StructArg cannot be used as a return value".to_owned()));
+    }
+
     let mut flag_builder = settings::builder();
     flag_builder.set("use_colocated_libcalls", "false").unwrap();
     flag_builder.set("is_pic", "true").unwrap();
@@ -128,14 +143,31 @@ pub fn jit_py_wrapper(
 
     sig_fn.call_conv = call_conv;
 
-    for arg in args.0.iter().copied() {
-        sig_fn.params.push(AbiParam::new(arg.into()));
+    // the reason this is placed first is because sret MUST be placed first
+    if !args.1.is_void() {
+        match args.1 {
+            Type::StructReturn(_) => {
+                let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
+                sig_fn.params.push(arg);
+            }
+
+            _ => {
+                sig_fn.returns.push(AbiParam::new(args.1.into()));
+            }
+        }
     }
 
-    let ret = args.1;
+    for arg in args.0.iter().copied() {
+        match arg {
+            Type::StructArg(size) => {
+                let arg = AbiParam::special(arg.into(), ArgumentPurpose::StructArgument(size));
+                sig_fn.params.push(arg);
+            }
 
-    if !matches!(args.1, Type::Void) {
-        sig_fn.returns.push(AbiParam::new(ret.into()));
+            _ => {
+                sig_fn.params.push(AbiParam::new(arg.into()));
+            }
+        }
     }
 
     //
@@ -144,9 +176,9 @@ pub fn jit_py_wrapper(
 
     let mut cb_sig_fn = module.make_signature();
     cb_sig_fn.call_conv = CallConv::WindowsFastcall;
-    cb_sig_fn.params.push(AbiParam::new(types::R64));
     cb_sig_fn.params.push(AbiParam::new(types::I64));
-    cb_sig_fn.params.push(AbiParam::new(types::R64));
+    cb_sig_fn.params.push(AbiParam::new(types::I64));
+    cb_sig_fn.params.push(AbiParam::new(types::I64));
 
     // declare and import fn
 
@@ -158,7 +190,7 @@ pub fn jit_py_wrapper(
     // create data and leak it
     //
 
-    let args_layout = ArgLayout::new(args.0).unwrap();
+    let args_layout = ArgLayout::new(args.0);
 
     let data = Data {
         vm: vm.new_thread(),
@@ -184,37 +216,62 @@ pub fn jit_py_wrapper(
     {
         let mut bcx = FunctionBuilder::new(&mut ctx.func, &mut func_ctx);
 
-        // for struct
-        let slot_data = StackSlotData::new(
-            StackSlotKind::ExplicitSlot,
-            args_layout.size() as _,
-            args_layout.align() as _,
-        );
-        let arg_slot = bcx.create_sized_stack_slot(slot_data);
-
         let ebb = bcx.create_block();
         bcx.append_block_params_for_function_params(ebb);
 
         bcx.switch_to_block(ebb);
-        let vals = bcx.block_params(ebb).to_vec();
-        for (val, offset) in vals
-            .iter()
-            .copied()
-            .zip(args_layout.offsets().iter().copied())
-        {
-            bcx.ins().stack_store(val, arg_slot, offset as i32);
-        }
+        let mut vals = bcx.block_params(ebb).to_vec();
 
-        let slot_data = StackSlotData::new(
-            StackSlotKind::ExplicitSlot,
-            mem::size_of::<Ret>() as u32,
-            mem::align_of::<Ret>() as u8,
-        );
-        let ret_slot = bcx.create_sized_stack_slot(slot_data);
-        let ret_addr = bcx.ins().stack_addr(types::R64, ret_slot, 0);
+        // this special return is an arg. let's place it in the return ptr instead
+        let ret_arg = if args.1.is_sret() {
+            Some(vals.remove(0))
+        } else {
+            None
+        };
+
+        // for struct
+        let arg_slot = if let Some(args_layout) = args_layout {
+            let slot_data = StackSlotData::new(
+                StackSlotKind::ExplicitSlot,
+                args_layout.size() as _,
+                args_layout.align() as _,
+            );
+            let arg_slot = bcx.create_sized_stack_slot(slot_data);
+
+            for (val, offset) in vals
+                .iter()
+                .copied()
+                .zip(args_layout.offsets().iter().copied())
+            {
+                bcx.ins().stack_store(val, arg_slot, offset as i32);
+            }
+
+            Some(arg_slot)
+        } else {
+            None
+        };
+
+        let ret_addr = if args.1.is_void() {
+            // null ptr. we don't use it, so no need to do anything
+            bcx.ins().iconst(types::I64, 0)
+        } else if let Some(ret) = ret_arg {
+            ret
+        } else {
+            let slot_data = StackSlotData::new(
+                StackSlotKind::ExplicitSlot,
+                mem::size_of::<Ret>() as u32,
+                mem::align_of::<Ret>() as u8,
+            );
+            let ret_slot = bcx.create_sized_stack_slot(slot_data);
+            bcx.ins().stack_addr(types::I64, ret_slot, 0)
+        };
 
         let leaked_addr = bcx.ins().iconst(types::I64, leaked_data as *const _ as i64);
-        let stack_addr = bcx.ins().stack_addr(types::R64, arg_slot, 0);
+        let stack_addr = if let Some(arg_slot) = arg_slot {
+            bcx.ins().stack_addr(types::I64, arg_slot, 0)
+        } else {
+            bcx.ins().iconst(types::I64, 0)
+        };
 
         let cb = module.declare_func_in_func(jit_callback, bcx.func);
         let params = &[stack_addr, leaked_addr, ret_addr];
@@ -222,8 +279,8 @@ pub fn jit_py_wrapper(
 
         bcx.inst_results(call);
 
-        if matches!(args.1, Type::Void) {
-            // no data returned
+        if args.1.is_void() || args.1.is_sret() {
+            // no data returned. in the case of structreturn, we already wrote to the ptr in the function body
             // return fn with same data as cb
             bcx.ins().return_(&[]);
         } else {

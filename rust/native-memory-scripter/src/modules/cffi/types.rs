@@ -1,4 +1,4 @@
-use cranelift::prelude::types::Type as CType;
+use cranelift::prelude::types::{self, Type as CType};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Type {
@@ -39,12 +39,37 @@ pub enum Type {
     Char(CType),
     // i16
     WChar(CType),
+
+    // by value struct - only valid as arg
+    StructArg(u32),
+
+    // struct return - only valid as return type
+    StructReturn(u32),
 }
 
 impl Type {
+    #[inline]
+    pub fn is_void(&self) -> bool {
+        matches!(self, Self::Void)
+    }
+
+    #[inline]
+    pub fn is_sret(&self) -> bool {
+        matches!(self, Self::StructReturn(_))
+    }
+
+    #[inline]
+    pub fn is_sarg(&self) -> bool {
+        matches!(self, Self::StructArg(_))
+    }
+
+    // not valid for structreturn
     pub fn size(&self) -> usize {
         match self {
             Type::Void => 0,
+
+            // size of a ptr
+            Type::StructArg(_) | Type::StructReturn(_) => 8,
 
             &t => {
                 let ty: CType = t.into();
@@ -76,7 +101,11 @@ impl From<Type> for CType {
             | Type::Char(t)
             | Type::WChar(t) => t,
 
-            _ => unreachable!("invalid type"),
+            // just a pointer
+            Type::StructArg(_) | Type::StructReturn(_) => types::I64,
+
+            // this means we didn't properly handle code somewhere
+            _ => unreachable!("bug: invalid type"),
         }
     }
 }

@@ -1,17 +1,25 @@
 use std::{
     alloc::{self, Layout},
+    ffi::CStr,
     ptr::NonNull,
     sync::Mutex,
 };
 
-use rustpython_vm::prelude::{PyObjectRef, PyResult, VirtualMachine};
+use rustpython_vm::{
+    convert::ToPyObject,
+    prelude::{PyObjectRef, PyResult, VirtualMachine},
+};
 
 use super::types::Type;
 use crate::utils::RawSendable;
 
 // Get the layout and offsets for arg list
 fn get_layout(args: &[Type]) -> Option<(Layout, Vec<usize>)> {
-    if args.is_empty() {
+    let args = args
+        .iter()
+        .filter(|i| !matches!(i, Type::Void | Type::StructReturn(_)));
+
+    if args.clone().count() == 0 {
         return None;
     }
 
@@ -183,6 +191,11 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
                 Arg::WChar(unsafe { char::from_u32_unchecked(arg as u32) })
             }
 
+            Type::StructArg(size) => {
+                let arg = unsafe { *self.ptr.add(offset).cast::<*const u8>() };
+                Arg::SArg(*size, arg)
+            }
+
             _ => unreachable!(),
         };
 
@@ -213,6 +226,10 @@ pub enum Arg {
     // Pointer
     Ptr(*const ()),
 
+    // StructArg Ptr
+    #[allow(clippy::enum_variant_names)]
+    SArg(u32, *const u8),
+
     // Bool
     Bool(bool),
 
@@ -230,122 +247,40 @@ pub enum Arg {
 }
 
 impl Arg {
-    pub fn as_f32(&self) -> f32 {
+    pub fn to_pyobject(self, vm: &VirtualMachine) -> PyObjectRef {
         match self {
-            Self::F32(f) => *f,
-            _ => unreachable!(),
-        }
-    }
+            Arg::F32(f) => f.to_pyobject(vm),
+            Arg::F64(f) => f.to_pyobject(vm),
+            Arg::U8(u) => u.to_pyobject(vm),
+            Arg::U16(u) => u.to_pyobject(vm),
+            Arg::U32(u) => u.to_pyobject(vm),
+            Arg::U64(u) => u.to_pyobject(vm),
+            Arg::U128(u) => u.to_pyobject(vm),
+            Arg::I8(i) => i.to_pyobject(vm),
+            Arg::I16(i) => i.to_pyobject(vm),
+            Arg::I32(i) => i.to_pyobject(vm),
+            Arg::I64(i) => i.to_pyobject(vm),
+            Arg::I128(i) => i.to_pyobject(vm),
+            Arg::Bool(b) => b.to_pyobject(vm),
+            Arg::Char(c) => c.to_pyobject(vm),
+            Arg::WChar(w) => w.to_pyobject(vm),
 
-    pub fn as_f64(&self) -> f64 {
-        match self {
-            Self::F64(f) => *f,
-            _ => unreachable!(),
-        }
-    }
+            Arg::Ptr(ptr) => (ptr as usize).to_pyobject(vm),
+            // no idea what the len is
+            Arg::WStr(ptr) => (ptr as usize).to_pyobject(vm),
 
-    pub fn as_u8(&self) -> u8 {
-        match self {
-            Self::U8(u) => *u,
-            _ => unreachable!(),
-        }
-    }
+            Arg::SArg(size, ptr) => {
+                // SAFETY: Signature creator asserts arg + size is correct
+                let data = unsafe { mem::memory::read_bytes(ptr, size as usize) };
+                data.to_pyobject(vm)
+            }
 
-    pub fn as_u16(&self) -> u16 {
-        match self {
-            Self::U16(u) => *u,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_u32(&self) -> u32 {
-        match self {
-            Self::U32(u) => *u,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_u64(&self) -> u64 {
-        match self {
-            Self::U64(u) => *u,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_u128(&self) -> u128 {
-        match self {
-            Self::U128(u) => *u,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_i8(&self) -> i8 {
-        match self {
-            Self::I8(i) => *i,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_i16(&self) -> i16 {
-        match self {
-            Self::I16(i) => *i,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_i32(&self) -> i32 {
-        match self {
-            Self::I32(i) => *i,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_i64(&self) -> i64 {
-        match self {
-            Self::I64(i) => *i,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_ptr(&self) -> *const () {
-        match self {
-            Self::Ptr(p) => *p,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_bool(&self) -> bool {
-        match self {
-            Self::Bool(b) => *b,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_cstr(&self) -> *const u8 {
-        match self {
-            Self::CStr(c) => *c,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_wstr(&self) -> *const u16 {
-        match self {
-            Self::WStr(w) => *w,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_char(&self) -> char {
-        match self {
-            Self::Char(c) => *c as char,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn as_wchar(&self) -> char {
-        match self {
-            Self::WChar(c) => *c,
-            _ => unreachable!(),
+            Arg::CStr(ptr) => {
+                // SAFETY: Signature creator asserts arg is correct
+                let _cstr = unsafe { CStr::from_ptr(ptr.cast()) };
+                let _str = _cstr.to_string_lossy();
+                _str.to_pyobject(vm)
+            }
         }
     }
 }
