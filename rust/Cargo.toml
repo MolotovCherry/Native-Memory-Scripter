@@ -2,12 +2,23 @@
 resolver = "2"
 members = ["native-memory-scripter", "mem"]
 
+[profile.release]
+lto = true
+codegen-units = 1
+
+# dev profile for performance but fast enough building
+
 [profile.dev]
 opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
 
-[profile.release]
-lto = true
-codegen-units = 1
+# CI profile for speedy builds
+
+[profile.ci]
+inherits = "dev"
+opt-level = 0
+
+[profile.ci.package."*"]
+opt-level = 0

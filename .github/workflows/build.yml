@@ -35,7 +35,7 @@ jobs:
       - name: Build Debug
         if: github.event_name != 'release'
         working-directory: rust
-        run: cargo build -p native-memory-scripter
+        run: cargo build -p native-memory-scripter --profile ci
 
       - name: Upload Artifacts
         if: github.event_name != 'release'
