@@ -275,7 +275,7 @@ impl Ret {
             Type::Char(_) => Ret { char: 0 },
             Type::WChar(_) => Ret { wchar: 0 },
 
-            // write empty data to return
+            // Warning: zeroed data written to return ptr. Probably UB
             Type::StructReturn(size) => {
                 unsafe {
                     mem::memory::set(ret.cast(), 0, size as usize);
