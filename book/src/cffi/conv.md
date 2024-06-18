@@ -1,4 +1,4 @@
-# Module: CallConv
+# Module: Conv
 
 These types are meant to be used in [`NativeCall`](./objects-nativecall.md) and [`Callable`](./objects-callable.md).
 
@@ -22,6 +22,6 @@ import cffi
 def foo():
     pass
 
-c = cffi.Callable(foo, cffi.Types.U64, conv = cffi.CallConv.C)
+c = cffi.Callable(foo, cffi.Types.U64, conv = cffi.Conv.C)
 ```
 ~~~

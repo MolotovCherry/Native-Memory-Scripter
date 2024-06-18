@@ -75,7 +75,7 @@ pub mod cffi {
 
             let calling_conv = args
                 .1
-                .get_kwarg("conv", _call_conv::WindowsFastcall.into_pyobject(vm));
+                .get_kwarg("conv", _conv::WindowsFastcall.into_pyobject(vm));
 
             let call_conv = calling_conv
                 .downcast_exact::<PyCallConv>(vm)
@@ -145,7 +145,7 @@ pub mod cffi {
 
             let calling_conv = args
                 .1
-                .get_kwarg("conv", _call_conv::WindowsFastcall.into_pyobject(vm));
+                .get_kwarg("conv", _conv::WindowsFastcall.into_pyobject(vm));
 
             let call_conv = calling_conv
                 .downcast_exact::<PyCallConv>(vm)
@@ -459,8 +459,8 @@ pub mod cffi {
     }
 
     #[allow(non_upper_case_globals)]
-    #[pymodule(name = "CallConv")]
-    pub mod _call_conv {
+    #[pymodule(name = "Conv")]
+    pub mod _conv {
         use super::*;
 
         /// defaults to WindowsFastcall

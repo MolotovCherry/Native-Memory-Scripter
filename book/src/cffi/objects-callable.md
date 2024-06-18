@@ -6,7 +6,7 @@ Hook a function and use a python function as the hooks callback.
 
 - `Callable[[*args], Any]` - Any args and Any return type. Constrained to the types available in [`Type`](./type.md). Must match the following signature passed in to the constructor.
 - `*args` - Any [`Type`](./type.md)'s matching the corresponding native function's argument types.
-- `**kwargs` - `ret` for the [`Type`](./type.md) return value, and `conv` to change the [calling convention](./callconv.md).
+- `**kwargs` - `ret` for the [`Type`](./type.md) return value, and `conv` to change the [calling convention](./conv.md).
 
 ## Drop
 ```admonish danger title=""

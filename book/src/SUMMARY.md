@@ -26,7 +26,7 @@
 
 - [cffi](./cffi/cffi.md)
     - [Type](./cffi/type.md)
-    - [CallConv](./cffi/callconv.md)
+    - [Conv](./cffi/conv.md)
     - [objects](./cffi/objects.md)
         - [Callable](./cffi/objects-callable.md)
         - [NativeCall](./cffi/objects-nativecall.md)
