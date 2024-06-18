@@ -302,8 +302,19 @@ impl Ret {
 
             // Warning: zeroed data written to return ptr. Probably UB
             Type::StructReturn(size) => {
-                unsafe {
-                    mem::memory::set(ret.cast(), 0, size as usize);
+                match size {
+                    1 => unsafe { *ret = Ret { i8: 0 } },
+
+                    2 => unsafe { *ret = Ret { i16: 0 } },
+
+                    4 => unsafe { *ret = Ret { i32: 0 } },
+
+                    8 => unsafe { *ret = Ret { i64: 0 } },
+
+                    // it's a ptr!
+                    _ => unsafe {
+                        mem::memory::set(ret.cast(), 0, size as usize);
+                    },
                 }
 
                 return;
