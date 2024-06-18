@@ -50,7 +50,7 @@ impl Type {
         matches!(self, Self::Void)
     }
 
-    // is this struct a ptr, not a regular value type?
+    // is this a struct?
     #[inline]
     pub fn is_struct(&self) -> bool {
         matches!(self, Self::Struct(_))
