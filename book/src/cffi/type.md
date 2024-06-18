@@ -30,16 +30,32 @@ Python type: `int`
 Python type: `str`
 
 #### CStr
-null terminated
+Python type: `str`
+
+This must be null terminated
+
 #### WStr
-may or may not be null terminated, depends on api
+Argument type: `int` (pointer to address)
+Return type: `bytes`
+
+This may or may not be null terminated, depends on api requirements.
+
+ ```py
+ s = "Hello world!"
+ utf16_str = s.encode('utf-16')
+ ```
 
 ## Chars
 Python type: `str`
 
 #### Char
+Python type: `str` (1 character that can fit in a `u8`)
+
 1 byte
+
 #### WChar
+Python type: `str` (1 character that can fit in a `u16`)
+
 2 bytes
 
 ## Misc
@@ -51,7 +67,7 @@ Python type: `int`
 Python type: `boolean`
 
 #### Struct(size: int)
-Python type: `byte`
+Python type: `bytes`
 
 You can use this type in arg or return position to indicate receiving or returning a struct by value.
 
