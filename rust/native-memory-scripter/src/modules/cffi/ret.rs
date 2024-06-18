@@ -229,23 +229,24 @@ impl Ret {
                     let bytes = bytes.as_bytes();
 
                     match size {
-                        1 => unsafe { *ret = Ret { i8: bytes[0] as _ } },
+                        1 => unsafe {
+                            *ret = Ret {
+                                i8: bytes.as_ptr().cast::<i8>().read(),
+                            }
+                        },
 
                         2 => unsafe {
-                            let bytes: [u8; 2] = bytes.try_into().unwrap();
-                            let bytes: i16 = std::mem::transmute(bytes);
+                            let bytes = bytes.as_ptr().cast::<i16>().read_unaligned();
                             *ret = Ret { i16: bytes }
                         },
 
                         4 => unsafe {
-                            let bytes: [u8; 4] = bytes.try_into().unwrap();
-                            let bytes: i32 = std::mem::transmute(bytes);
+                            let bytes = bytes.as_ptr().cast::<i32>().read_unaligned();
                             *ret = Ret { i32: bytes }
                         },
 
                         8 => unsafe {
-                            let bytes: [u8; 8] = bytes.try_into().unwrap();
-                            let bytes: i64 = std::mem::transmute(bytes);
+                            let bytes = bytes.as_ptr().cast::<i64>().read_unaligned();
                             *ret = Ret { i64: bytes }
                         },
 
