@@ -50,6 +50,15 @@ Python type: `int`
 #### Bool
 Python type: `boolean`
 
+#### Struct(size: int)
+Python type: `byte`
+
+You can use this type in arg or return position to indicate receiving or returning a struct by value.
+
+```admonish danger title=""
+The size must be correct or it'll be ub.
+```
+
 ## Example
 
 ~~~admonish example title=""

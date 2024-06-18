@@ -8,6 +8,12 @@ Call a native function from Python.
 - `*args` - Any [`Type`](./type.md)'s matching the corresponding native function's argument types.
 - `**kwargs` - `ret` for the [`Type`](./type.md) return value, and `conv` to change the [calling convention](./conv.md).
 
+```admonish danger title=""
+Using the returned function is unsafe 🐉
+
+You must use the correct arguments / return types, otherwise using the function will be ub.
+```
+
 ## Drop
 ```admonish danger title=""
 The allocated code will automatically be freed when this is deleted or reclaimed.

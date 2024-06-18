@@ -8,6 +8,16 @@ Hook a function and use a python function as the hooks callback.
 - `*args` - Any [`Type`](./type.md)'s matching the corresponding native function's argument types.
 - `**kwargs` - `ret` for the [`Type`](./type.md) return value, and `conv` to change the [calling convention](./conv.md).
 
+```admonish danger title=""
+Using the callback function is unsafe 🐉
+
+You must use the correct arguments / return types, otherwise using the function will be ub.
+
+Additionally, the callback function MUST handle all possible exceptions. If the function raises an uncaught exception, a default return value will be automatically provided. The default return value is always 0. So, a null pointer, incorrect data in the type, unexpected behavior, anything could happen! It is probably ub and should be fixed asap!
+
+If you specified a return type, you MUST always return a value of that type. even if your function caught an exception.
+```
+
 ## Drop
 ```admonish danger title=""
 The allocated callback code and trampoline code will automatically be freed when this is deleted or reclaimed.
