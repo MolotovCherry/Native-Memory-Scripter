@@ -433,8 +433,12 @@ pub mod cffi {
         /// only valid in argument return position
         #[pyattr]
         #[pyfunction(name = "StructReturn")]
-        fn struct_return(size: u32) -> PyType {
-            PyType(Type::StructReturn(size))
+        fn struct_return(size: u32, vm: &VirtualMachine) -> PyResult<PyType> {
+            if size == 0 {
+                return Err(vm.new_value_error("StructArg size must be > 0".to_owned()));
+            }
+
+            Ok(PyType(Type::StructReturn(size)))
         }
     }
 

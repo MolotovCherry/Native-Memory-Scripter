@@ -55,7 +55,10 @@ impl Type {
 
     #[inline]
     pub fn is_sret(&self) -> bool {
-        matches!(self, Self::StructReturn(_))
+        match self {
+            Self::StructReturn(size) => !matches!(size, 1 | 2 | 4 | 8),
+            _ => false,
+        }
     }
 
     #[inline]
@@ -101,7 +104,7 @@ impl From<Type> for CType {
             | Type::Char(t)
             | Type::WChar(t) => t,
 
-            Type::StructArg(size) => match size {
+            Type::StructArg(size) | Type::StructReturn(size) => match size {
                 // https://github.com/rust-lang/rust/blob/c1f62a7c35349438ea9728abbe1bcf1cebd426b7/compiler/rustc_target/src/abi/call/x86_win64.rs#L10
                 1 => types::I8,
                 2 => types::I16,
@@ -110,8 +113,6 @@ impl From<Type> for CType {
                 // it's a ptr!
                 _ => types::I64,
             },
-
-            Type::StructReturn(_) => types::I64,
 
             // this means we didn't properly handle code somewhere
             _ => unreachable!("bug: invalid type"),

@@ -144,11 +144,24 @@ pub fn jit_py_wrapper(
     sig_fn.call_conv = call_conv;
 
     // the reason this is placed first is because sret MUST be placed first
+    // tip: Jacob Lifshay + bjorn3
     if !args.1.is_void() {
         match args.1 {
-            Type::StructReturn(_) => {
-                let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
-                sig_fn.params.push(arg);
+            // structs less than 64bits are returned by value if they fit into register
+            Type::StructReturn(size) => {
+                match size {
+                    // fits into register
+                    1 | 2 | 4 | 8 => {
+                        let arg = AbiParam::new(args.1.into());
+                        sig_fn.returns.push(arg);
+                    }
+
+                    // doesn't fit into register, so it's a ptr
+                    _ => {
+                        let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
+                        sig_fn.params.push(arg);
+                    }
+                }
             }
 
             _ => {
@@ -158,18 +171,7 @@ pub fn jit_py_wrapper(
     }
 
     for arg in args.0.iter().copied() {
-        match arg {
-            // structs larger than 64bits are passed by-reference rather than at a fixed stack offset
-            // so we have to use a ptr if > 64-bits, sarg otherwise. Thanks bjorn3!
-            Type::StructArg(_) => {
-                // the from impl automatically adjusts the used type based on size
-                sig_fn.params.push(AbiParam::new(arg.into()));
-            }
-
-            _ => {
-                sig_fn.params.push(AbiParam::new(arg.into()));
-            }
-        }
+        sig_fn.params.push(AbiParam::new(arg.into()));
     }
 
     //

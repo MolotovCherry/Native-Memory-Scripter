@@ -227,8 +227,32 @@ impl Ret {
                     }
 
                     let bytes = bytes.as_bytes();
-                    unsafe {
-                        mem::memory::write_bytes(bytes, ret.cast());
+
+                    match size {
+                        1 => unsafe { *ret = Ret { i8: bytes[0] as _ } },
+
+                        2 => unsafe {
+                            let bytes: [u8; 2] = bytes.try_into().unwrap();
+                            let bytes: i16 = std::mem::transmute(bytes);
+                            *ret = Ret { i16: bytes }
+                        },
+
+                        4 => unsafe {
+                            let bytes: [u8; 4] = bytes.try_into().unwrap();
+                            let bytes: i32 = std::mem::transmute(bytes);
+                            *ret = Ret { i32: bytes }
+                        },
+
+                        8 => unsafe {
+                            let bytes: [u8; 8] = bytes.try_into().unwrap();
+                            let bytes: i64 = std::mem::transmute(bytes);
+                            *ret = Ret { i64: bytes }
+                        },
+
+                        // it's a ptr!
+                        _ => unsafe {
+                            mem::memory::write_bytes(bytes, ret.cast());
+                        },
                     }
 
                     // there's no output since we write directly to it

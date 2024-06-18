@@ -302,7 +302,6 @@ impl Arg {
                     }
                 };
 
-                let data = unsafe { mem::memory::read_bytes(ptr, size as usize) };
                 data.to_pyobject(vm)
             }
 
