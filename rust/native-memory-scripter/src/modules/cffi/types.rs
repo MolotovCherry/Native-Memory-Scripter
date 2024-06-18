@@ -60,7 +60,7 @@ impl Type {
     #[inline]
     pub fn is_struct_ptr(&self) -> bool {
         match self {
-            Self::Struct(size) => *size > 8 || (*size & (*size - 1)) == 0,
+            Self::Struct(size) => *size > 8 || (*size & (*size - 1)) > 0,
             _ => false,
         }
     }

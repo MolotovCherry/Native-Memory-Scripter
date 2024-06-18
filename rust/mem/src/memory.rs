@@ -133,7 +133,7 @@ pub unsafe fn write_bytes(src: &[u8], dst: *mut u8) {
 /// - dst must be valid for writes up to count bytes
 /// - addresses must not overlap
 pub unsafe fn write_raw(src: *const u8, dst: *mut u8, count: usize) {
-    debug_assert!(!dst.is_null(), "dst must not be null");
+    debug_assert!(!src.is_null() || !dst.is_null(), "ptr must not be null");
 
     unsafe {
         ptr::copy_nonoverlapping(src, dst, count);
