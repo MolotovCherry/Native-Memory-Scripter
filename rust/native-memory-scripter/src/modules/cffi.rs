@@ -423,10 +423,8 @@ pub mod cffi {
         /// Only valid in argument position
         #[pyfunction(name = "StructArg")]
         fn struct_arg(size: u32, vm: &VirtualMachine) -> PyResult<PyType> {
-            if size % 8 > 0 {
-                return Err(vm.new_value_error(
-                    "StructArg size is not properly aligned (size % 8 == 0)".to_owned(),
-                ));
+            if size == 0 {
+                return Err(vm.new_value_error("StructArg size must be > 0".to_owned()));
             }
 
             Ok(PyType(Type::StructArg(size)))

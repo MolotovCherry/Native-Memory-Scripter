@@ -159,9 +159,11 @@ pub fn jit_py_wrapper(
 
     for arg in args.0.iter().copied() {
         match arg {
-            Type::StructArg(size) => {
-                let arg = AbiParam::special(arg.into(), ArgumentPurpose::StructArgument(size));
-                sig_fn.params.push(arg);
+            // structs larger than 64bits are passed by-reference rather than at a fixed stack offset
+            // so we have to use a ptr if > 64-bits, sarg otherwise. Thanks bjorn3!
+            Type::StructArg(_) => {
+                // the from impl automatically adjusts the used type based on size
+                sig_fn.params.push(AbiParam::new(arg.into()));
             }
 
             _ => {

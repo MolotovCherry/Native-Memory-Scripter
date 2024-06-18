@@ -101,8 +101,17 @@ impl From<Type> for CType {
             | Type::Char(t)
             | Type::WChar(t) => t,
 
-            // just a pointer
-            Type::StructArg(_) | Type::StructReturn(_) => types::I64,
+            Type::StructArg(size) => match size {
+                // https://github.com/rust-lang/rust/blob/c1f62a7c35349438ea9728abbe1bcf1cebd426b7/compiler/rustc_target/src/abi/call/x86_win64.rs#L10
+                1 => types::I8,
+                2 => types::I16,
+                4 => types::I32,
+                8 => types::I64,
+                // it's a ptr!
+                _ => types::I64,
+            },
+
+            Type::StructReturn(_) => types::I64,
 
             // this means we didn't properly handle code somewhere
             _ => unreachable!("bug: invalid type"),

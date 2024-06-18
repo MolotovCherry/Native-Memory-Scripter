@@ -1,7 +1,7 @@
-use rustpython_vm::{convert::ToPyObject, function::FuncArgs};
+use rustpython_vm::function::FuncArgs;
 use tracing::error;
 
-use crate::modules::cffi::{args::Arg, ret::Ret};
+use crate::modules::cffi::ret::Ret;
 
 use super::Data;
 
@@ -16,15 +16,9 @@ pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: *mut Ret) {
 
         if !args.is_null() {
             let args = unsafe { data.layout.as_ref().unwrap().iter(args) };
-            let args = args.zip(data.params.0.iter()).map(|(arg, _)| {
-                if let Arg::SArg(size, ptr) = arg {
-                    let data = unsafe { mem::memory::read_bytes(ptr.cast(), size as _) };
-
-                    data.to_pyobject(vm)
-                } else {
-                    arg.to_pyobject(vm)
-                }
-            });
+            let args = args
+                .zip(data.params.0.iter())
+                .map(|(arg, _)| arg.to_pyobject(vm));
 
             py_args.args.extend(args);
         }

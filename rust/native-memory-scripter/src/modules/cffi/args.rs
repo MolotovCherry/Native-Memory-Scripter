@@ -100,99 +100,110 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
         let ty = self.layout.args.get(pos)?;
         let offset = self.layout.offsets[pos];
 
+        let ptr = unsafe { self.ptr.add(offset) };
+
         let arg = match ty {
             Type::F32(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<f32>() };
+                let arg = unsafe { *ptr.cast::<f32>() };
                 Arg::F32(arg)
             }
 
             Type::F64(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<f64>() };
+                let arg = unsafe { *ptr.cast::<f64>() };
                 Arg::F64(arg)
             }
 
             Type::U8(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<u8>() };
+                let arg = unsafe { *ptr.cast::<u8>() };
                 Arg::U8(arg)
             }
 
             Type::U16(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<u16>() };
+                let arg = unsafe { *ptr.cast::<u16>() };
                 Arg::U16(arg)
             }
 
             Type::U32(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<u32>() };
+                let arg = unsafe { *ptr.cast::<u32>() };
                 Arg::U32(arg)
             }
 
             Type::U64(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<u64>() };
+                let arg = unsafe { *ptr.cast::<u64>() };
                 Arg::U64(arg)
             }
 
             Type::U128(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<u128>() };
+                let arg = unsafe { *ptr.cast::<u128>() };
                 Arg::U128(arg)
             }
 
             Type::I8(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<i8>() };
+                let arg = unsafe { *ptr.cast::<i8>() };
                 Arg::I8(arg)
             }
 
             Type::I16(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<i16>() };
+                let arg = unsafe { *ptr.cast::<i16>() };
                 Arg::I16(arg)
             }
 
             Type::I32(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<i32>() };
+                let arg = unsafe { *ptr.cast::<i32>() };
                 Arg::I32(arg)
             }
 
             Type::I64(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<i64>() };
+                let arg = unsafe { *ptr.cast::<i64>() };
                 Arg::I64(arg)
             }
 
             Type::I128(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<i128>() };
+                let arg = unsafe { *ptr.cast::<i128>() };
                 Arg::I128(arg)
             }
 
             Type::Ptr(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<*const ()>() };
+                let arg = unsafe { *ptr.cast::<*const ()>() };
                 Arg::Ptr(arg)
             }
 
             Type::Bool(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<bool>() };
+                let arg = unsafe { *ptr.cast::<bool>() };
                 Arg::Bool(arg)
             }
 
             Type::CStr(_) => {
-                let ptr = unsafe { *self.ptr.add(offset).cast::<*const u8>() };
+                let ptr = unsafe { *ptr.cast::<*const u8>() };
                 Arg::CStr(ptr)
             }
 
             Type::WStr(_) => {
-                let ptr = unsafe { *self.ptr.add(offset).cast::<*const u16>() };
+                let ptr = unsafe { *ptr.cast::<*const u16>() };
                 Arg::WStr(ptr)
             }
 
             Type::Char(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<u8>() };
+                let arg = unsafe { *ptr.cast::<u8>() };
                 Arg::Char(arg as char)
             }
 
             Type::WChar(_) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<u16>() };
+                let arg = unsafe { *ptr.cast::<u16>() };
                 Arg::WChar(unsafe { char::from_u32_unchecked(arg as u32) })
             }
 
             Type::StructArg(size) => {
-                let arg = unsafe { *self.ptr.add(offset).cast::<*const u8>() };
+                // https://github.com/rust-lang/rust/blob/c1f62a7c35349438ea9728abbe1bcf1cebd426b7/compiler/rustc_target/src/abi/call/x86_win64.rs#L10
+                let arg = match size {
+                    // read as sized array instead of int in order to keep consistent endianness
+                    1 => SArgType::I8(unsafe { *ptr.cast::<[u8; 1]>() }),
+                    2 => SArgType::I16(unsafe { *ptr.cast::<[u8; 2]>() }),
+                    4 => SArgType::I32(unsafe { *ptr.cast::<[u8; 4]>() }),
+                    8 => SArgType::I64(unsafe { *ptr.cast::<[u8; 8]>() }),
+                    _ => SArgType::Ptr(unsafe { *ptr.cast::<*const u8>() }),
+                };
+
                 Arg::SArg(*size, arg)
             }
 
@@ -201,6 +212,16 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
 
         Some(arg)
     }
+}
+
+// https://github.com/rust-lang/rust/blob/c1f62a7c35349438ea9728abbe1bcf1cebd426b7/compiler/rustc_target/src/abi/call/x86_win64.rs#L10
+#[derive(Debug, Copy, Clone)]
+pub enum SArgType {
+    I8([u8; 1]),
+    I16([u8; 2]),
+    I32([u8; 4]),
+    I64([u8; 8]),
+    Ptr(*const u8),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -228,7 +249,7 @@ pub enum Arg {
 
     // StructArg Ptr
     #[allow(clippy::enum_variant_names)]
-    SArg(u32, *const u8),
+    SArg(u32, SArgType),
 
     // Bool
     Bool(bool),
@@ -269,8 +290,18 @@ impl Arg {
             // no idea what the len is
             Arg::WStr(ptr) => (ptr as usize).to_pyobject(vm),
 
-            Arg::SArg(size, ptr) => {
-                // SAFETY: Signature creator asserts arg + size is correct
+            Arg::SArg(size, data) => {
+                let data = match data {
+                    SArgType::I8(i) => i.to_vec(),
+                    SArgType::I16(i) => i.to_vec(),
+                    SArgType::I32(i) => i.to_vec(),
+                    SArgType::I64(i) => i.to_vec(),
+                    SArgType::Ptr(p) => {
+                        // SAFETY: Signature creator asserts arg + size is correct
+                        unsafe { mem::memory::read_bytes(p, size as usize) }
+                    }
+                };
+
                 let data = unsafe { mem::memory::read_bytes(ptr, size as usize) };
                 data.to_pyobject(vm)
             }

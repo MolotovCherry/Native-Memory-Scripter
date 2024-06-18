@@ -210,7 +210,7 @@ impl Ret {
 
                 // User returns
                 //
-                // User returns from function with bytes exactly the length specified in type
+                // User returns from function with bytes
                 //
                 // # Safety
                 // User asserts size is correct, and asserts their data is a valid T
