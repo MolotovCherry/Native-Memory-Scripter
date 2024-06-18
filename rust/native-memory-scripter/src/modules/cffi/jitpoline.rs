@@ -3,7 +3,7 @@ use std::{hint::unreachable_unchecked, mem::MaybeUninit, sync::OnceLock};
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
-use mem::iat::IATSymbol;
+use mem::{hook::Trampoline, iat::IATSymbol};
 use rustpython_vm::{
     convert::ToPyObject,
     prelude::{PyObjectRef, PyResult, VirtualMachine},
@@ -15,7 +15,7 @@ use super::{args::ArgMemory, cffi::VTableHook, jit::JITWrapper, ret::Ret, types:
 #[derive(Debug)]
 pub enum Hook {
     // regular jmp hook
-    Jmp(mem::hook::Trampoline),
+    Jmp(Trampoline),
     // import address table hook
     #[allow(clippy::upper_case_acronyms)]
     IAT(IATSymbol),
@@ -26,7 +26,7 @@ pub enum Hook {
 }
 
 #[derive(Debug)]
-pub struct Trampoline {
+pub struct Jitpoline {
     hook: Hook,
     arg_mem: ArgMemory,
     args: (Vec<Type>, Type),
@@ -35,10 +35,10 @@ pub struct Trampoline {
     jit_call: OnceLock<extern "fastcall" fn(*const (), *mut Ret)>,
 }
 
-unsafe impl Send for Trampoline {}
-unsafe impl Sync for Trampoline {}
+unsafe impl Send for Jitpoline {}
+unsafe impl Sync for Jitpoline {}
 
-impl Trampoline {
+impl Jitpoline {
     pub fn new(hook: Hook, args: (&[Type], Type), conv: CallConv) -> PyResult<Self> {
         let arg_mem = ArgMemory::new(args.0);
 

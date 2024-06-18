@@ -1,7 +1,7 @@
 mod args;
 mod jit;
+pub mod jitpoline;
 mod ret;
-pub mod trampoline;
 mod types;
 
 use rustpython_vm::pymodule;
@@ -27,7 +27,7 @@ pub mod cffi {
 
     use super::{
         jit::{jit_py, DataWrapper},
-        trampoline::{Hook, Trampoline},
+        jitpoline::{Hook, Jitpoline},
         types::Type,
     };
     use crate::modules::{
@@ -38,7 +38,7 @@ pub mod cffi {
     #[pyclass(name)]
     #[derive(Debug, Clone, PyPayload)]
     pub struct NativeCall {
-        trampoline: Arc<Trampoline>,
+        jitpoline: Arc<Jitpoline>,
         lock: Arc<Mutex<()>>,
     }
 
@@ -50,7 +50,7 @@ pub mod cffi {
 
         fn call(zelf: &Py<Self>, args: FuncArgs, vm: &VirtualMachine) -> PyResult {
             let _lock = zelf.lock.lock().unwrap();
-            unsafe { zelf.trampoline.call(&args.args, vm) }
+            unsafe { zelf.jitpoline.call(&args.args, vm) }
         }
     }
 
@@ -106,10 +106,10 @@ pub mod cffi {
                 .collect::<Result<Vec<_>, _>>()?;
 
             let hook = Hook::Addr(address as _);
-            let trampoline = Trampoline::new(hook, (&fn_args, ret), calling_conv)?;
+            let jitpoline = Jitpoline::new(hook, (&fn_args, ret), calling_conv)?;
 
             let call = Self {
-                trampoline: Arc::new(trampoline),
+                jitpoline: Arc::new(jitpoline),
                 lock: Arc::default(),
             };
 
@@ -124,7 +124,7 @@ pub mod cffi {
     pub struct PyCallable {
         address: *const u8,
         code_size: u32,
-        trampoline: Arc<Mutex<Option<Trampoline>>>,
+        jitpoline: Arc<Mutex<Option<Jitpoline>>>,
         params: (Vec<Type>, Type),
         call_conv: CallConv,
         #[allow(clippy::type_complexity)]
@@ -185,7 +185,7 @@ pub mod cffi {
                 code_size,
                 params: (fn_args, ret),
                 _cb_mem: module,
-                trampoline: Arc::default(),
+                jitpoline: Arc::default(),
                 call_conv: calling_conv,
             };
 
@@ -197,15 +197,15 @@ pub mod cffi {
         type Args = FuncArgs;
 
         fn call(zelf: &Py<Self>, args: FuncArgs, vm: &VirtualMachine) -> PyResult {
-            let lock = zelf.trampoline.lock().unwrap();
+            let lock = zelf.jitpoline.lock().unwrap();
 
-            let Some(trampoline) = &*lock else {
+            let Some(jitpoline) = &*lock else {
                 return Err(vm.new_runtime_error(
-                    "cannot call trampoline because no function was hooked".to_owned(),
+                    "cannot call jitpoline because no function was hooked".to_owned(),
                 ));
             };
 
-            unsafe { trampoline.call(&args.args, vm) }
+            unsafe { jitpoline.call(&args.args, vm) }
         }
     }
 
@@ -223,7 +223,7 @@ pub mod cffi {
 
         #[pymethod]
         fn hook(&self, from: PyObjectRef, vm: &VirtualMachine) -> PyResult<bool> {
-            let mut lock = self.trampoline.lock().unwrap();
+            let mut lock = self.jitpoline.lock().unwrap();
             if lock.is_some() {
                 return Err(vm.new_runtime_error(
                     "this callable is already hooking something. create a new callable to hook something else"
@@ -243,17 +243,16 @@ pub mod cffi {
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
             let hook = Hook::Jmp(trampoline);
-            let trampoline =
-                Trampoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
+            let jitpoline = Jitpoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
 
-            *lock = Some(trampoline);
+            *lock = Some(jitpoline);
 
             Ok(true)
         }
 
         #[pymethod]
         fn hook_iat(&self, entry: PyRef<PyIATSymbol>, vm: &VirtualMachine) -> PyResult<bool> {
-            let mut lock = self.trampoline.lock().unwrap();
+            let mut lock = self.jitpoline.lock().unwrap();
             if lock.is_some() {
                 return Err(vm.new_runtime_error(
                     "this callable is already hooking something. create a new callable to hook something else"
@@ -265,10 +264,9 @@ pub mod cffi {
             res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
 
             let hook = Hook::IAT((**entry).clone());
-            let trampoline =
-                Trampoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
+            let jitpoline = Jitpoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
 
-            *lock = Some(trampoline);
+            *lock = Some(jitpoline);
 
             Ok(true)
         }
@@ -280,7 +278,7 @@ pub mod cffi {
             index: usize,
             vm: &VirtualMachine,
         ) -> PyResult<bool> {
-            let mut lock = self.trampoline.lock().unwrap();
+            let mut lock = self.jitpoline.lock().unwrap();
             if lock.is_some() {
                 return Err(vm.new_runtime_error(
                     "this callable is already hooking something. create a new callable to hook something else"
@@ -292,10 +290,9 @@ pub mod cffi {
             res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
 
             let hook = Hook::Vmt(VTableHook(index, vtable));
-            let trampoline =
-                Trampoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
+            let jitpoline = Jitpoline::new(hook, (&self.params.0, self.params.1), self.call_conv)?;
 
-            *lock = Some(trampoline);
+            *lock = Some(jitpoline);
 
             Ok(true)
         }
@@ -303,10 +300,10 @@ pub mod cffi {
         /// unsafe fn
         #[pymethod]
         fn unhook(&self, vm: &VirtualMachine) -> PyResult<()> {
-            let lock = self.trampoline.lock().unwrap();
-            if let Some(trampoline) = &*lock {
+            let lock = self.jitpoline.lock().unwrap();
+            if let Some(jitpoline) = &*lock {
                 unsafe {
-                    trampoline.unhook(vm)?;
+                    jitpoline.unhook(vm)?;
                 }
             }
 
