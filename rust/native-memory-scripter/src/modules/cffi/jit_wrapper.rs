@@ -95,19 +95,8 @@ pub fn jit_py_wrapper(
     call_conv: CallConv,
     vm: &VirtualMachine,
 ) -> PyResult<(DataWrapper, *const u8, u32)> {
-    // arguments cannot be StructReturn
-    if args.0.iter().any(|i| i.is_sret()) {
-        return Err(vm.new_type_error("StructReturn cannot be used as an arg".to_owned()));
-    }
-
-    // arguments cannot be StructReturn
     if args.0.iter().any(|i| i.is_void()) {
         return Err(vm.new_type_error("Void cannot be used as an arg".to_owned()));
-    }
-
-    // return cannot be StructArg
-    if args.1.is_sarg() {
-        return Err(vm.new_type_error("StructArg cannot be used as a return value".to_owned()));
     }
 
     let mut flag_builder = settings::builder();
@@ -146,27 +135,14 @@ pub fn jit_py_wrapper(
     // the reason this is placed first is because sret MUST be placed first
     // tip: Jacob Lifshay + bjorn3
     if !args.1.is_void() {
-        match args.1 {
-            // structs less than 64bits are returned by value if they fit into register
-            Type::StructReturn(size) => {
-                match size {
-                    // fits into register
-                    1 | 2 | 4 | 8 => {
-                        let arg = AbiParam::new(args.1.into());
-                        sig_fn.returns.push(arg);
-                    }
-
-                    // doesn't fit into register, so it's a ptr
-                    _ => {
-                        let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
-                        sig_fn.params.push(arg);
-                    }
-                }
-            }
-
-            _ => {
-                sig_fn.returns.push(AbiParam::new(args.1.into()));
-            }
+        if args.1.is_struct_ptr() {
+            let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
+            sig_fn.params.push(arg);
+        } else if args.1.is_struct() {
+            let arg = AbiParam::new(args.1.into());
+            sig_fn.returns.push(arg);
+        } else {
+            sig_fn.returns.push(AbiParam::new(args.1.into()));
         }
     }
 
@@ -227,7 +203,7 @@ pub fn jit_py_wrapper(
         let mut vals = bcx.block_params(ebb).to_vec();
 
         // this special return is an arg. let's place it in the return ptr instead
-        let ret_arg = if args.1.is_sret() {
+        let ret_arg = if args.1.is_struct_ptr() {
             Some(vals.remove(0))
         } else {
             None
@@ -283,7 +259,7 @@ pub fn jit_py_wrapper(
 
         bcx.inst_results(call);
 
-        if args.1.is_void() || args.1.is_sret() {
+        if args.1.is_void() || args.1.is_struct_ptr() {
             // no data returned. in the case of structreturn, we already wrote to the ptr in the function body
             // return fn with same data as cb
             bcx.ins().return_(&[]);

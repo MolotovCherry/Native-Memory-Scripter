@@ -40,11 +40,8 @@ pub enum Type {
     // i16
     WChar(CType),
 
-    // by value struct - only valid as arg
-    StructArg(u32),
-
-    // struct return - only valid as return type
-    StructReturn(u32),
+    // by value struct
+    Struct(u32),
 }
 
 impl Type {
@@ -53,26 +50,32 @@ impl Type {
         matches!(self, Self::Void)
     }
 
+    // is this struct a ptr, not a regular value type?
     #[inline]
-    pub fn is_sret(&self) -> bool {
+    pub fn is_struct(&self) -> bool {
+        matches!(self, Self::Struct(_))
+    }
+
+    // is this struct a ptr, not a regular value type?
+    #[inline]
+    pub fn is_struct_ptr(&self) -> bool {
         match self {
-            Self::StructReturn(size) => !matches!(size, 1 | 2 | 4 | 8),
+            Self::Struct(size) => *size > 8 || (*size & (*size - 1)) == 0,
             _ => false,
         }
     }
 
-    #[inline]
-    pub fn is_sarg(&self) -> bool {
-        matches!(self, Self::StructArg(_))
-    }
-
-    // not valid for structreturn
     pub fn size(&self) -> usize {
         match self {
             Type::Void => 0,
 
-            // size of a ptr
-            Type::StructArg(_) | Type::StructReturn(_) => 8,
+            Type::Struct(size) => {
+                if self.is_struct_ptr() {
+                    8
+                } else {
+                    *size as usize
+                }
+            }
 
             &t => {
                 let ty: CType = t.into();
@@ -104,7 +107,7 @@ impl From<Type> for CType {
             | Type::Char(t)
             | Type::WChar(t) => t,
 
-            Type::StructArg(size) | Type::StructReturn(size) => match size {
+            Type::Struct(size) => match size {
                 // https://github.com/rust-lang/rust/blob/c1f62a7c35349438ea9728abbe1bcf1cebd426b7/compiler/rustc_target/src/abi/call/x86_win64.rs#L10
                 1 => types::I8,
                 2 => types::I16,

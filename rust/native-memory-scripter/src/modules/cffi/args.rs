@@ -15,9 +15,7 @@ use crate::utils::RawSendable;
 
 // Get the layout and offsets for arg list
 fn get_layout(args: &[Type]) -> Option<(Layout, Vec<usize>)> {
-    let args = args
-        .iter()
-        .filter(|i| !matches!(i, Type::Void | Type::StructReturn(_)));
+    let args = args.iter().filter(|i| !matches!(i, Type::Void));
 
     if args.clone().count() == 0 {
         return None;
@@ -193,18 +191,18 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
                 Arg::WChar(unsafe { char::from_u32_unchecked(arg as u32) })
             }
 
-            Type::StructArg(size) => {
+            Type::Struct(size) => {
                 // https://github.com/rust-lang/rust/blob/c1f62a7c35349438ea9728abbe1bcf1cebd426b7/compiler/rustc_target/src/abi/call/x86_win64.rs#L10
                 let arg = match size {
                     // read as sized array instead of int in order to keep consistent endianness
-                    1 => SArgType::I8(unsafe { *ptr.cast::<[u8; 1]>() }),
-                    2 => SArgType::I16(unsafe { *ptr.cast::<[u8; 2]>() }),
-                    4 => SArgType::I32(unsafe { *ptr.cast::<[u8; 4]>() }),
-                    8 => SArgType::I64(unsafe { *ptr.cast::<[u8; 8]>() }),
-                    _ => SArgType::Ptr(unsafe { *ptr.cast::<*const u8>() }),
+                    1 => StructType::I8(unsafe { *ptr.cast::<[u8; 1]>() }),
+                    2 => StructType::I16(unsafe { *ptr.cast::<[u8; 2]>() }),
+                    4 => StructType::I32(unsafe { *ptr.cast::<[u8; 4]>() }),
+                    8 => StructType::I64(unsafe { *ptr.cast::<[u8; 8]>() }),
+                    _ => StructType::Ptr(unsafe { *ptr.cast::<*const u8>() }),
                 };
 
-                Arg::SArg(*size, arg)
+                Arg::Struct(*size, arg)
             }
 
             _ => unreachable!(),
@@ -216,7 +214,7 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
 
 // https://github.com/rust-lang/rust/blob/c1f62a7c35349438ea9728abbe1bcf1cebd426b7/compiler/rustc_target/src/abi/call/x86_win64.rs#L10
 #[derive(Debug, Copy, Clone)]
-pub enum SArgType {
+pub enum StructType {
     I8([u8; 1]),
     I16([u8; 2]),
     I32([u8; 4]),
@@ -249,7 +247,7 @@ pub enum Arg {
 
     // StructArg Ptr
     #[allow(clippy::enum_variant_names)]
-    SArg(u32, SArgType),
+    Struct(u32, StructType),
 
     // Bool
     Bool(bool),
@@ -290,13 +288,13 @@ impl Arg {
             // no idea what the len is
             Arg::WStr(ptr) => (ptr as usize).to_pyobject(vm),
 
-            Arg::SArg(size, data) => {
+            Arg::Struct(size, data) => {
                 let data = match data {
-                    SArgType::I8(i) => i.to_vec(),
-                    SArgType::I16(i) => i.to_vec(),
-                    SArgType::I32(i) => i.to_vec(),
-                    SArgType::I64(i) => i.to_vec(),
-                    SArgType::Ptr(p) => {
+                    StructType::I8(i) => i.to_vec(),
+                    StructType::I16(i) => i.to_vec(),
+                    StructType::I32(i) => i.to_vec(),
+                    StructType::I64(i) => i.to_vec(),
+                    StructType::Ptr(p) => {
                         // SAFETY: Signature creator asserts arg + size is correct
                         unsafe { mem::memory::read_bytes(p, size as usize) }
                     }

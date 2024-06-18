@@ -9,7 +9,7 @@ pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: *mut Ret) {
     // ret vals:
     // void: 0 (no write)
     // any return: ptr, write Ret to it
-    // structreturn: ptr, write struct data to it
+    // ret:struct: ptr, write struct data to it
 
     data.vm.run(|vm| {
         let mut py_args = FuncArgs::default();

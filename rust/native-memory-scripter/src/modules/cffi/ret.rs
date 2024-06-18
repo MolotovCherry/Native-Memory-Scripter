@@ -215,7 +215,7 @@ impl Ret {
                 //
                 // # Safety
                 // User asserts size is correct, and asserts their data is a valid T
-                Type::StructReturn(size) => {
+                Type::Struct(size) => {
                     let bytes = val.bytes(vm)?.downcast_exact::<PyBytes>(vm).map_err(|_| {
                         vm.new_type_error("failed to convert to PyBytes".to_owned())
                     })?;
@@ -260,13 +260,11 @@ impl Ret {
                     // there's no output since we write directly to it
                     return Ok(());
                 }
-
-                _ => unreachable!("this is a bug"),
             };
 
         // write the data
         // if is void, ptr is null, otherwise it's not
-        if !ty.is_void() && !ty.is_sret() {
+        if !ty.is_void() {
             unsafe {
                 *ret = data;
             }
@@ -304,7 +302,7 @@ impl Ret {
             Type::WChar(_) => Ret { wchar: 0 },
 
             // Warning: zeroed data written to return ptr. Probably UB
-            Type::StructReturn(size) => {
+            Type::Struct(size) => {
                 match size {
                     1 => unsafe { *ret = Ret { i8: 0 } },
 
@@ -322,8 +320,6 @@ impl Ret {
 
                 return;
             }
-
-            _ => unreachable!("this is a bug"),
         };
 
         // SAFETY: There is none. User must ensure they always return valid values. This may or may not cause UB
@@ -375,9 +371,7 @@ impl Ret {
                 char::from_u32(char as u32).to_pyobject(vm)
             }
 
-            Type::StructArg(_) => todo!(),
-
-            Type::StructReturn(_) => todo!(),
+            Type::Struct(_) => todo!(),
         }
     }
 }
