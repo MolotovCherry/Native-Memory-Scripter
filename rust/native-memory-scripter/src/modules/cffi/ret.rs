@@ -6,6 +6,7 @@ use rustpython_vm::{
     prelude::{PyObjectRef, VirtualMachine},
     PyResult,
 };
+use tracing::warn;
 
 use super::types::Type;
 
@@ -275,6 +276,8 @@ impl Ret {
     }
 
     pub fn write_default_ret(ty: Type, ret: *mut Ret) {
+        warn!("python cb failed to execute. default return was triggered to return *something*. this is a bug in your code and is causing unintended results or ub. it should be fixed asap. please ensure you have exception handling code and a reasonable return value for every possible exception that could happen. uncaught exceptions are not allowed in the callback");
+
         let data = match ty {
             Type::Void => return,
 
