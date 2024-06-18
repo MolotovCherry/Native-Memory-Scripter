@@ -1,5 +1,5 @@
 mod args;
-mod jit_wrapper;
+mod jit;
 mod ret;
 pub mod trampoline;
 mod types;
@@ -26,7 +26,7 @@ pub mod cffi {
     };
 
     use super::{
-        jit_wrapper::{jit_py_wrapper, DataWrapper},
+        jit::{jit_py, DataWrapper},
         trampoline::{Hook, Trampoline},
         types::Type,
     };
@@ -178,7 +178,7 @@ pub mod cffi {
                 .collect::<Result<Vec<_>, _>>()?;
 
             let (module, address, code_size) =
-                jit_py_wrapper(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
+                jit_py(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
 
             let callable = PyCallable {
                 address,

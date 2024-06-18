@@ -10,7 +10,7 @@ use rustpython_vm::{
 };
 use tracing::info;
 
-use super::{args::ArgMemory, cffi::VTableHook, jit_wrapper::JITWrapper, ret::Ret, types::Type};
+use super::{args::ArgMemory, cffi::VTableHook, jit::JITWrapper, ret::Ret, types::Type};
 
 #[derive(Debug)]
 pub enum Hook {

@@ -88,7 +88,7 @@ struct Data {
 }
 
 // generate a c wrapper according to specs
-pub fn jit_py_wrapper(
+pub fn jit_py(
     name: &str,
     obj: PyObjectRef,
     args: (&[Type], Type),
