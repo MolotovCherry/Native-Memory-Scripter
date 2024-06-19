@@ -138,9 +138,6 @@ pub fn jit_py(
         if args.1.is_struct_ptr() {
             let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
             sig_fn.params.push(arg);
-        } else if args.1.is_struct() {
-            let arg = AbiParam::new(args.1.into());
-            sig_fn.returns.push(arg);
         } else {
             sig_fn.returns.push(AbiParam::new(args.1.into()));
         }
