@@ -222,7 +222,7 @@ impl Ret {
 
                     if bytes.len() != size as usize {
                         return Err(vm.new_runtime_error(format!(
-                            "StructReturn expected len {size}, instead got {}",
+                            "Struct return expected len {size}, instead got {}",
                             bytes.len()
                         )));
                     }
