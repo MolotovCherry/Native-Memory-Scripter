@@ -7,8 +7,8 @@ This function is safe
 ```
 
 ### Parameters
-- `*args` - Any parameter to log.
-- `[kwarg] sep: str` - The separator. Default `' '`.
+- `*args` - any parameter to log.
+- `[kwarg] sep: str` - the separator. default `' '`.
 
 ### Exceptions
 If object string and repr can't be printed.
