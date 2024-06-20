@@ -25,7 +25,11 @@ edit-url-template = "https://github.com/MolotovCherry/Native-Memory-Scripter/edi
 smart-punctuation = true
 default-theme = "latte"
 preferred-dark-theme = "mocha"
-additional-js = ["./theme/init.js", "./theme/pagetoc.js"]
+additional-js = [
+    "./theme/init.js",
+    "./theme/pagetoc.js",
+    "./theme/checkboxes.js",
+]
 additional-css = [
     './theme/catppuccin.css',
     './theme/catppuccin-admonish.css',
