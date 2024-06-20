@@ -18,7 +18,6 @@
 
 - [asm](./asm/asm.md)
     - [assemble](./asm/assemble.md)
-    - [assemble_ex](./asm/assemble_ex.md)
     - [code_len](./asm/code_len.md)
     - [disassemble](./asm/disassemble.md)
     - [objects](./asm/objects.md)

@@ -78,9 +78,9 @@ pub mod asm {
     #[pyfunction]
     fn disassemble(args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
         // disassemble bytes:
-        // Address
-        // Address, runtime_addr(Address)
-        // Address, runtime_addr(Address), count(usize)
+        // Bytes
+        // Bytes, runtime_addr(Address)
+        // Bytes, runtime_addr(Address), count(usize)
 
         // disassemble address:
         // Address
