@@ -7,6 +7,8 @@ This is almost certainly the result of UB. See if you can check the following:
 
 - is the function return correct?
 
+- is the function abi correct?
+
 - are you following all safety invariants when reading, writing, and changing protections on memory?
 
 - is the address you're hooking able to be hooked at the assembly level? not all addresses will work because of things like function size or where you placed the hook.
