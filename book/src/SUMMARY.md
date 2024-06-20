@@ -14,6 +14,8 @@
 
 - [Here be Dragons 🐉](./here-be-dragons.md)
 
+- [FAQ](./faq.md)
+
 # Modules
 
 - [asm](./asm/asm.md)
