@@ -13,8 +13,6 @@ use super::types::Type;
 #[allow(improper_ctypes_definitions)]
 #[repr(C)]
 pub union Ret {
-    pub void: (),
-
     pub f32: f32,
     pub f64: f64,
 
@@ -350,7 +348,7 @@ impl Ret {
 
             // null terminated
             Type::CStr(_) => {
-                let ptr = unsafe { self.ptr as *const i8 };
+                let ptr = self.ptr as *const i8;
                 let data = unsafe { ffi::CStr::from_ptr(ptr) };
                 let string = data.to_string_lossy().to_string();
                 string.to_pyobject(vm)
@@ -371,7 +369,9 @@ impl Ret {
                 char::from_u32(char as u32).to_pyobject(vm)
             }
 
-            Type::Struct(_) => todo!(),
+            // there's no reasonable way to let jitpoline write sret to Ret
+            // so rather than handle here, we just pass in memory it can write to
+            _ => unreachable!(),
         }
     }
 }

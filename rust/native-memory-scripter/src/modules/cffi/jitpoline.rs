@@ -1,4 +1,9 @@
-use std::{hint::unreachable_unchecked, mem::MaybeUninit, sync::OnceLock};
+use std::{
+    alloc::{self, Layout},
+    hint::unreachable_unchecked,
+    mem::MaybeUninit,
+    sync::OnceLock,
+};
 
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
@@ -8,8 +13,9 @@ use rustpython_vm::{
     convert::ToPyObject,
     prelude::{PyObjectRef, PyResult, VirtualMachine},
 };
-use tracing::info;
+use tracing::{info, trace, trace_span};
 
+use self::codegen::ir::ArgumentPurpose;
 use super::{args::ArgMemory, cffi::VTableHook, jit::JITWrapper, ret::Ret, types::Type};
 
 #[derive(Debug)]
@@ -29,57 +35,110 @@ pub enum Hook {
 pub struct Jitpoline {
     hook: Hook,
     arg_mem: ArgMemory,
+    sret_mem: Option<(*mut u8, Layout)>,
     args: (Vec<Type>, Type),
     _jit: OnceLock<JITWrapper>,
     conv: CallConv,
-    jit_call: OnceLock<extern "fastcall" fn(*const (), *mut Ret)>,
+    jitpoline: OnceLock<extern "fastcall" fn(*const (), *mut ())>,
 }
 
 unsafe impl Send for Jitpoline {}
 unsafe impl Sync for Jitpoline {}
 
+impl Drop for Jitpoline {
+    fn drop(&mut self) {
+        if let Some((mem, layout)) = self.sret_mem.take() {
+            unsafe {
+                alloc::dealloc(mem, layout);
+            }
+        }
+    }
+}
+
 impl Jitpoline {
     pub fn new(hook: Hook, args: (&[Type], Type), conv: CallConv) -> PyResult<Self> {
+        let span = trace_span!("jitpoline");
+        let _guard = span.enter();
+
+        trace!(?hook, ?args, ?conv, "new");
+
         let arg_mem = ArgMemory::new(args.0);
+
+        let sret_mem = if let Type::Struct(size) = args.1 {
+            assert!(size > 0, "size is 0");
+
+            // 8 byte aligned data
+            let align = size
+                .max(8)
+                .checked_next_power_of_two()
+                .expect("align overflowed");
+
+            let layout =
+                unsafe { Layout::from_size_align_unchecked(size as usize, align as usize) };
+
+            let alloc = unsafe { alloc::alloc(layout) };
+
+            Some((alloc, layout))
+        } else {
+            None
+        };
 
         let slf = Self {
             hook,
             arg_mem,
+            sret_mem,
             conv,
             args: (args.0.to_vec(), args.1),
             _jit: OnceLock::new(),
-            jit_call: OnceLock::new(),
+            jitpoline: OnceLock::new(),
         };
 
         Ok(slf)
     }
 
     pub unsafe fn call(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+        let span = trace_span!("jitpoline");
+        let mut _guard = span.enter();
+
         self.arg_mem.fill(args, vm)?;
 
-        let fn_ = if let Some(&_fn) = self.jit_call.get() {
-            _fn
+        let jitpoline = if let Some(&jitpoline) = self.jitpoline.get() {
+            jitpoline
         } else {
-            let _fn = self.compile()?;
-            _ = self.jit_call.set(_fn);
+            drop(_guard);
+            let jitpoline = self.compile()?;
+            _ = self.jitpoline.set(jitpoline);
+            _guard = span.enter();
 
-            _fn
+            jitpoline
         };
 
-        let mut ret = MaybeUninit::<Ret>::uninit();
-        fn_(self.arg_mem.mem(), ret.as_mut_ptr());
+        let ret = if let Type::Struct(size) = self.args.1 {
+            let (mem, _) = unsafe { self.sret_mem.unwrap_unchecked() };
 
-        // we have nothing to write in the void case
-        if matches!(self.args.1, Type::Void) {
-            return Ok(None::<()>.to_pyobject(vm));
-        }
+            jitpoline(self.arg_mem.mem(), mem.cast());
 
-        let ret = unsafe { ret.assume_init().to_pyobject(self.args.1, vm) };
+            let data = unsafe { mem::memory::read_bytes(mem.cast(), size as _) };
+            data.to_pyobject(vm)
+        } else {
+            let mut ret = MaybeUninit::<Ret>::uninit();
+            jitpoline(self.arg_mem.mem(), ret.as_mut_ptr().cast());
+
+            // we have nothing to write in the void case
+            if self.args.1.is_void() {
+                return Ok(None::<()>.to_pyobject(vm));
+            }
+
+            unsafe { ret.assume_init().to_pyobject(self.args.1, vm) }
+        };
 
         Ok(ret)
     }
 
     pub unsafe fn unhook(&self, vm: &VirtualMachine) -> PyResult<()> {
+        let span = trace_span!("jitpoline");
+        let _guard = span.enter();
+
         match &self.hook {
             Hook::Jmp(j) => {
                 let res = unsafe { j.unhook() };
@@ -92,7 +151,7 @@ impl Jitpoline {
             }
 
             Hook::Vmt(v) => {
-                let res = v.unhook(v.index());
+                let res = unsafe { v.unhook(v.index()) };
                 res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
             }
 
@@ -104,7 +163,10 @@ impl Jitpoline {
     }
 
     /// Compile the jit trampoline wrapper
-    fn compile(&self) -> PyResult<extern "fastcall" fn(*const (), *mut Ret)> {
+    fn compile(&self) -> PyResult<extern "fastcall" fn(*const (), *mut ())> {
+        let span = trace_span!("jitpoline");
+        let _guard = span.enter();
+
         let mut flag_builder = settings::builder();
         flag_builder.set("use_colocated_libcalls", "false").unwrap();
         flag_builder.set("is_pic", "true").unwrap();
@@ -147,13 +209,32 @@ impl Jitpoline {
         let mut tp_sig_fn = module.make_signature();
         tp_sig_fn.call_conv = self.conv;
 
-        for &arg in &self.args.0 {
-            let ty: types::Type = arg.into();
-            tp_sig_fn.params.push(AbiParam::new(ty));
+        if !self.args.1.is_void() {
+            if self.args.1.is_struct_ptr() {
+                let arg = AbiParam::special(self.args.1.into(), ArgumentPurpose::StructReturn);
+                tp_sig_fn.params.push(arg);
+            } else {
+                tp_sig_fn.returns.push(AbiParam::new(self.args.1.into()));
+            }
         }
 
-        if !matches!(self.args.1, Type::Void) {
-            tp_sig_fn.returns.push(AbiParam::new(self.args.1.into()));
+        for &arg in &self.args.0 {
+            let arg = if arg.is_struct_ptr() {
+                let Type::Struct(size) = arg else {
+                    unsafe { unreachable_unchecked() }
+                };
+
+                let size = size
+                    .max(8)
+                    .checked_next_power_of_two()
+                    .expect("align overflowed");
+
+                AbiParam::special(types::I64, ArgumentPurpose::StructArgument(size))
+            } else {
+                AbiParam::new(arg.into())
+            };
+
+            tp_sig_fn.params.push(arg);
         }
 
         // declare and import fn
@@ -195,12 +276,24 @@ impl Jitpoline {
         let ret = params[1];
 
         let mut arg_values = Vec::new();
-        for (&ty, &offset) in self.args.0.iter().zip(self.arg_mem.offsets()) {
-            let ty: types::Type = ty.into();
 
-            let value = bcx
-                .ins()
-                .load(ty, MemFlags::trusted(), arg_memory, offset as i32);
+        // add return ptr as first arg if we're using sret
+        if self.args.1.is_struct_ptr() {
+            arg_values.push(ret);
+        }
+
+        for (&ty, &offset) in self.args.0.iter().zip(self.arg_mem.offsets()) {
+            let value = if ty.is_struct_ptr() {
+                if offset == 0 {
+                    arg_memory
+                } else {
+                    let offset = bcx.ins().iconst(types::I64, offset as i64);
+                    bcx.ins().iadd(arg_memory, offset)
+                }
+            } else {
+                bcx.ins()
+                    .load(ty.into(), MemFlags::trusted(), arg_memory, offset as i32)
+            };
 
             arg_values.push(value);
         }
@@ -209,7 +302,7 @@ impl Jitpoline {
         let call = bcx.ins().call(trampoline_fn, &arg_values);
 
         // only write to return memory if it's not void
-        if !matches!(self.args.1, Type::Void) {
+        if !self.args.1.is_void() && !self.args.1.is_struct_ptr() {
             let res = bcx.inst_results(call)[0];
             bcx.ins().store(MemFlags::trusted(), res, ret, 0);
         }
@@ -232,7 +325,7 @@ impl Jitpoline {
         // Get a raw pointer to the generated code.
         let code = module.get_finalized_function(func);
         let _fn = unsafe {
-            std::mem::transmute::<*const u8, extern "fastcall" fn(*const (), *mut Ret)>(code)
+            std::mem::transmute::<*const u8, extern "fastcall" fn(*const (), *mut ())>(code)
         };
 
         info!("defined {jitpoline_name}() ({code:?}) -> {tramp_name}()");

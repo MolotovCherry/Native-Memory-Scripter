@@ -11,7 +11,7 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
 use rustpython_vm::prelude::*;
 use rustpython_vm::vm::thread::ThreadedVirtualMachine;
-use tracing::info;
+use tracing::{info, trace_span};
 
 use crate::utils::RawSendable;
 
@@ -95,6 +95,9 @@ pub fn jit_py(
     call_conv: CallConv,
     vm: &VirtualMachine,
 ) -> PyResult<(DataWrapper, *const u8, u32)> {
+    let span = trace_span!("jit");
+    let _guard = span.enter();
+
     if args.0.iter().any(|i| i.is_void()) {
         return Err(vm.new_type_error("Void cannot be used as an arg".to_owned()));
     }

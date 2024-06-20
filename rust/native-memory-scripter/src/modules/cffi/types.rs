@@ -29,9 +29,9 @@ pub enum Type {
     Bool(CType),
 
     // Strings
-    // c str (null terminated) - r64
+    // c str (null terminated) - i64
     CStr(CType),
-    // utf16 str (null terminated) - r64
+    // utf16 str (null terminated) - i64
     WStr(CType),
 
     // Characters
@@ -58,26 +58,22 @@ impl Type {
 
     // is this struct a ptr, not a regular value type?
     #[inline]
-    pub fn is_struct_ptr(&self) -> bool {
+    pub fn is_struct_ptr(self) -> bool {
         match self {
-            Self::Struct(size) => *size > 8 || (*size & (*size - 1)) > 0,
+            // size > 8 || not power of 2
+            Self::Struct(size) => size > 8 || !size.is_power_of_two(),
             _ => false,
         }
     }
 
-    pub fn size(&self) -> usize {
+    pub fn layout_size(self) -> usize {
         match self {
             Type::Void => 0,
 
-            Type::Struct(size) => {
-                if self.is_struct_ptr() {
-                    8
-                } else {
-                    *size as usize
-                }
-            }
+            // how man bytes we are going to store, which is simply `size`
+            Type::Struct(size) => size as usize,
 
-            &t => {
+            t => {
                 let ty: CType = t.into();
                 ty.bytes() as usize
             }
