@@ -30,7 +30,6 @@ pub enum HookError {
 /// Once this type is dropped, it will automatically unhook itself!
 /// Also, the trampoline code will be dropped and no longer be accessible, so you mustn't call the trampoline
 /// if the memory was dropped.
-#[derive(Debug)]
 pub struct Trampoline {
     // the allocation holding the code - the code disappears when the trampoline is dropped!
     _code: Arc<Alloc>,
@@ -41,6 +40,17 @@ pub struct Trampoline {
     pub address: *const u8,
     /// the code size of the trampoline
     pub size: usize,
+}
+
+impl fmt::Debug for Trampoline {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Trampoline { address, size, .. } = self;
+
+        f.debug_struct("Trampoline")
+            .field("address", &address)
+            .field("size", &size)
+            .finish()
+    }
 }
 
 unsafe impl Send for Trampoline {}
