@@ -41,7 +41,9 @@ fn make_layout(args: &[Type]) -> Result<Option<(Layout, Vec<usize>)>, LayoutErro
             size.checked_next_power_of_two().expect("align overflowed")
         };
 
-        let new_layout = Layout::from_size_align(size, align)?;
+        let mut new_layout = Layout::from_size_align(size, align)?;
+        // important!! pad this layout to the next alignment, otherwise next entries may overwrite previous data!
+        new_layout = new_layout.pad_to_align();
 
         let (new_layout, offset) = layout.extend(new_layout)?;
         layout = new_layout;
