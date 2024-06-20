@@ -31,3 +31,11 @@ class Foo:
         return cls(bar, baz, some_ptr)
 ```
 ~~~
+
+~~~admonish tip title="Store bytes in hex" collapsible=true
+This is relatively simple, but useful way to store your bytes in a readable format.
+
+```python
+mybytes = bytes.fromhex('00 00 00 00')
+```
+~~~
