@@ -15,6 +15,8 @@ use rustpython_vm::{
 };
 use tracing::{info, trace, trace_span};
 
+use crate::modules::Address;
+
 use self::codegen::ir::ArgumentPurpose;
 use super::{args::ArgMemory, cffi::VTableHook, jit::JITWrapper, ret::Ret, types::Type};
 
@@ -29,6 +31,22 @@ pub enum Hook {
     Vmt(VTableHook),
     // no hook, just call this address plz
     Addr(*const u8),
+}
+
+impl Hook {
+    pub fn trampoline_address(&self) -> Address {
+        match self {
+            Hook::Jmp(t) => t.address as _,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn trampoline_size(&self) -> usize {
+        match self {
+            Hook::Jmp(t) => t.size,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -160,6 +178,14 @@ impl Jitpoline {
         }
 
         Ok(())
+    }
+
+    pub fn trampoline_address(&self) -> Address {
+        self.hook.trampoline_address()
+    }
+
+    pub fn trampoline_size(&self) -> usize {
+        self.hook.trampoline_size()
     }
 
     /// Compile the jit trampoline wrapper

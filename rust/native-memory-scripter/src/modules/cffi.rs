@@ -221,6 +221,18 @@ pub mod cffi {
             self.code_size
         }
 
+        #[pygetset]
+        pub fn trampoline_address(&self) -> Address {
+            let lock = self.jitpoline.lock().unwrap();
+            lock.as_ref().unwrap().trampoline_address()
+        }
+
+        #[pygetset]
+        pub fn trampoline_size(&self) -> usize {
+            let lock = self.jitpoline.lock().unwrap();
+            lock.as_ref().unwrap().trampoline_size()
+        }
+
         #[pymethod]
         fn hook(&self, from: PyObjectRef, vm: &VirtualMachine) -> PyResult<bool> {
             let mut lock = self.jitpoline.lock().unwrap();
