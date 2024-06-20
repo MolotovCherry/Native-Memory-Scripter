@@ -1,6 +1,6 @@
 # FAQ
 
-## Why it keep crashing?
+## Why does it keep crashing?
 This is almost certainly the result of UB. See if you can check the following:
 
 - [ ] are the function arguments correct?
