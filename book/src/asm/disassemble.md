@@ -2,12 +2,6 @@
 
 Dissasemble instructions.
 
-```admonish danger title=""
-This function is unsafe 🐉
-
-- The address must be valid for up to 16 bytes read
-```
-
 ### Parameters
 This function has multiple calling types.
 
@@ -15,7 +9,7 @@ This function has multiple calling types.
 Disassemble single instruction at address.
 
 ```admonish danger title=""
-Using the call function is unsafe 🐉
+This call is unsafe 🐉
 
 Address must be valid for up to 16 bytes read.
 ```
@@ -26,7 +20,7 @@ Address must be valid for up to 16 bytes read.
 Disassemble all instructions from an address, with a runtime address.
 
 ```admonish danger title=""
-Using the call function is unsafe 🐉
+This call is unsafe 🐉
 
 Address must be valid for up to size read.
 ```
@@ -39,7 +33,7 @@ Address must be valid for up to size read.
 Disassemble `count` instructions from address.
 
 ```admonish danger title=""
-Using the call function is unsafe 🐉
+This call is unsafe 🐉
 
 Address must be valid for up to size read.
 ```
@@ -52,16 +46,28 @@ Address must be valid for up to size read.
 #### First (bytes)
 Disassemble all bytes from into instructions.
 
+```admonish success title=""
+This call is safe
+```
+
 - `bytes: bytes` - the bytes to disassemble.
 
 #### Second (bytes)
 Disassemble all bytes from into instructions, with runtime address.
+
+```admonish success title=""
+This call is safe
+```
 
 - `bytes: bytes` - the bytes to disassemble.
 - `runtime_address: int` - the address to annotate each instruction with.
 
 #### Third (bytes)
 Disassemble `count` instructions from address.
+
+```admonish success title=""
+This call is safe
+```
 
 - `bytes: bytes` - the bytes to disassemble.
 - `runtime_address: int` - the address to annotate each instruction with.
