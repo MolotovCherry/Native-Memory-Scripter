@@ -5,33 +5,61 @@ use rustpython_vm::pymodule;
 pub mod asm {
     use mem::asm::Inst;
     use rustpython_vm::{
-        builtins::PyByteArray, pyclass, PyObjectRef, PyPayload, PyRef, PyResult, VirtualMachine,
+        builtins::PyByteArray, convert::ToPyObject, function::FuncArgs, pyclass, PyObjectRef,
+        PyPayload, PyRef, PyResult, VirtualMachine,
     };
 
     use crate::modules::Address;
 
-    /// Assemble a single instruction
+    /// Assemble instructions
+    ///
+    /// Calling modes:
+    /// String (code) -> Inst
+    /// Assemble a single instruction to machine code
+    ///
+    /// String (code), Address (runtime address) -> [Inst]
+    /// Assembles multiple instructions to machine code
+    ///
     #[pyfunction]
-    fn assemble(code: String, vm: &VirtualMachine) -> PyResult<PyInst> {
-        mem::asm::assemble(&code)
-            .map(PyInst)
-            .map_err(|e| vm.new_runtime_error(format!("{e}")))
-    }
+    fn assemble(args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+        // String
+        // String, Address
 
-    /// Assemble all instructions with a runtime address
-    #[pyfunction]
-    fn assemble_ex(
-        code: String,
-        address: Address,
-        vm: &VirtualMachine,
-    ) -> PyResult<Vec<PyObjectRef>> {
-        mem::asm::assemble_ex(&code, address)
-            .map(|ins| {
-                ins.into_iter()
-                    .map(|ins| PyInst(ins).into_pyobject(vm))
-                    .collect()
-            })
-            .map_err(|e| vm.new_runtime_error(format!("{e}")))
+        let code = args
+            .args
+            .first()
+            .map(|s| s.try_to_value::<String>(vm))
+            .transpose()?
+            .ok_or_else(|| vm.new_runtime_error("code argument not found".to_owned()))?;
+
+        let obj = match args.args.len() {
+            1 => mem::asm::assemble(&code)
+                .map(PyInst)
+                .map_err(|e| vm.new_runtime_error(format!("{e}")))?
+                .to_pyobject(vm),
+
+            2 => {
+                let addr = args
+                    .args
+                    .get(1)
+                    .map(|v| v.try_to_value::<Address>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                mem::asm::assemble_ex(&code, addr)
+                    .map(|v| v.into_iter().map(|i| PyInst(i).to_pyobject(vm)))
+                    .map_err(|e| vm.new_runtime_error(format!("{e}")))?
+                    .collect::<Vec<_>>()
+                    .to_pyobject(vm)
+            }
+
+            _ => {
+                return Err(vm
+                    .new_runtime_error(format!("expected 1 or 2 args, found {}", args.args.len())))
+            }
+        };
+
+        Ok(obj)
     }
 
     /// Get the code length of an instruction(s) starting at address, with a minimum length
@@ -48,14 +76,196 @@ pub mod asm {
     ///
     /// unsafe fn
     #[pyfunction]
-    fn disassemble(addr: Address, vm: &VirtualMachine) -> PyResult<PyInst> {
-        let res = unsafe { mem::asm::disassemble(addr as *const _).map(PyInst) };
-        res.map_err(|e| vm.new_runtime_error(format!("{e}")))
+    fn disassemble(args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+        // Address
+        // Address, size (usize), runtime_addr(Address)
+        // Address, size (usize), runtime_addr(Address), count(usize)
+
+        let address = args
+            .args
+            .first()
+            .map(|s| s.try_to_value::<Address>(vm))
+            .transpose()?
+            .ok_or_else(|| vm.new_runtime_error("address argument not found".to_owned()))?;
+
+        let obj = match args.args.len() {
+            1 => {
+                let res = unsafe { mem::asm::disassemble(address as *const _) };
+                let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+
+                PyInst(res).to_pyobject(vm)
+            }
+
+            3 => {
+                let size = args
+                    .args
+                    .get(1)
+                    .cloned()
+                    .map(|i| i.try_into_value::<usize>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                let runtime_addr = args
+                    .args
+                    .get(2)
+                    .cloned()
+                    .map(|i| i.try_into_value::<Address>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                let res =
+                    unsafe { mem::asm::disassemble_ex(address as *const _, size, runtime_addr) };
+
+                let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+                let insts = res
+                    .into_iter()
+                    .map(|d| PyInst(d).to_pyobject(vm))
+                    .collect::<Vec<_>>();
+
+                insts.to_pyobject(vm)
+            }
+
+            4 => {
+                let size = args
+                    .args
+                    .get(1)
+                    .cloned()
+                    .map(|i| i.try_into_value::<usize>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                let runtime_addr = args
+                    .args
+                    .get(2)
+                    .cloned()
+                    .map(|i| i.try_into_value::<Address>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                let inst_count = args
+                    .args
+                    .get(3)
+                    .cloned()
+                    .map(|i| i.try_into_value::<usize>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                let res = unsafe {
+                    mem::asm::disassemble_ex_count(
+                        address as *const _,
+                        size,
+                        runtime_addr,
+                        inst_count,
+                    )
+                };
+
+                let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+                let insts = res
+                    .into_iter()
+                    .map(|d| PyInst(d).to_pyobject(vm))
+                    .collect::<Vec<_>>();
+
+                insts.to_pyobject(vm)
+            }
+
+            _ => {
+                return Err(vm.new_runtime_error(format!(
+                    "expected 1,3,or 4 args, found {}",
+                    args.args.len()
+                )))
+            }
+        };
+
+        Ok(obj)
+    }
+
+    #[pyfunction]
+    fn disassemble_bytes(args: FuncArgs, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+        // Address
+        // Address, runtime_addr(Address)
+        // Address, runtime_addr(Address), count(usize)
+
+        let bytes = args
+            .args
+            .first()
+            .cloned()
+            .map(|s| s.try_into_value::<Vec<u8>>(vm))
+            .transpose()?
+            .ok_or_else(|| vm.new_runtime_error("address argument not found".to_owned()))?;
+
+        let obj = match args.args.len() {
+            1 => {
+                let res = mem::asm::disassemble_bytes(&bytes);
+                let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+                let res = res
+                    .into_iter()
+                    .map(|i| PyInst(i).to_pyobject(vm))
+                    .collect::<Vec<_>>();
+
+                res.to_pyobject(vm)
+            }
+
+            2 => {
+                let runtime_addr = args
+                    .args
+                    .get(1)
+                    .cloned()
+                    .map(|i| i.try_into_value::<usize>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                let res = mem::asm::disassemble_bytes_ex(&bytes, runtime_addr);
+                let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+                let res = res
+                    .into_iter()
+                    .map(|i| PyInst(i).to_pyobject(vm))
+                    .collect::<Vec<_>>();
+
+                res.to_pyobject(vm)
+            }
+
+            3 => {
+                let runtime_addr = args
+                    .args
+                    .get(1)
+                    .cloned()
+                    .map(|i| i.try_into_value::<Address>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                let inst_count = args
+                    .args
+                    .get(2)
+                    .cloned()
+                    .map(|i| i.try_into_value::<usize>(vm))
+                    .transpose()?
+                    .unwrap();
+
+                let res = mem::asm::disassemble_bytes_ex_count(&bytes, runtime_addr, inst_count);
+
+                let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
+                let insts = res
+                    .into_iter()
+                    .map(|d| PyInst(d).to_pyobject(vm))
+                    .collect::<Vec<_>>();
+
+                insts.to_pyobject(vm)
+            }
+
+            _ => {
+                return Err(vm.new_runtime_error(format!(
+                    "expected 1, 2 or 3 args, found {}",
+                    args.args.len()
+                )))
+            }
+        };
+
+        Ok(obj)
     }
 
     #[pyattr]
     #[pyclass(name = "Inst")]
-    #[derive(Debug, PyPayload)]
+    #[derive(Debug, Clone, PyPayload)]
     struct PyInst(Inst);
 
     #[pyclass]
