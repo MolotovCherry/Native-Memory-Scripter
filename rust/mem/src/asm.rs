@@ -65,11 +65,11 @@ impl Display for Inst {
         if let (Some(mnemonic), Some(op_str)) = (self.mnemonic.as_deref(), self.op_str.as_deref()) {
             write!(
                 f,
-                "{mnemonic} {op_str} @ {:?} -> {:x?}",
+                "{mnemonic} {op_str} @ {:?} -> {:02x?}",
                 self.address, self.bytes
             )
         } else {
-            write!(f, "?? ?? @ {:?} -> {:x?}", self.address, self.bytes)
+            write!(f, "?? ?? @ {:?} -> {:02x?}", self.address, self.bytes)
         }
     }
 }

@@ -183,7 +183,7 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     trace!(
         "jmp -> {to:?} used {} bytes spanning {from:?}-0x{:x}",
         jmp.len(),
-        from as usize + code_len
+        from as usize + (code_len.saturating_sub(1))
     );
 
     // remove memory protection
