@@ -146,7 +146,7 @@ impl Ret {
                 // - If api requires it, it must be correct length you specified to api
                 // - The lifetime of the python string object must be >= how long it will be used in C
                 Type::WStr(_) => {
-                    let bytes = val.bytes(vm)?.downcast_exact::<PyBytes>(vm).map_err(|_| {
+                    let bytes = val.bytes(vm)?.downcast::<PyBytes>().map_err(|_| {
                         vm.new_type_error("failed to convert to PyBytes".to_owned())
                     })?;
 
@@ -214,7 +214,7 @@ impl Ret {
                 // # Safety
                 // User asserts size is correct, and asserts their data is a valid T
                 Type::Struct(size) => {
-                    let bytes = val.bytes(vm)?.downcast_exact::<PyBytes>(vm).map_err(|_| {
+                    let bytes = val.bytes(vm)?.downcast::<PyBytes>().map_err(|_| {
                         vm.new_type_error("failed to convert to PyBytes".to_owned())
                     })?;
 

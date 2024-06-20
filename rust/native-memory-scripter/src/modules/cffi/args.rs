@@ -579,11 +579,10 @@ impl ArgMemory {
                 }
 
                 Type::Struct(size) => {
-                    let bytes = arg
-                        .clone()
-                        .bytes(vm)?
-                        .downcast_exact::<PyBytes>(vm)
-                        .map_err(|_| vm.new_type_error("failed to convert to bytes".to_owned()))?;
+                    let bytes =
+                        arg.clone().bytes(vm)?.downcast::<PyBytes>().map_err(|_| {
+                            vm.new_type_error("failed to convert to bytes".to_owned())
+                        })?;
 
                     if bytes.len() != size as usize {
                         return Err(vm.new_runtime_error(format!(
