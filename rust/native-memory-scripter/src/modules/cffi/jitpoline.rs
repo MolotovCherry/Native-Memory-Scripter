@@ -220,16 +220,14 @@ impl Jitpoline {
 
         for &arg in &self.args.0 {
             let arg = if arg.is_struct_ptr() {
-                let Type::Struct(size) = arg else {
-                    unsafe { unreachable_unchecked() }
-                };
+                let size = arg.layout_size();
 
                 let size = size
                     .max(8)
                     .checked_next_power_of_two()
                     .expect("align overflowed");
 
-                AbiParam::special(types::I64, ArgumentPurpose::StructArgument(size))
+                AbiParam::special(types::I64, ArgumentPurpose::StructArgument(size as _))
             } else {
                 AbiParam::new(arg.into())
             };
