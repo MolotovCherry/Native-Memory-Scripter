@@ -219,19 +219,7 @@ impl Jitpoline {
         }
 
         for &arg in &self.args.0 {
-            let arg = if arg.is_struct_ptr() {
-                let size = arg.layout_size();
-
-                let size = size
-                    .max(8)
-                    .checked_next_power_of_two()
-                    .expect("align overflowed");
-
-                AbiParam::special(types::I64, ArgumentPurpose::StructArgument(size as _))
-            } else {
-                AbiParam::new(arg.into())
-            };
-
+            let arg = AbiParam::new(arg.into());
             tp_sig_fn.params.push(arg);
         }
 

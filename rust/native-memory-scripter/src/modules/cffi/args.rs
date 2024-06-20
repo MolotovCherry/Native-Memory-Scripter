@@ -1,5 +1,5 @@
 use std::{
-    alloc::{self, Layout},
+    alloc::{self, Layout, LayoutError},
     ffi::CStr,
     ptr::NonNull,
     sync::Mutex,
@@ -16,11 +16,11 @@ use super::types::Type;
 use crate::utils::RawSendable;
 
 // Get the layout and offsets for arg list
-fn make_layout(args: &[Type]) -> Option<(Layout, Vec<usize>)> {
+fn make_layout(args: &[Type]) -> Result<Option<(Layout, Vec<usize>)>, LayoutError> {
     let args = args.iter().filter(|i| !i.is_void());
 
     if args.clone().count() == 0 {
-        return None;
+        return Ok(None);
     }
 
     let mut offsets = Vec::new();
@@ -33,18 +33,17 @@ fn make_layout(args: &[Type]) -> Option<(Layout, Vec<usize>)> {
 
         let align = {
             let mut size = size;
-            // struct ptr mem must be aligned to 8
+            // struct ptr mem must be aligned
             if field.is_struct_ptr() {
-                size = size.max(8);
+                size = size.max(std::mem::align_of::<i64>());
             }
 
             size.checked_next_power_of_two().expect("align overflowed")
         };
 
-        // SAFETY: align > 0 and power of two, size > 0
-        let new_layout = unsafe { Layout::from_size_align_unchecked(size, align) };
+        let new_layout = Layout::from_size_align(size, align)?;
 
-        let (new_layout, offset) = layout.extend(new_layout).ok()?;
+        let (new_layout, offset) = layout.extend(new_layout)?;
         layout = new_layout;
 
         trace!(?field, size, align, offset, "defining layout arg");
@@ -55,9 +54,9 @@ fn make_layout(args: &[Type]) -> Option<(Layout, Vec<usize>)> {
     let layout = layout.pad_to_align();
 
     if layout.size() > 0 {
-        Some((layout, offsets))
+        Ok(Some((layout, offsets)))
     } else {
-        None
+        Ok(None)
     }
 }
 
@@ -71,7 +70,7 @@ pub struct ArgLayout {
 
 impl ArgLayout {
     pub fn new(args: &[Type]) -> Option<Self> {
-        let (layout, offsets) = make_layout(args)?;
+        let (layout, offsets) = make_layout(args).expect("layout failed")?;
 
         Some(Self {
             size: layout.size() as _,
@@ -352,7 +351,7 @@ unsafe impl Send for ArgMemory {}
 
 impl ArgMemory {
     pub fn new(args: &[Type]) -> Self {
-        let Some((layout, offsets)) = make_layout(args) else {
+        let Some((layout, offsets)) = make_layout(args).expect("layout failed") else {
             return Self {
                 ptr: RawSendable(NonNull::dangling()),
                 layout: unsafe { Layout::from_size_align_unchecked(0, 1) },
@@ -394,7 +393,11 @@ impl ArgMemory {
     /// will lock since it's writing to mutable memory
     pub fn fill(&self, args: &[PyObjectRef], vm: &VirtualMachine) -> PyResult<()> {
         if args.len() != self.args.len() {
-            return Err(vm.new_runtime_error("incorrect number of args".to_owned()));
+            return Err(vm.new_runtime_error(format!(
+                "fn defined with {} args, but caller only provided {}",
+                self.args.len(),
+                args.len()
+            )));
         }
 
         if self.args.is_empty() {
