@@ -1,6 +1,6 @@
 # Function: disassemble
 
-Dissasemble instructions.
+Disassemble instructions.
 
 ### Parameters
 This function has multiple calling types.
