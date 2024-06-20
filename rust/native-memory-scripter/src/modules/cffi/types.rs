@@ -1,6 +1,8 @@
+use std::fmt;
+
 use cranelift::prelude::types::{self, Type as CType};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum Type {
     Void,
 
@@ -44,6 +46,33 @@ pub enum Type {
     Struct(u32),
 }
 
+impl fmt::Debug for Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Type::Void => f.write_str("Void"),
+            Type::F32(_) => f.write_str("F32"),
+            Type::F64(_) => f.write_str("F64"),
+            Type::U8(_) => f.write_str("U8"),
+            Type::U16(_) => f.write_str("U16"),
+            Type::U32(_) => f.write_str("U32"),
+            Type::U64(_) => f.write_str("U64"),
+            Type::U128(_) => f.write_str("U128"),
+            Type::I8(_) => f.write_str("I8"),
+            Type::I16(_) => f.write_str("I16"),
+            Type::I32(_) => f.write_str("I32"),
+            Type::I64(_) => f.write_str("I64"),
+            Type::I128(_) => f.write_str("I128"),
+            Type::Ptr(_) => f.write_str("Ptr"),
+            Type::Bool(_) => f.write_str("Bool"),
+            Type::CStr(_) => f.write_str("CStr"),
+            Type::WStr(_) => f.write_str("WStr"),
+            Type::Char(_) => f.write_str("Char"),
+            Type::WChar(_) => f.write_str("WChar"),
+            Type::Struct(f0) => f.debug_tuple("Struct").field(f0).finish(),
+        }
+    }
+}
+
 impl Type {
     #[inline]
     pub fn is_void(&self) -> bool {
@@ -56,12 +85,25 @@ impl Type {
         matches!(self, Self::Struct(_))
     }
 
-    // is this struct a ptr, not a regular value type?
+    /// is this struct a ptr?
+    /// note: fastcall
     #[inline]
-    pub fn is_struct_ptr(self) -> bool {
+    pub fn is_struct_indirect(self) -> bool {
         match self {
-            // size > 8 || not power of 2
+            // size > 8 or not power of 2 is always a ptr
             Self::Struct(size) => size > 8 || !size.is_power_of_two(),
+            _ => false,
+        }
+    }
+
+    // TODO: fix indirect val check for sysv
+    /// is this struct an sarg?
+    /// note: sysv
+    #[inline]
+    pub fn is_struct_indirect_val(self) -> bool {
+        match self {
+            // non-power of two is by sarg ptr
+            Self::Struct(size) => size < 8 && !size.is_power_of_two(),
             _ => false,
         }
     }

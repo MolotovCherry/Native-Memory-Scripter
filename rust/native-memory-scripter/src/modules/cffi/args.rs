@@ -34,7 +34,7 @@ fn make_layout(args: &[Type]) -> Result<Option<(Layout, Vec<usize>)>, LayoutErro
         let align = {
             let mut size = size;
             // struct ptr mem must be aligned
-            if field.is_struct_ptr() {
+            if field.is_struct_indirect() {
                 size = size.max(std::mem::align_of::<i64>());
             }
 

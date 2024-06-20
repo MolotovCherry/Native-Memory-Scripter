@@ -236,16 +236,32 @@ impl Jitpoline {
         tp_sig_fn.call_conv = self.conv;
 
         if !self.args.1.is_void() {
-            if self.args.1.is_struct_ptr() {
-                let arg = AbiParam::special(self.args.1.into(), ArgumentPurpose::StructReturn);
-                tp_sig_fn.params.push(arg);
-            } else {
-                tp_sig_fn.returns.push(AbiParam::new(self.args.1.into()));
+            match self.conv {
+                CallConv::SystemV if self.args.1.is_struct_indirect_val() => {
+                    // TODO: Fix sysv struct return
+                    let arg = AbiParam::special(self.args.1.into(), ArgumentPurpose::StructReturn);
+                    tp_sig_fn.params.push(arg);
+                }
+
+                CallConv::WindowsFastcall if self.args.1.is_struct_indirect() => {
+                    let arg = AbiParam::special(self.args.1.into(), ArgumentPurpose::StructReturn);
+                    tp_sig_fn.params.push(arg);
+                }
+
+                _ => tp_sig_fn.returns.push(AbiParam::new(self.args.1.into())),
             }
         }
 
         for &arg in &self.args.0 {
-            let arg = AbiParam::new(arg.into());
+            let arg = match self.conv {
+                CallConv::SystemV if arg.is_struct_indirect_val() => {
+                    // TODO: Fix sysv struct passing
+                    AbiParam::special(arg.into(), ArgumentPurpose::StructArgument(8))
+                }
+
+                _ => AbiParam::new(arg.into()),
+            };
+
             tp_sig_fn.params.push(arg);
         }
 
@@ -290,12 +306,12 @@ impl Jitpoline {
         let mut arg_values = Vec::new();
 
         // add return ptr as first arg if we're using sret
-        if self.args.1.is_struct_ptr() {
+        if self.args.1.is_struct_indirect() {
             arg_values.push(ret);
         }
 
         for (&ty, &offset) in self.args.0.iter().zip(self.arg_mem.offsets()) {
-            let value = if ty.is_struct_ptr() {
+            let value = if ty.is_struct_indirect() {
                 if offset == 0 {
                     arg_memory
                 } else {
@@ -314,7 +330,7 @@ impl Jitpoline {
         let call = bcx.ins().call(trampoline_fn, &arg_values);
 
         // only write to return memory if it's not void
-        if !self.args.1.is_void() && !self.args.1.is_struct_ptr() {
+        if !self.args.1.is_void() && !self.args.1.is_struct_indirect() {
             let res = bcx.inst_results(call)[0];
             bcx.ins().store(MemFlags::trusted(), res, ret, 0);
         }

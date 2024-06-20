@@ -138,16 +138,33 @@ pub fn jit_py(
     // the reason this is placed first is because sret MUST be placed first
     // tip: Jacob Lifshay + bjorn3
     if !args.1.is_void() {
-        if args.1.is_struct_ptr() {
-            let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
-            sig_fn.params.push(arg);
-        } else {
-            sig_fn.returns.push(AbiParam::new(args.1.into()));
+        match call_conv {
+            CallConv::SystemV if args.1.is_struct_indirect_val() => {
+                // TODO: Fix sysv struct return
+                let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
+                sig_fn.params.push(arg);
+            }
+
+            CallConv::WindowsFastcall if args.1.is_struct_indirect() => {
+                let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
+                sig_fn.params.push(arg);
+            }
+
+            _ => sig_fn.returns.push(AbiParam::new(args.1.into())),
         }
     }
 
     for arg in args.0.iter().copied() {
-        sig_fn.params.push(AbiParam::new(arg.into()));
+        let arg = match call_conv {
+            CallConv::SystemV if arg.is_struct_indirect_val() => {
+                // TODO: Fix sysv struct passing
+                AbiParam::special(arg.into(), ArgumentPurpose::StructArgument(8))
+            }
+
+            _ => AbiParam::new(arg.into()),
+        };
+
+        sig_fn.params.push(arg);
     }
 
     //
@@ -203,7 +220,7 @@ pub fn jit_py(
         let mut vals = bcx.block_params(ebb).to_vec();
 
         // this special return is an arg. let's place it in the return ptr instead
-        let ret_arg = if args.1.is_struct_ptr() {
+        let ret_arg = if args.1.is_struct_indirect() {
             Some(vals.remove(0))
         } else {
             None
@@ -259,7 +276,7 @@ pub fn jit_py(
 
         bcx.inst_results(call);
 
-        if args.1.is_void() || args.1.is_struct_ptr() {
+        if args.1.is_void() || args.1.is_struct_indirect() {
             // no data returned. in the case of structreturn, we already wrote to the ptr in the function body
             // return fn with same data as cb
             bcx.ins().return_(&[]);
