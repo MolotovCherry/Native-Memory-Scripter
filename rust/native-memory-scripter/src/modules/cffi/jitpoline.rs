@@ -57,7 +57,7 @@ pub struct Jitpoline {
     args: (Vec<Type>, Type),
     _jit: OnceLock<JITWrapper>,
     conv: CallConv,
-    jitpoline: OnceLock<extern "fastcall" fn(*const (), *mut ())>,
+    jitpoline: OnceLock<extern "fastcall" fn(*mut ())>,
 }
 
 unsafe impl Send for Jitpoline {}
@@ -134,13 +134,13 @@ impl Jitpoline {
         let ret = if let Type::Struct(size) = self.args.1 {
             let (mem, _) = unsafe { self.sret_mem.unwrap_unchecked() };
 
-            jitpoline(self.arg_mem.mem(), mem.cast());
+            jitpoline(mem.cast());
 
             let data = unsafe { mem::memory::read_bytes(mem.cast(), size as _) };
             data.to_pyobject(vm)
         } else {
             let mut ret = MaybeUninit::<Ret>::uninit();
-            jitpoline(self.arg_mem.mem(), ret.as_mut_ptr().cast());
+            jitpoline(ret.as_mut_ptr().cast());
 
             // we have nothing to write in the void case
             if self.args.1.is_void() {
@@ -189,7 +189,7 @@ impl Jitpoline {
     }
 
     /// Compile the jit trampoline wrapper
-    fn compile(&self) -> PyResult<extern "fastcall" fn(*const (), *mut ())> {
+    fn compile(&self) -> PyResult<extern "fastcall" fn(*mut ())> {
         let span = trace_span!("jitpoline");
         let _guard = span.enter();
 
@@ -263,8 +263,7 @@ impl Jitpoline {
         let mut sig_fn = module.make_signature();
         sig_fn.call_conv = CallConv::WindowsFastcall;
 
-        // raw args - arg_mem, ret
-        sig_fn.params.push(AbiParam::new(types::I64));
+        // raw args - ret
         sig_fn.params.push(AbiParam::new(types::I64));
 
         let func = module
@@ -286,8 +285,7 @@ impl Jitpoline {
         bcx.switch_to_block(ebb);
         let params = bcx.block_params(ebb);
 
-        let arg_memory = params[0];
-        let ret = params[1];
+        let ret = params[0];
 
         let mut arg_values = Vec::new();
 
@@ -296,17 +294,20 @@ impl Jitpoline {
             arg_values.push(ret);
         }
 
+        // base arg_mem address
+        let arg_mem = bcx.ins().iconst(types::I64, self.arg_mem.mem() as i64);
+
         for (&ty, &offset) in self.args.0.iter().zip(self.arg_mem.offsets()) {
             let value = if ty.is_struct_indirect() {
                 if offset == 0 {
-                    arg_memory
+                    arg_mem
                 } else {
-                    let offset = bcx.ins().iconst(types::I64, offset as i64);
-                    bcx.ins().iadd(arg_memory, offset)
+                    let arg_mem = (self.arg_mem.mem() as usize) + offset;
+                    bcx.ins().iconst(types::I64, arg_mem as i64)
                 }
             } else {
                 bcx.ins()
-                    .load(ty.into(), MemFlags::trusted(), arg_memory, offset as i32)
+                    .load(ty.into(), MemFlags::trusted(), arg_mem, offset as i32)
             };
 
             arg_values.push(value);
@@ -338,9 +339,7 @@ impl Jitpoline {
 
         // Get a raw pointer to the generated code.
         let code = module.get_finalized_function(func);
-        let _fn = unsafe {
-            std::mem::transmute::<*const u8, extern "fastcall" fn(*const (), *mut ())>(code)
-        };
+        let _fn = unsafe { std::mem::transmute::<*const u8, extern "fastcall" fn(*mut ())>(code) };
 
         info!("defined {jitpoline_name}() ({code:?}) -> {tramp_name}()");
 
