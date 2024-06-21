@@ -37,13 +37,11 @@ rustpython-vm = { git = "https://github.com/MolotovCherry/RustPython", branch = 
 walkdir = "2.5.0"
 mem = { path = "../mem" }
 konst = { version = "0.3.9", features = ["parsing"] }
-# todo: after 0.108.1 (0.109+), cranelift can go off of git.
 # to run a JIT for creating native function wrappers over python functions
-cranelift = { git = "https://github.com/bytecodealliance/wasmtime", rev = "9f695788a92dc495fb80075d014da66a8a1da728" }
-# workaround for jitmodule not being send for now
-cranelift-jit = { git = "https://github.com/bytecodealliance/wasmtime", rev = "9f695788a92dc495fb80075d014da66a8a1da728" }
-cranelift-module = { git = "https://github.com/bytecodealliance/wasmtime", rev = "9f695788a92dc495fb80075d014da66a8a1da728" }
-cranelift-native = { git = "https://github.com/bytecodealliance/wasmtime", rev = "9f695788a92dc495fb80075d014da66a8a1da728" }
+cranelift = "0.109.0"
+cranelift-jit = "0.109.0"
+cranelift-module = "0.109.0"
+cranelift-native = "0.109.0"
 
 # docs can be found here. different api functions require adding the relevant features
 # https://microsoft.github.io/windows-docs-rs/doc/windows/index.html
