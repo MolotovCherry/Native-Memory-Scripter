@@ -11,8 +11,6 @@ This is the default.
 
 ### Stdcall
 
-### SystemV
-
 ## Example
 
 ~~~admonish example title=""

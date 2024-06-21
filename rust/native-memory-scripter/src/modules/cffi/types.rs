@@ -96,18 +96,6 @@ impl Type {
         }
     }
 
-    // TODO: fix indirect val check for sysv
-    /// is this struct an sarg?
-    /// note: sysv
-    #[inline]
-    pub fn is_struct_indirect_val(self) -> bool {
-        match self {
-            // non-power of two is by sarg ptr
-            Self::Struct(size) => size < 8 && !size.is_power_of_two(),
-            _ => false,
-        }
-    }
-
     pub fn layout_size(self) -> usize {
         match self {
             Type::Void => 0,

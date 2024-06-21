@@ -237,12 +237,6 @@ impl Jitpoline {
 
         if !self.args.1.is_void() {
             match self.conv {
-                CallConv::SystemV if self.args.1.is_struct_indirect_val() => {
-                    // TODO: Fix sysv struct return
-                    let arg = AbiParam::special(self.args.1.into(), ArgumentPurpose::StructReturn);
-                    tp_sig_fn.params.push(arg);
-                }
-
                 CallConv::WindowsFastcall if self.args.1.is_struct_indirect() => {
                     let arg = AbiParam::special(self.args.1.into(), ArgumentPurpose::StructReturn);
                     tp_sig_fn.params.push(arg);
@@ -253,15 +247,7 @@ impl Jitpoline {
         }
 
         for &arg in &self.args.0 {
-            let arg = match self.conv {
-                CallConv::SystemV if arg.is_struct_indirect_val() => {
-                    // TODO: Fix sysv struct passing
-                    AbiParam::special(arg.into(), ArgumentPurpose::StructArgument(8))
-                }
-
-                _ => AbiParam::new(arg.into()),
-            };
-
+            let arg = AbiParam::new(arg.into());
             tp_sig_fn.params.push(arg);
         }
 

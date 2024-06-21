@@ -139,12 +139,6 @@ pub fn jit_py(
     // tip: Jacob Lifshay + bjorn3
     if !args.1.is_void() {
         match call_conv {
-            CallConv::SystemV if args.1.is_struct_indirect_val() => {
-                // TODO: Fix sysv struct return
-                let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
-                sig_fn.params.push(arg);
-            }
-
             CallConv::WindowsFastcall if args.1.is_struct_indirect() => {
                 let arg = AbiParam::special(args.1.into(), ArgumentPurpose::StructReturn);
                 sig_fn.params.push(arg);
@@ -155,15 +149,7 @@ pub fn jit_py(
     }
 
     for arg in args.0.iter().copied() {
-        let arg = match call_conv {
-            CallConv::SystemV if arg.is_struct_indirect_val() => {
-                // TODO: Fix sysv struct passing
-                AbiParam::special(arg.into(), ArgumentPurpose::StructArgument(8))
-            }
-
-            _ => AbiParam::new(arg.into()),
-        };
-
+        let arg = AbiParam::new(arg.into());
         sig_fn.params.push(arg);
     }
 

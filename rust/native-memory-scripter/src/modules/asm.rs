@@ -178,7 +178,7 @@ pub mod asm {
 
                 _ => {
                     return Err(vm.new_runtime_error(format!(
-                        "expected 1,3,or 4 args, found {}",
+                        "expected 1, 3, or 4 args, found {}",
                         args.args.len()
                     )))
                 }
