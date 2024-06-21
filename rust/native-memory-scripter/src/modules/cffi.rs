@@ -233,6 +233,12 @@ pub mod cffi {
             lock.as_ref().unwrap().trampoline_size()
         }
 
+        #[pygetset]
+        pub fn jitpoline_address(&self) -> Option<Address> {
+            let lock = self.jitpoline.lock().unwrap();
+            lock.as_ref().and_then(|f| f.jitpoline_address())
+        }
+
         #[pymethod]
         fn hook(&self, from: PyObjectRef, vm: &VirtualMachine) -> PyResult<bool> {
             let mut lock = self.jitpoline.lock().unwrap();

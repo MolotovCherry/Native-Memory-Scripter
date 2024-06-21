@@ -188,6 +188,10 @@ impl Jitpoline {
         self.hook.trampoline_size()
     }
 
+    pub fn jitpoline_address(&self) -> Option<Address> {
+        self.jitpoline.get().map(|&f| f as Address)
+    }
+
     /// Compile the jit trampoline wrapper
     fn compile(&self) -> PyResult<extern "fastcall" fn(*mut ())> {
         let span = trace_span!("jitpoline");

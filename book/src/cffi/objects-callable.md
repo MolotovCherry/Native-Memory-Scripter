@@ -16,10 +16,19 @@ The allocated callback code and trampoline code will automatically be freed when
 ## Properties
 
 #### address: int
-The address of the callback function.
+The address of the jitted callback function (the code that is a stand-in replacement of a native function and calls your python callback).
 
 #### code_size: int
-The size of the callback function in bytes.
+The size of the jitted callback function in bytes.
+
+#### trampoline_address:
+The address of the underlying trampoline (the trampoline fn that the jitpoline calls).
+
+#### trampoline_size
+The size of the underlying trampoline.
+
+#### jitpoline_address
+The address of the jitpoline (the jitted trampoline that `__call__` calls)
 
 ## Magic
 This object implements `__call__()`. You may call this object with your args and it will call the trampoline.
