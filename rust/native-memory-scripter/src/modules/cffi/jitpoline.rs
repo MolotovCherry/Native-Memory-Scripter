@@ -1,5 +1,6 @@
 use std::{
     alloc::{self, Layout},
+    cell::OnceCell,
     hint::unreachable_unchecked,
     mem::MaybeUninit,
     sync::OnceLock,
@@ -299,19 +300,22 @@ impl Jitpoline {
         }
 
         // base arg_mem address
-        let arg_mem = bcx.ins().iconst(types::I64, self.arg_mem.mem() as i64);
+        let arg_mem = OnceCell::new();
 
         for (&ty, &offset) in self.args.0.iter().zip(self.arg_mem.offsets()) {
             let value = if ty.is_struct_indirect() {
                 if offset == 0 {
-                    arg_mem
+                    *arg_mem.get_or_init(|| bcx.ins().iconst(types::I64, self.arg_mem.mem() as i64))
                 } else {
                     let arg_mem = (self.arg_mem.mem() as usize) + offset;
                     bcx.ins().iconst(types::I64, arg_mem as i64)
                 }
             } else {
+                let mem = *arg_mem
+                    .get_or_init(|| bcx.ins().iconst(types::I64, self.arg_mem.mem() as i64));
+
                 bcx.ins()
-                    .load(ty.into(), MemFlags::trusted(), arg_mem, offset as i32)
+                    .load(ty.into(), MemFlags::trusted(), mem, offset as i32)
             };
 
             arg_values.push(value);
