@@ -22,13 +22,13 @@ The address of the jitted callback function (the code that is a stand-in replace
 The size of the jitted callback function in bytes.
 
 #### trampoline_address:
-The address of the underlying trampoline (the trampoline fn that the jitpoline calls).
+The address of the [underlying trampoline](../hook/objects-trampoline.md) (the trampoline fn that the jitpoline calls).
 
 #### trampoline_size
-The size of the underlying trampoline.
+The size of the [underlying trampoline](../hook/objects-trampoline.md).
 
 #### jitpoline_address
-The address of the jitpoline (the jitted trampoline that `__call__` calls)
+The address of the jitpoline (the jitted trampoline that `__call__` calls).
 
 ## Magic
 This object implements `__call__()`. You may call this object with your args and it will call the trampoline.
