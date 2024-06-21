@@ -69,7 +69,7 @@ Python type: `boolean`
 #### Struct(size: int)
 Python type: `bytes`
 
-You can use this type in arg or return position to indicate receiving or returning a struct by value.
+This is a by-value struct (not a ptr to a struct). You can use this type in arg or return position to indicate receiving or returning a struct by value.
 
 ```admonish danger title=""
 The size must be correct or it'll be ub.
