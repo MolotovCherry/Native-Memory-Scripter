@@ -33,9 +33,10 @@ fn make_layout(args: &[Type]) -> Result<Option<(Layout, Vec<usize>)>, LayoutErro
 
         let align = {
             let mut size = size;
-            // struct ptr mem must be aligned
+            // struct types must be 16 byte aligned according to abi
+            // https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170#parameter-passing
             if field.is_struct_indirect() {
-                size = size.max(std::mem::align_of::<i64>());
+                size = size.max(16);
             }
 
             size.checked_next_power_of_two().expect("align overflowed")
