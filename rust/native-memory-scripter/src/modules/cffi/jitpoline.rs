@@ -135,13 +135,18 @@ impl Jitpoline {
         let ret = if let Type::Struct(size) = self.args.1 {
             let (mem, _) = unsafe { self.sret_mem.unwrap_unchecked() };
 
+            drop(_guard);
             jitpoline(mem.cast());
+            _guard = span.enter();
 
             let data = unsafe { mem::memory::read_bytes(mem.cast(), size as _) };
             data.to_pyobject(vm)
         } else {
             let mut ret = MaybeUninit::<Ret>::uninit();
+
+            drop(_guard);
             jitpoline(ret.as_mut_ptr().cast());
+            _guard = span.enter();
 
             // we have nothing to write in the void case
             if self.args.1.is_void() {

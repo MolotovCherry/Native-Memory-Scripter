@@ -1,5 +1,5 @@
 use rustpython_vm::function::FuncArgs;
-use tracing::error;
+use tracing::{error, trace_span};
 
 use crate::modules::cffi::ret::Ret;
 
@@ -12,6 +12,9 @@ pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: *mut Ret) {
     // ret:struct: ptr, write struct data to it
 
     data.vm.run(|vm| {
+        let span = trace_span!("__jit_cb");
+        let mut _guard = span.enter();
+
         let mut py_args = FuncArgs::default();
 
         if !args.is_null() {
@@ -23,7 +26,11 @@ pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: *mut Ret) {
             py_args.args.extend(args);
         }
 
-        match data.callable.call_with_args(py_args, vm) {
+        drop(_guard);
+        let call = data.callable.call_with_args(py_args, vm);
+        _guard = span.enter();
+
+        match call {
             Ok(obj) => {
                 let res = Ret::write_ret(obj, data.params.1, ret, vm);
 
