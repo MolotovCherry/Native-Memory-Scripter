@@ -32,7 +32,7 @@ Python type: `str`
 #### CStr
 Python type: `str`
 
-This must be null terminated
+When received as a [callback](../cffi/objects-callable.md), is a python string without null terminator. When used as a [nativecall](../cffi/objects-nativecall.md) argument and [callback](../cffi/objects-callable.md) return, you MUST include a null terminator in the string.
 
 #### WStr
 Argument type: `int` (pointer to address)

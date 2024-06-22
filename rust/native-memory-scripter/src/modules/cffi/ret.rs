@@ -44,6 +44,7 @@ impl Ret {
         ret: *mut Ret,
         vm: &VirtualMachine,
     ) -> PyResult<()> {
+        #[rustfmt::skip]
         let data =
             match ty {
                 Type::Void => {
@@ -127,10 +128,23 @@ impl Ret {
                 // - It must be null terminated
                 // - The lifetime of the python string object must be >= how long it will be used in C
                 Type::CStr(_) => {
-                    let a = val.str(vm)?;
+                    let pystr = val.str(vm)?;
 
-                    Ret {
-                        ptr: a.as_str().as_ptr() as usize,
+                    let pystr = pystr.as_str();
+
+                    if !pystr.ends_with('\0') {
+                        // return empty string with null byte.. At least it's safer than UB
+                        warn!("returned cstr does not end with null byte; this will cause UB, so empty cstr returned instead");
+
+                        let null = "\0";
+
+                        Ret {
+                            ptr: null.as_ptr() as _,
+                        }
+                    } else {
+                        let ptr = pystr.as_ptr() as usize;
+
+                        Ret { ptr }
                     }
                 }
 
@@ -272,7 +286,7 @@ impl Ret {
     }
 
     pub fn write_default_ret(ty: Type, ret: *mut Ret) {
-        warn!("python cb failed to execute. default return was triggered to return *something*. this is a bug in your code and is causing unintended results or ub. it should be fixed asap. please ensure you have exception handling code and a reasonable return value for every possible exception that could happen. uncaught exceptions are not allowed in the callback");
+        warn!("python cb failed. default return was triggered. this is a bug in your code and is causing unintended results or ub. it should be fixed asap. please ensure you have exception handling code and a reasonable return value for every possible exception that could happen. uncaught exceptions are not allowed");
 
         let data = match ty {
             Type::Void => return,
@@ -292,8 +306,15 @@ impl Ret {
             // Warning: null ptr return!
             Type::Ptr(_) => Ret { ptr: 0 },
             Type::Bool(_) => Ret { bool: false },
-            // Warning: null ptr return!
-            Type::CStr(_) => Ret { ptr: 0 },
+            // Warning: empty string return
+            Type::CStr(_) => {
+                // we can actually avoid UB here
+                let null = "\0";
+
+                Ret {
+                    ptr: null.as_ptr() as _,
+                }
+            }
             // Warning: null ptr return!
             Type::WStr(_) => Ret { ptr: 0 },
             Type::Char(_) => Ret { char: 0 },
@@ -310,7 +331,7 @@ impl Ret {
 
                     8 => unsafe { *ret = Ret { i64: 0 } },
 
-                    // it's a ptr!
+                    // Warning: zeroed struct data. probably UB
                     _ => unsafe {
                         mem::memory::set(ret.cast(), 0, size as usize);
                     },
@@ -320,7 +341,7 @@ impl Ret {
             }
         };
 
-        // SAFETY: There is none. User must ensure they always return valid values. This may or may not cause UB
+        // SAFETY: There is none. This is almost certainly UB, but we're doing it anyways 🫡
         unsafe {
             *ret = data;
         }
@@ -349,8 +370,13 @@ impl Ret {
             // null terminated
             Type::CStr(_) => {
                 let ptr = self.ptr as *const i8;
+
+                if ptr.is_null() {
+                    return None::<()>.to_pyobject(vm);
+                }
+
                 let data = unsafe { ffi::CStr::from_ptr(ptr) };
-                let string = data.to_string_lossy().to_string();
+                let string = data.to_string_lossy();
                 string.to_pyobject(vm)
             }
 

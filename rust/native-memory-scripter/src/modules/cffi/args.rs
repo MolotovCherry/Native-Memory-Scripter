@@ -10,7 +10,7 @@ use rustpython_vm::{
     convert::ToPyObject,
     prelude::{PyObjectRef, PyResult, VirtualMachine},
 };
-use tracing::trace;
+use tracing::{trace, warn};
 
 use super::types::Type;
 use crate::utils::RawSendable;
@@ -32,14 +32,14 @@ fn make_layout(args: &[Type]) -> Result<Option<(Layout, Vec<usize>)>, LayoutErro
         assert!(size > 0, "size returned 0. this should not happen");
 
         let align = {
-            let mut size = size;
+            let mut align = size;
             // struct types must be 16 byte aligned according to abi
             // https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170#parameter-passing
             if field.is_struct_indirect() {
-                size = size.max(16);
+                align = align.max(16);
             }
 
-            size.checked_next_power_of_two().expect("align overflowed")
+            align.checked_next_power_of_two().expect("align overflowed")
         };
 
         let mut new_layout = Layout::from_size_align(size, align)?;
@@ -198,7 +198,7 @@ impl<'a> Iterator for ArgLayoutIterator<'a> {
             }
 
             Type::CStr(_) => {
-                let ptr = unsafe { *ptr.cast::<*const u8>() };
+                let ptr = unsafe { *ptr.cast::<*const i8>() };
                 Arg::CStr(ptr)
             }
 
@@ -280,7 +280,7 @@ pub enum Arg {
 
     // Strings
     // c str (null terminated) - r64
-    CStr(*const u8),
+    CStr(*const i8),
     // utf16 str - r64 (length unknown)
     WStr(*const u16),
 
@@ -331,9 +331,13 @@ impl Arg {
 
             Arg::CStr(ptr) => {
                 // SAFETY: Signature creator asserts arg is correct
-                let _cstr = unsafe { CStr::from_ptr(ptr.cast()) };
-                let _str = _cstr.to_string_lossy();
-                _str.to_pyobject(vm)
+                if ptr.is_null() {
+                    None::<()>.to_pyobject(vm)
+                } else {
+                    let _cstr = unsafe { CStr::from_ptr(ptr) };
+                    let _str = _cstr.to_string_lossy();
+                    _str.to_pyobject(vm)
+                }
             }
         }
     }
@@ -513,11 +517,34 @@ impl ArgMemory {
                     }
                 }
 
-                Type::Ptr(_) | Type::CStr(_) | Type::WStr(_) => {
+                Type::Ptr(_) => {
                     let p = arg.try_to_value::<usize>(vm)?;
 
                     unsafe {
                         self.write(p, offset);
+                    }
+                }
+
+                Type::WStr(_) => unimplemented!(),
+
+                Type::CStr(_) => {
+                    let string = arg.str(vm)?;
+                    let pystr = string.as_str();
+
+                    if !pystr.ends_with('\0') {
+                        // return empty string with null byte.. At least it's safer than UB
+                        warn!("cstr argument does not end with null byte; this will cause UB, so empty cstr returned instead");
+
+                        let null = "\0";
+                        unsafe {
+                            self.write(null.as_ptr(), offset);
+                        }
+                    } else {
+                        let ptr = pystr.as_ptr();
+
+                        unsafe {
+                            self.write(ptr, offset);
+                        }
                     }
                 }
 
