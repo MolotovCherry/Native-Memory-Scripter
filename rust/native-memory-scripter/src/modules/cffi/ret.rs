@@ -208,9 +208,9 @@ impl Ret {
                 Type::WChar(_) => {
                     let c = val.try_into_value::<String>(vm)?;
 
-                    if c.len() <= 1 {
+                    if c.len() > 2 || c.is_empty() {
                         return Err(vm.new_runtime_error(format!(
-                            "WChar expected byte len of <= 2, instead got {}",
+                            "WChar expected byte len of 0 < x <= 2, instead got {}",
                             c.len()
                         )));
                     }
