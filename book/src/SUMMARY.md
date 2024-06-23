@@ -31,6 +31,7 @@
     - [objects](./cffi/objects.md)
         - [Callable](./cffi/objects-callable.md)
         - [NativeCall](./cffi/objects-nativecall.md)
+        - [WStr](./cffi/objects-wstr.md)
 
 - [hook](./hook/hook.md)
     - [hook](./hook/hook_.md)

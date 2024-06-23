@@ -8,7 +8,7 @@ use rustpython_vm::{
 };
 use tracing::warn;
 
-use super::types::Type;
+use super::{cffi::WStr, types::Type};
 
 #[allow(improper_ctypes_definitions)]
 #[repr(C)]
@@ -150,22 +150,19 @@ impl Ret {
 
                 // User returns a utf16 str.
                 //
-                // ```py
-                // s = "Hello world!"
-                // utf16_str = s.encode('utf-16')
-                // ```
-                //
                 // SAFETY:
                 // - If api requires it, it must be null terminated
                 // - If api requires it, it must be correct length you specified to api
                 // - The lifetime of the python string object must be >= how long it will be used in C
                 Type::WStr(_) => {
-                    let bytes = val.bytes(vm)?.downcast::<PyBytes>().map_err(|_| {
-                        vm.new_type_error("failed to convert to PyBytes".to_owned())
+                    let wstr = val.downcast_ref::<WStr>().ok_or_else(|| {
+                        vm.new_type_error("failed to convert to WStr".to_owned())
                     })?;
 
+                    let ptr = wstr.as_ptr();
+
                     Ret {
-                        ptr: bytes.as_bytes().as_ptr() as usize,
+                        ptr: ptr as usize,
                     }
                 }
 
@@ -306,6 +303,7 @@ impl Ret {
             // Warning: null ptr return!
             Type::Ptr(_) => Ret { ptr: 0 },
             Type::Bool(_) => Ret { bool: false },
+
             // Warning: empty string return
             Type::CStr(_) => {
                 // we can actually avoid UB here
@@ -315,8 +313,23 @@ impl Ret {
                     ptr: null.as_ptr() as _,
                 }
             }
-            // Warning: null ptr return!
-            Type::WStr(_) => Ret { ptr: 0 },
+
+            // Warning: terminator return?
+            Type::WStr(_) => {
+                // we have no idea whether this is null terminated or not
+                // but we'll return a null byte anyways to reduce possible UB
+
+                // this might or might not be UB depending on factors such as length and it not
+                // using null terminators
+
+                // we can attempt to avoid UB here
+                let null = 0u16;
+
+                Ret {
+                    ptr: &null as *const _ as _,
+                }
+            }
+
             Type::Char(_) => Ret { char: 0 },
             Type::WChar(_) => Ret { wchar: 0 },
 

@@ -13,7 +13,7 @@ use rustpython_vm::{
 use tracing::{trace, warn};
 
 use super::types::Type;
-use crate::utils::RawSendable;
+use crate::{modules::cffi::cffi::WStr, utils::RawSendable};
 
 // Get the layout and offsets for arg list
 fn make_layout(args: &[Type]) -> Result<Option<(Layout, Vec<usize>)>, LayoutError> {
@@ -525,7 +525,17 @@ impl ArgMemory {
                     }
                 }
 
-                Type::WStr(_) => unimplemented!(),
+                Type::WStr(_) => {
+                    let wstr = arg
+                        .downcast_ref::<WStr>()
+                        .ok_or_else(|| vm.new_type_error("failed to convert to WStr".to_owned()))?;
+
+                    let ptr = wstr.as_ptr();
+
+                    unsafe {
+                        self.write(ptr, offset);
+                    }
+                }
 
                 Type::CStr(_) => {
                     let string = arg.str(vm)?;

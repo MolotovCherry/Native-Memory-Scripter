@@ -493,4 +493,130 @@ pub mod cffi {
         #[pyattr]
         pub(super) const Stdcall: PyCallConv = PyCallConv(CallConv::WindowsFastcall);
     }
+
+    #[pyattr]
+    #[pyclass(name)]
+    #[derive(Debug, PyPayload)]
+    pub struct WStr(Vec<u16>);
+
+    impl Constructor for WStr {
+        type Args = FuncArgs;
+
+        fn py_new(
+            _cls: PyTypeRef,
+            mut args: Self::Args,
+            vm: &VirtualMachine,
+        ) -> PyResult<PyObjectRef> {
+            let with_null = args
+                .kwargs
+                .swap_remove("null")
+                .map(|p| p.try_to_bool(vm))
+                .transpose()?;
+
+            let len: Option<usize> = args
+                .kwargs
+                .swap_remove("len")
+                .map(|l| l.try_to_value(vm))
+                .transpose()?;
+
+            // first positional arg determines flavor of constructor
+            let obj = args.args.first().ok_or_else(|| {
+                vm.new_runtime_error("constructor requires 1 pos param, usize|str".to_owned())
+            })?;
+
+            if let Ok(address) = obj.try_to_value::<Address>(vm) {
+                let null = with_null.unwrap_or(false);
+
+                if !null && len.is_none() {
+                    return Err(vm.new_runtime_error(
+                        "null or len kwarg is required to get the wstr".to_owned(),
+                    ));
+                } else if null && len.is_some() {
+                    return Err(vm.new_runtime_error(
+                        "only use one of null or len kwarg, not both".to_owned(),
+                    ));
+                }
+
+                let lossy = args
+                    .kwargs
+                    .swap_remove("lossy")
+                    .map(|p| p.try_to_bool(vm))
+                    .transpose()?
+                    .unwrap_or(false);
+
+                let slice = if null {
+                    let mut ptr = address as *const u16;
+                    let mut offset = 0usize;
+                    while unsafe { *ptr } != 0 {
+                        unsafe {
+                            ptr = ptr.add(1);
+                        };
+
+                        offset += 1;
+                    }
+
+                    unsafe { std::slice::from_raw_parts(address as *const u16, offset) }
+                } else {
+                    let len = len.unwrap();
+
+                    unsafe { std::slice::from_raw_parts(address as *const u16, len) }
+                };
+
+                // verify this is a valid string - ignore check if it's lossy
+                if !lossy && String::from_utf16(slice).is_err() {
+                    return Err(vm.new_runtime_error("this is not a valid utf16 string".to_owned()));
+                }
+
+                let zelf = Self(slice.to_vec());
+
+                Ok(zelf.to_pyobject(vm))
+            } else if let Ok(string) = obj.try_to_value::<String>(vm) {
+                let mut data = string.encode_utf16().collect::<Vec<_>>();
+
+                if with_null.unwrap_or(false) {
+                    data.push(0);
+                }
+
+                let zelf = Self(data);
+
+                Ok(zelf.to_pyobject(vm))
+            } else {
+                Err(vm.new_runtime_error("constructor param must be usize|str".to_owned()))
+            }
+        }
+    }
+
+    #[pyclass(with(Constructor))]
+    impl WStr {
+        /// The byte size of the string
+        #[pygetset]
+        fn size(&self) -> usize {
+            self.0.len() * 2
+        }
+
+        /// The address to the data buffer
+        #[pygetset]
+        fn address(&self) -> Address {
+            self.0.as_ptr() as _
+        }
+
+        #[pymethod(magic)]
+        fn repr(&self) -> String {
+            format!("WStr({})", self.as_str())
+        }
+
+        #[pymethod(magic)]
+        fn str(&self) -> String {
+            self.as_str()
+        }
+
+        /// The byte size of the string
+        fn as_str(&self) -> String {
+            String::from_utf16_lossy(&self.0)
+        }
+
+        pub fn as_ptr(&self) -> *const u16 {
+            self.0.as_ptr() as _
+        }
+    }
 }

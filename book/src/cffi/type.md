@@ -27,23 +27,22 @@ Python type: `int`
 #### I128
 
 ## Strings
-Python type: `str`
 
 #### CStr
 Python type: `str`
 
-When received as a [callback](../cffi/objects-callable.md), is a python string without null terminator. When used as a [nativecall](../cffi/objects-nativecall.md) argument and [callback](../cffi/objects-callable.md) return, you MUST include a null terminator in the string.
+When received as a [`Callback`](./objects-callable.md) argument or a [`NativeCall`](./objects-nativecall.md) return, it's a python string without null terminator. When used as a [`NativeCall`](./objects-nativecall.md) argument and [`Callback`](./objects-callable.md) return, you MUST include a null terminator in the string.
 
 #### WStr
-Argument type: `int` (pointer to address)
-Return type: `bytes`
+[`NativeCall`](./objects-nativecall.md) return type / [`Callback`](./objects-callable.md) argument: `int` (pointer to address)
 
-This may or may not be null terminated, depends on api requirements.
+[`NativeCall`](./objects-nativecall.md) argument / [`Callback`](./objects-callable.md) return type: [`WStr`](./objects-wstr.md)
 
- ```py
- s = "Hello world!"
- utf16_str = s.encode('utf-16')
- ```
+This may or may not be null terminated, depends on api requirements. Some functions require you to pass a length, sometimes it needs to be null terminated. This is up to you to manage according to the api.
+
+On a [`Callback`](./objects-callable.md), an argument of this type will be a ptr. On a [`NativeCall`](./objects-nativecall.md), a return of this type will be a ptr. In order to convert the ptr into a string you can use, see [`WStr`](./objects-wstr.md).
+
+To return a `WStr` from a [`Callback`](./objects-callable.md), or give a `WStr` argument to a [`NativeCall`](./objects-nativecall.md), use [`WStr`](./objects-wstr.md).
 
 ## Chars
 Python type: `str`

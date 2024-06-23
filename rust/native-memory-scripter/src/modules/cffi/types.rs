@@ -33,7 +33,7 @@ pub enum Type {
     // Strings
     // c str (null terminated) - i64
     CStr(CType),
-    // utf16 str (null terminated) - i64
+    // utf16 str - i64
     WStr(CType),
 
     // Characters
