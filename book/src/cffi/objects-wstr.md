@@ -4,7 +4,7 @@ Converts a [`WStr`](./type.md#wstr) python string to a wstr pointer, or a pointe
 
 ## Drop
 ```admonish danger title=""
-The pointer is invalidated if this object is deleted or gets reclaimed by gc.
+Memory is freed when this object is deleted or reclaimed by gc.
 ```
 
 ## Constructor
