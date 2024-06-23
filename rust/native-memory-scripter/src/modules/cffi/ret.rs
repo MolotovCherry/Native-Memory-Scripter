@@ -161,9 +161,7 @@ impl Ret {
 
                     let ptr = wstr.as_ptr();
 
-                    Ret {
-                        ptr: ptr as usize,
-                    }
+                    Ret { ptr: ptr as usize }
                 }
 
                 // User returns a str with a single character
@@ -240,24 +238,22 @@ impl Ret {
 
                     match size {
                         1 => unsafe {
-                            *ret = Ret {
-                                i8: bytes.as_ptr().cast::<i8>().read(),
-                            }
+                            *ret = Ret { i8: bytes.as_ptr().cast::<i8>().read() };
                         },
 
                         2 => unsafe {
                             let bytes = bytes.as_ptr().cast::<i16>().read_unaligned();
-                            *ret = Ret { i16: bytes }
+                            *ret = Ret { i16: bytes };
                         },
 
                         4 => unsafe {
                             let bytes = bytes.as_ptr().cast::<i32>().read_unaligned();
-                            *ret = Ret { i32: bytes }
+                            *ret = Ret { i32: bytes };
                         },
 
                         8 => unsafe {
                             let bytes = bytes.as_ptr().cast::<i64>().read_unaligned();
-                            *ret = Ret { i64: bytes }
+                            *ret = Ret { i64: bytes };
                         },
 
                         // it's a ptr!
