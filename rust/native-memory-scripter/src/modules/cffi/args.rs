@@ -570,15 +570,21 @@ impl ArgMemory {
                         return Err(vm.new_runtime_error("string cannot be empty".to_string()));
                     }
 
-                    let Some(char) = s.chars().next() else {
+                    let mut chars = s.chars();
+
+                    let Some(char) = chars.next() else {
                         return Err(vm.new_runtime_error("string has no char".to_string()));
                     };
+
+                    if chars.next().is_some() {
+                        return Err(vm.new_runtime_error("string is not a char".to_string()));
+                    }
 
                     let char = if char.len_utf8() == 1 {
                         char as u8
                     } else {
                         return Err(
-                            vm.new_overflow_error("string cannot be encoded into char".to_string())
+                            vm.new_overflow_error("string cannot be encoded into Char".to_string())
                         );
                     };
 
@@ -594,9 +600,15 @@ impl ArgMemory {
                         return Err(vm.new_runtime_error("string cannot be empty".to_string()));
                     }
 
-                    let Some(char) = s.chars().next() else {
+                    let mut chars = s.chars();
+
+                    let Some(char) = chars.next() else {
                         return Err(vm.new_runtime_error("string has no char".to_string()));
                     };
+
+                    if chars.next().is_some() {
+                        return Err(vm.new_runtime_error("string is not a char".to_string()));
+                    }
 
                     let wchar = if char.len_utf16() == 1 {
                         // encode_utf16 just does a cast for a single code unit,
@@ -604,7 +616,7 @@ impl ArgMemory {
                         char as u16
                     } else {
                         return Err(vm.new_overflow_error(
-                            "string cannot be encoded into single utf16 char".to_string(),
+                            "string cannot be encoded into WChar".to_string(),
                         ));
                     };
 

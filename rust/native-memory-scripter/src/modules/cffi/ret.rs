@@ -182,20 +182,27 @@ impl Ret {
                 Type::Char(_) => {
                     let c = val.try_into_value::<String>(vm)?;
 
-                    if c.len() != 1 {
-                        return Err(vm.new_runtime_error(format!(
-                            "Char expected byte len of 1, instead got {}",
-                            c.len()
-                        )));
+                    let mut chars = c.chars();
+
+                    let Some(next) = chars.next() else {
+                        return Err(vm.new_runtime_error(
+                            "string is empty".to_string(),
+                        ));
+                    };
+
+                    if chars.next().is_some() {
+                        return Err(vm.new_runtime_error(
+                            "string is not a Char".to_string(),
+                        ));
                     }
 
-                    let c = c
-                        .chars()
-                        .next()
-                        .map(|c| c.try_into().unwrap())
-                        .ok_or_else(|| vm.new_type_error("expected char".to_owned()))?;
+                    if next.len_utf8() > 1 {
+                        return Err(vm.new_overflow_error(
+                            "Char does not fit into a u8".to_string(),
+                        ));
+                    }
 
-                    Ret { char: c }
+                    Ret { char: next as u8 }
                 }
 
                 // User returns a str with a single character
@@ -208,20 +215,27 @@ impl Ret {
                 Type::WChar(_) => {
                     let c = val.try_into_value::<String>(vm)?;
 
-                    if c.len() > 2 || c.is_empty() {
-                        return Err(vm.new_runtime_error(format!(
-                            "WChar expected byte len of 0 < x <= 2, instead got {}",
-                            c.len()
-                        )));
+                    let mut chars = c.chars();
+
+                    let Some(next) = chars.next() else {
+                        return Err(vm.new_runtime_error(
+                            "string is empty".to_string(),
+                        ));
+                    };
+
+                    if chars.next().is_some() {
+                        return Err(vm.new_runtime_error(
+                            "string is not a WChar".to_string(),
+                        ));
                     }
 
-                    let c = c
-                        .chars()
-                        .next()
-                        .map(|c| c.try_into().unwrap())
-                        .ok_or_else(|| vm.new_type_error("expected wchar".to_owned()))?;
+                    if next.len_utf16() > 1 {
+                        return Err(vm.new_overflow_error(
+                            "WChar does not fit into a u16".to_string(),
+                        ));
+                    }
 
-                    Ret { wchar: c }
+                    Ret { wchar: next as u16 }
                 }
 
                 // User returns

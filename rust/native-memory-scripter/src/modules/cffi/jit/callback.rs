@@ -53,7 +53,7 @@ pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: *mut Ret) {
 }
 
 fn illegal(exc: PyRef<PyBaseException>, vm: &VirtualMachine) {
-    let msg = "uncaught exception occurred. this is a bug in your code. this is not allowed. you must handle all exceptions and return successfully. program will now crash.";
+    let msg = "there is a bug in your code. either there is an uncaught exception, or you violated an invariant (e.g. you returned a bool when you specified a CStr). you must gracefully handle all exceptions and return something. program will now crash.";
 
     let mut data = String::new();
 
