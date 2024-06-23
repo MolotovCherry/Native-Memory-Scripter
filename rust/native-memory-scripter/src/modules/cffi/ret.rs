@@ -1,7 +1,4 @@
-use std::{
-    alloc::{self, Layout},
-    ffi,
-};
+use std::{ffi, fmt};
 
 use rustpython_vm::{
     builtins::PyBytes,
@@ -12,11 +9,12 @@ use rustpython_vm::{
 use tracing::warn;
 
 use super::{cffi::WStr, types::Type};
-use crate::utils::RawSendable;
 
 #[allow(improper_ctypes_definitions)]
 #[repr(C)]
 pub union Ret {
+    pub void: (),
+
     pub f32: f32,
     pub f64: f64,
 
@@ -38,6 +36,12 @@ pub union Ret {
 
     pub char: u8,
     pub wchar: u16,
+}
+
+impl fmt::Debug for Ret {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Ret @ {self:p}")
+    }
 }
 
 impl Ret {
@@ -338,38 +342,15 @@ impl Ret {
 }
 
 #[derive(Debug)]
-pub struct RetMemory {
-    ptr: RawSendable<Ret>,
-    layout: Layout,
-}
+pub struct RetMemory(Box<Ret>);
 
 impl RetMemory {
     pub fn new() -> Self {
-        // Safe cause Ret's size is positive, and size and align are official functions
-        let layout = unsafe {
-            Layout::from_size_align_unchecked(
-                std::mem::size_of::<Ret>(),
-                std::mem::align_of::<Ret>(),
-            )
-        };
-
-        let memory = unsafe { alloc::alloc(layout) };
-
-        Self {
-            ptr: RawSendable::new(memory.cast()),
-            layout,
-        }
+        let data = Box::new(Ret { void: () });
+        Self(data)
     }
 
-    pub fn mem(&self) -> *mut Ret {
-        self.ptr.as_ptr()
-    }
-}
-
-impl Drop for RetMemory {
-    fn drop(&mut self) {
-        unsafe {
-            alloc::dealloc(self.ptr.as_ptr().cast(), self.layout);
-        }
+    pub fn mem(&mut self) -> *mut Ret {
+        &mut *self.0
     }
 }

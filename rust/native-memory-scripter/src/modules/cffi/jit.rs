@@ -184,7 +184,7 @@ impl Jit {
         // jit function
         //
 
-        let ret_mem = if !args.1.is_struct_indirect() {
+        let mut ret_mem = if !args.1.is_struct_indirect() {
             Some(RetMemory::new())
         } else {
             None
@@ -213,7 +213,7 @@ impl Jit {
             } else {
                 // regular return
                 bcx.ins()
-                    .iconst(types::I64, ret_mem.as_ref().unwrap().mem() as i64)
+                    .iconst(types::I64, ret_mem.as_mut().unwrap().mem() as i64)
             };
 
             // for struct
