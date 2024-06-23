@@ -13,7 +13,7 @@ pub mod iat {
     use rustpython_vm::{
         function::FuncArgs, prelude::*, pyclass, PyObjectRef, PyPayload, PyResult,
     };
-    use tracing::trace;
+    use tracing::{trace, trace_span};
 
     use crate::modules::{modules::modules::PyModule, Address};
 
@@ -151,6 +151,8 @@ pub mod iat {
 
     impl Drop for PyIATSymbol {
         fn drop(&mut self) {
+            let span = trace_span!("drop");
+            let _guard = span.enter();
             trace!(address = ?self.0.entry, "dropping IATSymbol");
         }
     }

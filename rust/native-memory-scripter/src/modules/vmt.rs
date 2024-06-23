@@ -10,7 +10,7 @@ pub mod vmt {
         builtins::PyTypeRef, pyclass, types::Constructor, PyObjectRef, PyPayload, PyResult,
         VirtualMachine,
     };
-    use tracing::trace;
+    use tracing::{trace, trace_span};
 
     use crate::modules::Address;
 
@@ -21,6 +21,8 @@ pub mod vmt {
 
     impl Drop for PyVTable {
         fn drop(&mut self) {
+            let span = trace_span!("drop");
+            let _guard = span.enter();
             trace!("dropping VTable");
         }
     }

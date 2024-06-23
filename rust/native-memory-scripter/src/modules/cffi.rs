@@ -25,7 +25,7 @@ pub mod cffi {
         types::{Callable, Constructor, Unconstructible},
         PyPayload,
     };
-    use tracing::trace;
+    use tracing::{trace, trace_span};
 
     use super::{
         jit::Jit,
@@ -46,6 +46,9 @@ pub mod cffi {
 
     impl Drop for NativeCall {
         fn drop(&mut self) {
+            let span = trace_span!("drop");
+            let _guard = span.enter();
+
             let address = self
                 .jitpoline
                 .jitpoline_address()
@@ -144,6 +147,8 @@ pub mod cffi {
 
     impl Drop for PyCallable {
         fn drop(&mut self) {
+            let span = trace_span!("drop");
+            let _guard = span.enter();
             trace!(address = ?self.address() as *const (), "dropping Callable");
         }
     }
@@ -367,6 +372,8 @@ pub mod cffi {
 
     impl Drop for VTableHook {
         fn drop(&mut self) {
+            let span = trace_span!("drop");
+            let _guard = span.enter();
             trace!(index = self.index(), "dropping VTableHook");
 
             let _ = unsafe { self.1.unhook(self.0) };
@@ -517,6 +524,8 @@ pub mod cffi {
 
     impl Drop for WStr {
         fn drop(&mut self) {
+            let span = trace_span!("drop");
+            let _guard = span.enter();
             trace!(data = self.as_str(), "dropping WStr");
         }
     }

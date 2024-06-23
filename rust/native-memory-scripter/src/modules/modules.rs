@@ -7,7 +7,7 @@ pub mod modules {
 
     use mem::modules::Module;
     use rustpython_vm::{pyclass, PyObjectRef, PyPayload, PyResult, VirtualMachine};
-    use tracing::trace;
+    use tracing::{trace, trace_span};
 
     /// Load a library into the process
     #[pyfunction]
@@ -58,6 +58,8 @@ pub mod modules {
 
     impl Drop for PyModule {
         fn drop(&mut self) {
+            let span = trace_span!("drop");
+            let _guard = span.enter();
             trace!(module = self.name(), "dropping Module");
         }
     }

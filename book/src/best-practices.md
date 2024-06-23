@@ -15,5 +15,5 @@ Objects that require allocation such as [`WStr`](./cffi/objects-wstr.md), [`Call
 
 Make sure that any allocated objects in Python stay alive during the duration you're using them. This is absolutely crucial.
 
-If you need to debug if something is dropping prematurely, turn on trace logs which will help you determine when drops are happening on any type that produces Drop side effects.
+If you need to debug if something is dropping prematurely, turning on trace logs which will help you determine when drops are happening.
 ```
