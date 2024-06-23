@@ -26,7 +26,7 @@ pub mod cffi {
     };
 
     use super::{
-        jit::{jit_py, DataWrapper},
+        jit::Jit,
         jitpoline::{Hook, Jitpoline},
         types::Type,
     };
@@ -120,15 +120,12 @@ pub mod cffi {
     #[allow(non_camel_case_types)]
     #[pyattr]
     #[pyclass(name = "Callable")]
-    #[derive(Debug, Clone, PyPayload)]
+    #[derive(Debug, PyPayload)]
     pub struct PyCallable {
-        address: *const u8,
-        code_size: u32,
-        jitpoline: Arc<Mutex<Option<Jitpoline>>>,
+        jit: Jit,
+        jitpoline: Mutex<Option<Jitpoline>>,
         params: (Vec<Type>, Type),
         call_conv: CallConv,
-        #[allow(clippy::type_complexity)]
-        _cb_mem: DataWrapper,
     }
 
     unsafe impl Send for PyCallable {}
@@ -177,15 +174,12 @@ pub mod cffi {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let (module, address, code_size) =
-                jit_py(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
+            let jit = Jit::new(&name, args.0, (&fn_args, ret), calling_conv, vm)?;
 
             let callable = PyCallable {
-                address,
-                code_size,
+                jit,
                 params: (fn_args, ret),
-                _cb_mem: module,
-                jitpoline: Arc::default(),
+                jitpoline: Mutex::default(),
                 call_conv: calling_conv,
             };
 
@@ -213,12 +207,12 @@ pub mod cffi {
     impl PyCallable {
         #[pygetset]
         pub fn address(&self) -> Address {
-            self.address as _
+            self.jit.address() as _
         }
 
         #[pygetset]
         fn code_size(&self) -> u32 {
-            self.code_size
+            self.jit.size()
         }
 
         #[pygetset]
@@ -257,7 +251,7 @@ pub mod cffi {
                 return Err(vm.new_type_error("only supported types are int and Symbol".to_owned()));
             };
 
-            let res = unsafe { mem::hook::hook(address as _, self.address) };
+            let res = unsafe { mem::hook::hook(address as _, self.jit.address()) };
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
             let hook = Hook::Jmp(trampoline);
@@ -278,7 +272,7 @@ pub mod cffi {
                 ));
             }
 
-            let res = unsafe { entry.hook(self.address.cast()) };
+            let res = unsafe { entry.hook(self.jit.address().cast()) };
             res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
 
             let hook = Hook::IAT((**entry).clone());
@@ -304,7 +298,7 @@ pub mod cffi {
                 ));
             }
 
-            let res = unsafe { vtable.hook(index, self.address as _) };
+            let res = unsafe { vtable.hook(index, self.jit.address().cast()) };
             res.map_err(|e| vm.new_runtime_error(e.to_string()))?;
 
             let hook = Hook::Vmt(VTableHook(index, vtable));

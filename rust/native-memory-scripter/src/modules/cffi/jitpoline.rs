@@ -19,7 +19,7 @@ use tracing::{info, trace, trace_span};
 use crate::modules::Address;
 
 use self::codegen::ir::ArgumentPurpose;
-use super::{args::ArgMemory, cffi::VTableHook, jit::JITWrapper, ret::Ret, types::Type};
+use super::{args::ArgMemory, cffi::VTableHook, jit::JitWrapper, ret::Ret, types::Type};
 
 #[derive(Debug)]
 pub enum Hook {
@@ -56,7 +56,7 @@ pub struct Jitpoline {
     arg_mem: ArgMemory,
     sret_mem: Option<(*mut u8, Layout)>,
     args: (Vec<Type>, Type),
-    _jit: OnceLock<JITWrapper>,
+    _jit: OnceLock<JitWrapper>,
     conv: CallConv,
     jitpoline: OnceLock<extern "fastcall" fn(*mut ())>,
 }
@@ -356,7 +356,7 @@ impl Jitpoline {
 
         info!("defined {jitpoline_name}() ({code:?}) -> {tramp_name}()");
 
-        _ = self._jit.set(JITWrapper::new(module));
+        _ = self._jit.set(JitWrapper::new(module));
 
         Ok(_fn)
     }
