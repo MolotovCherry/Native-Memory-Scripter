@@ -1,7 +1,6 @@
 use std::{
     alloc::{self, Layout, LayoutError},
     ffi::CStr,
-    ptr::NonNull,
     sync::Mutex,
 };
 
@@ -354,13 +353,11 @@ pub struct ArgMemory {
     is_alloc: bool,
 }
 
-unsafe impl Send for ArgMemory {}
-
 impl ArgMemory {
     pub fn new(args: &[Type]) -> Self {
         let Some((layout, offsets)) = make_layout(args).expect("layout failed") else {
             return Self {
-                ptr: RawSendable(NonNull::dangling()),
+                ptr: RawSendable::dangling(),
                 layout: unsafe { Layout::from_size_align_unchecked(0, 1) },
                 offsets: Vec::new(),
                 args: args.to_vec(),
@@ -372,7 +369,7 @@ impl ArgMemory {
         let memory = unsafe { alloc::alloc(layout) };
 
         Self {
-            ptr: RawSendable(unsafe { NonNull::new_unchecked(memory) }),
+            ptr: RawSendable::new(memory),
             layout,
             offsets,
             args: args.to_vec(),

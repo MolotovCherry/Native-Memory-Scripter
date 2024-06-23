@@ -1,6 +1,6 @@
 mod callback;
 
-use std::{hint::unreachable_unchecked, mem, sync::OnceLock};
+use std::{hint::unreachable_unchecked, sync::OnceLock};
 
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
@@ -9,10 +9,10 @@ use rustpython_vm::prelude::*;
 use rustpython_vm::vm::thread::ThreadedVirtualMachine;
 use tracing::{info, trace_span};
 
-use crate::utils::RawSendable;
+use crate::{modules::cffi::ret::RetMemory, utils::RawSendable};
 
 use self::{callback::__jit_cb, codegen::ir::ArgumentPurpose};
-use super::{args::ArgLayout, ret::Ret, types::Type};
+use super::{args::ArgLayout, types::Type};
 
 pub struct JitWrapper(OnceLock<JITModule>);
 
@@ -75,6 +75,7 @@ pub struct Jit {
     _data: DataWrapper,
     address: *const u8,
     size: u32,
+    _ret_mem: Option<RetMemory>,
 }
 
 unsafe impl Send for Jit {}
@@ -183,6 +184,12 @@ impl Jit {
         // jit function
         //
 
+        let ret_mem = if !args.1.is_struct_indirect() {
+            Some(RetMemory::new())
+        } else {
+            None
+        };
+
         let func = module
             .declare_function(&name, Linkage::Local, &sig_fn)
             .unwrap();
@@ -201,9 +208,12 @@ impl Jit {
 
             // this special return is an arg. let's place it in the return ptr instead
             let ret_arg = if args.1.is_struct_indirect() {
-                Some(vals.remove(0))
+                // sret return
+                vals.remove(0)
             } else {
-                None
+                // regular return
+                bcx.ins()
+                    .iconst(types::I64, ret_mem.as_ref().unwrap().mem() as i64)
             };
 
             // for struct
@@ -231,16 +241,8 @@ impl Jit {
             let ret_addr = if args.1.is_void() {
                 // null ptr. we don't use it, so no need to do anything
                 bcx.ins().iconst(types::I64, 0)
-            } else if let Some(ret) = ret_arg {
-                ret
             } else {
-                let slot_data = StackSlotData::new(
-                    StackSlotKind::ExplicitSlot,
-                    mem::size_of::<Ret>() as u32,
-                mem::align_of::<Ret>() as u8,
-                );
-                let ret_slot = bcx.create_sized_stack_slot(slot_data);
-                bcx.ins().stack_addr(types::I64, ret_slot, 0)
+                ret_arg
             };
 
             let leaked_addr = bcx.ins().iconst(types::I64, leaked_data as *const _ as i64);
@@ -299,6 +301,7 @@ impl Jit {
             _data: data,
             address: code,
             size: code_size,
+            _ret_mem: ret_mem,
         };
 
         Ok(slf)

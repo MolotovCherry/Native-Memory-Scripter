@@ -1,4 +1,7 @@
-use std::ffi;
+use std::{
+    alloc::{self, Layout},
+    ffi,
+};
 
 use rustpython_vm::{
     builtins::PyBytes,
@@ -9,6 +12,7 @@ use rustpython_vm::{
 use tracing::warn;
 
 use super::{cffi::WStr, types::Type};
+use crate::utils::RawSendable;
 
 #[allow(improper_ctypes_definitions)]
 #[repr(C)]
@@ -329,6 +333,43 @@ impl Ret {
             // there's no reasonable way to let jitpoline write sret to Ret
             // so rather than handle here, we just pass in memory it can write to
             _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct RetMemory {
+    ptr: RawSendable<Ret>,
+    layout: Layout,
+}
+
+impl RetMemory {
+    pub fn new() -> Self {
+        // Safe cause Ret's size is positive, and size and align are official functions
+        let layout = unsafe {
+            Layout::from_size_align_unchecked(
+                std::mem::size_of::<Ret>(),
+                std::mem::align_of::<Ret>(),
+            )
+        };
+
+        let memory = unsafe { alloc::alloc(layout) };
+
+        Self {
+            ptr: RawSendable::new(memory.cast()),
+            layout,
+        }
+    }
+
+    pub fn mem(&self) -> *mut Ret {
+        self.ptr.as_ptr()
+    }
+}
+
+impl Drop for RetMemory {
+    fn drop(&mut self) {
+        unsafe {
+            alloc::dealloc(self.ptr.as_ptr().cast(), self.layout);
         }
     }
 }

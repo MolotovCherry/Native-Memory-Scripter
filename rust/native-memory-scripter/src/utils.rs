@@ -11,6 +11,10 @@ impl<T> RawSendable<T> {
     pub fn new(ptr: *mut T) -> Self {
         Self(NonNull::new(ptr).unwrap())
     }
+
+    pub fn dangling() -> Self {
+        Self(NonNull::dangling())
+    }
 }
 
 impl<T> Debug for RawSendable<T> {
