@@ -1,4 +1,6 @@
-use rustpython_vm::function::FuncArgs;
+use std::arch::asm;
+
+use rustpython_vm::{builtins::PyBaseException, function::FuncArgs, PyRef, VirtualMachine};
 use tracing::{error, trace_span};
 
 use crate::modules::cffi::ret::Ret;
@@ -34,36 +36,45 @@ pub extern "fastcall" fn __jit_cb(args: *const (), data: &Data, ret: *mut Ret) {
             Ok(obj) => {
                 let res = Ret::write_ret(obj, data.params.1, ret, vm);
 
+                // we have just entered a UB code path, so we have to crash.
                 if let Err(e) = res {
-                    Ret::write_default_ret(data.params.1, ret);
-
-                    let mut data = String::new();
-
-                    if let Err(e) = vm.write_exception(&mut data, &e) {
-                        error!("failed to write error: {e}");
-                        return;
-                    }
-
-                    let data = data.trim();
-                    error!("\n{data}");
+                    // this is an illegal code path, but we should at the very least print something
+                    illegal(e, vm);
                 }
             }
 
+            // we have just entered a UB code path, so we have to crash.
             Err(e) => {
-                // potential UB! but we have no choice, we at least return *something* to try to prevent UB
-                // SAFETY: Catch exceptions in your callback code!
-                Ret::write_default_ret(data.params.1, ret);
-
-                let mut data = String::new();
-
-                if let Err(e) = vm.write_exception(&mut data, &e) {
-                    error!("failed to write error: {e}");
-                    return;
-                }
-
-                let data = data.trim();
-                error!("\n{data}");
+                // this is an illegal code path, but we should at the very least print something
+                illegal(e, vm);
             }
         }
     });
+}
+
+fn illegal(exc: PyRef<PyBaseException>, vm: &VirtualMachine) {
+    let msg = "uncaught exception occurred. this is a bug in your code. this is not allowed. you must handle all exceptions and return successfully. program will now crash.";
+
+    let mut data = String::new();
+
+    if let Err(e) = vm.write_exception(&mut data, &exc) {
+        error!("failed to write error: {e}");
+
+        error!("{msg}");
+
+        // our code path is broken, just crash here
+        unsafe {
+            asm!("ud2");
+        }
+    }
+
+    let data = data.trim();
+    error!("\n{data}");
+
+    error!("{msg}");
+
+    // our code path is broken, just crash here
+    unsafe {
+        asm!("ud2");
+    }
 }

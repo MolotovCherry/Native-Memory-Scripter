@@ -38,7 +38,7 @@ Using the call function is unsafe 🐉
 
 You must use the correct arguments / return types, otherwise using the function will be ub.
 
-Additionally, your callback function MUST handle all possible exceptions. If it raises an uncaught exception, a default return value will be automatically provided. The default return value is always 0. So, a null pointer, incorrect data in the type, unexpected behavior, anything could happen! It is probably ub and should be fixed asap!
+Additionally, your callback function MUST gracefully handle all possible exceptions and return something. If it there's an uncaught exception, it is UB. But to protect the program, it will instantly crash instead. You should fix it asap.
 
 If you specified a return type, you MUST always return a value of that type, even if your function caught an exception.
 ```
