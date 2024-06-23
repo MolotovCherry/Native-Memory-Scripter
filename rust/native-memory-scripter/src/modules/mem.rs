@@ -10,6 +10,7 @@ pub mod mem {
         builtins::PyByteArray, convert::ToPyObject as _, prelude::*, pyclass, pymodule, PyPayload,
         VirtualMachine,
     };
+    use tracing::trace;
 
     use crate::modules::Address;
 
@@ -82,6 +83,12 @@ pub mod mem {
     #[pyclass(name = "Alloc")]
     #[derive(Debug, PyPayload)]
     struct PyAlloc(Alloc);
+
+    impl Drop for PyAlloc {
+        fn drop(&mut self) {
+            trace!(address = ?self.0.addr(), "dropping Alloc");
+        }
+    }
 
     #[pyclass]
     impl PyAlloc {

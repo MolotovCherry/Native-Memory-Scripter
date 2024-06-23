@@ -11,6 +11,7 @@ use rustpython_vm::pymodule;
 pub mod cffi {
     use std::{
         ops::Deref,
+        ptr,
         sync::{Arc, Mutex},
     };
 
@@ -24,6 +25,7 @@ pub mod cffi {
         types::{Callable, Constructor, Unconstructible},
         PyPayload,
     };
+    use tracing::trace;
 
     use super::{
         jit::Jit,
@@ -40,6 +42,18 @@ pub mod cffi {
     pub struct NativeCall {
         jitpoline: Arc<Jitpoline>,
         lock: Arc<Mutex<()>>,
+    }
+
+    impl Drop for NativeCall {
+        fn drop(&mut self) {
+            let address = self
+                .jitpoline
+                .jitpoline_address()
+                .map(|a| a as *const ())
+                .unwrap_or(ptr::null());
+
+            trace!(?address, "dropping NativeCall");
+        }
     }
 
     #[pyclass(with(Constructor, Callable))]
@@ -126,6 +140,12 @@ pub mod cffi {
         jitpoline: Mutex<Option<Jitpoline>>,
         params: (Vec<Type>, Type),
         call_conv: CallConv,
+    }
+
+    impl Drop for PyCallable {
+        fn drop(&mut self) {
+            trace!(address = ?self.address() as *const (), "dropping Callable");
+        }
     }
 
     unsafe impl Send for PyCallable {}
@@ -347,6 +367,8 @@ pub mod cffi {
 
     impl Drop for VTableHook {
         fn drop(&mut self) {
+            trace!(index = self.index(), "dropping VTableHook");
+
             let _ = unsafe { self.1.unhook(self.0) };
         }
     }
@@ -492,6 +514,12 @@ pub mod cffi {
     #[pyclass(name)]
     #[derive(Debug, PyPayload)]
     pub struct WStr(Vec<u16>);
+
+    impl Drop for WStr {
+        fn drop(&mut self) {
+            trace!(data = self.as_str(), "dropping WStr");
+        }
+    }
 
     impl Constructor for WStr {
         type Args = FuncArgs;

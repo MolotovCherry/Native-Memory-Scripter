@@ -11,7 +11,9 @@ Because of that, it is _very important_ to script against specific versions of n
 ```
 
 ```admonish warning title="Beware of Dropping" collapsible=true
-Objects that require allocation such as [`WStr`](./cffi/objects-wstr.md), [`Callable`](./cffi/objects-callable.md), and others, automatically free their memory when deleted or reclaimed by gc. This can serve as a source of hidden UB. Because of this, even allocated code can suddenly disappear during execution!
+Objects that require allocation such as [`WStr`](./cffi/objects-wstr.md), [`Callable`](./cffi/objects-callable.md), and others, automatically free their memory when deleted or reclaimed by gc. This can serve as a source of hidden UB since it can cause a UAF. Because of this, even allocated code can suddenly disappear during execution!
 
-Make sure that Python does not free any objects that are in use while you need them. This is absolutely crucial.
+Make sure that any allocated objects in Python stay alive during the duration you're using them. This is absolutely crucial.
+
+If you need to debug if something is dropping prematurely, turn on trace logs which will help you determine when drops are happening on any type that produces Drop side effects.
 ```

@@ -13,6 +13,7 @@ pub mod iat {
     use rustpython_vm::{
         function::FuncArgs, prelude::*, pyclass, PyObjectRef, PyPayload, PyResult,
     };
+    use tracing::trace;
 
     use crate::modules::{modules::modules::PyModule, Address};
 
@@ -147,6 +148,12 @@ pub mod iat {
     #[pyclass(name = "IATSymbol")]
     #[derive(Debug, PyPayload)]
     pub struct PyIATSymbol(IATSymbol);
+
+    impl Drop for PyIATSymbol {
+        fn drop(&mut self) {
+            trace!(address = ?self.0.entry, "dropping IATSymbol");
+        }
+    }
 
     impl Deref for PyIATSymbol {
         type Target = IATSymbol;

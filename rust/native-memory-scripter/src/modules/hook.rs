@@ -4,6 +4,7 @@ use rustpython_vm::pymodule;
 pub mod hook {
     use mem::hook::Trampoline;
     use rustpython_vm::{pyclass, PyObjectRef, PyPayload, PyResult, VirtualMachine};
+    use tracing::trace;
 
     use crate::modules::Address;
 
@@ -23,6 +24,12 @@ pub mod hook {
     #[pyclass(name = "Trampoline")]
     #[derive(Debug, Clone, PyPayload)]
     struct PyTrampoline(Trampoline);
+
+    impl Drop for PyTrampoline {
+        fn drop(&mut self) {
+            trace!(address = ?self.0.address, "dropping Trampoline");
+        }
+    }
 
     #[pyclass]
     impl PyTrampoline {
@@ -55,12 +62,6 @@ pub mod hook {
         #[pymethod(magic)]
         fn str(&self) -> String {
             self.repr()
-        }
-    }
-
-    impl From<&PyTrampoline> for mem::hook::Trampoline {
-        fn from(t: &PyTrampoline) -> Self {
-            t.clone().0
         }
     }
 }

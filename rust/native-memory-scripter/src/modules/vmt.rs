@@ -10,6 +10,7 @@ pub mod vmt {
         builtins::PyTypeRef, pyclass, types::Constructor, PyObjectRef, PyPayload, PyResult,
         VirtualMachine,
     };
+    use tracing::trace;
 
     use crate::modules::Address;
 
@@ -17,6 +18,12 @@ pub mod vmt {
     #[pyclass(name = "VTable")]
     #[derive(PyPayload)]
     pub struct PyVTable(VTable);
+
+    impl Drop for PyVTable {
+        fn drop(&mut self) {
+            trace!("dropping VTable");
+        }
+    }
 
     impl Deref for PyVTable {
         type Target = VTable;
