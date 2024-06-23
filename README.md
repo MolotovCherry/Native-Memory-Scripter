@@ -29,7 +29,7 @@ To build:
 # License
 This software has a source-available non-open source license.
 This software:
-- may only be used for personal use
+- may only be used in personal use for the purpose in which it was redistributed by the original creator
 - may be forked, however modifications are not allowed
 - may be compiled in its unmodified form
 - modifications and compiling with modifications are allowed under the condition that you submit your changes back to the main repo
