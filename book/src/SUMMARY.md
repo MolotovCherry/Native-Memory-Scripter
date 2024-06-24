@@ -77,6 +77,13 @@
     - [objects](./modules/objects.md)
         - [Module](./modules/objects-module.md)
 
+- [popup](./popup/popup.md)
+    - [error](./popup/error.md)
+    - [exclamation](./popup/exclamation.md)
+    - [info](./popup/info.md)
+    - [question](./popup/question.md)
+    - [warn](./popup/warn.md)
+
 - [scan](./scan/scan.md)
     - [data](./scan/data.md)
     - [pattern](./scan/pattern.md)

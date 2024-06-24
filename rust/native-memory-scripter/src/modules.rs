@@ -8,6 +8,7 @@ pub mod info;
 pub mod log;
 pub mod mem;
 pub mod modules;
+pub mod popup;
 pub mod scan;
 pub mod segments;
 pub mod symbols;

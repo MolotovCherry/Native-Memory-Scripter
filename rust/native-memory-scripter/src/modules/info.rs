@@ -5,7 +5,6 @@ const fn str_to_u16(string: &'static str) -> u16 {
     unwrap_ctx!(parse_u16(string))
 }
 
-#[allow(clippy::module_inception)]
 #[pymodule]
 pub mod info {
     use rustpython_vm::{prelude::VirtualMachine, pyclass, PyPayload};

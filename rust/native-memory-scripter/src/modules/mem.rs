@@ -1,6 +1,5 @@
 use rustpython_vm::pymodule;
 
-#[allow(clippy::module_inception)]
 #[pymodule]
 pub mod mem {
     use std::fmt::Debug;

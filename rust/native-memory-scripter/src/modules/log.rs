@@ -1,6 +1,5 @@
 use rustpython_vm::pymodule;
 
-#[allow(clippy::module_inception)]
 #[pymodule]
 pub mod log {
     use rustpython_vm::{function::FuncArgs, prelude::VirtualMachine, PyResult};
