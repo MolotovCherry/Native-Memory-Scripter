@@ -12,7 +12,11 @@ use tracing_subscriber::{
 };
 use windows::Win32::Foundation::HINSTANCE;
 
-use crate::{config::Config, paths::get_dll_dir};
+use crate::{
+    config::Config,
+    paths::get_dll_dir,
+    popup::{display_popup, MessageBoxIcon},
+};
 
 struct StripAnsiWriter((String, String));
 
@@ -90,15 +94,41 @@ pub fn setup_logging(module: HINSTANCE, config: &Config) -> Result<()> {
         .into_hooks();
 
     eyre_hook.install()?;
-    set_panic_hook(panic_hook);
+    set_panic_hook(panic_hook, config.dev.console);
 
     Ok(())
 }
 
-fn set_panic_hook(hook: PanicHook) {
+fn set_panic_hook(hook: PanicHook, console: bool) {
     // this panic hook makes sure that eyre panic hook gets sent to all tracing layers
     panic::set_hook(Box::new(move |info| {
         let panic = hook.panic_report(info);
         error!("{panic}");
+
+        let show_console = cfg!(debug_assertions) || console;
+        if !show_console {
+            let message = info
+                .payload()
+                .downcast_ref::<String>()
+                .map(String::as_str)
+                .or_else(|| info.payload().downcast_ref::<&str>().cloned())
+                .unwrap_or("<non string panic payload>");
+
+            let location = info
+                .location()
+                .map(|l| l.to_string())
+                .unwrap_or_else(|| "Unknown".to_owned());
+
+            let message = format!(
+                "The application panicked (crashed).
+Message: {message}
+Location: {location}
+
+This is a bug. Please report it at:
+https://github.com/MolotovCherry/Native-Memory-Scripter/issues/new"
+            );
+
+            display_popup("Oh no :(", message, MessageBoxIcon::Error);
+        }
     }))
 }
