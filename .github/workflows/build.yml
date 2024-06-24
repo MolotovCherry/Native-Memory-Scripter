@@ -45,6 +45,15 @@ jobs:
           path: |
             rust/target/*/*.dll
 
+      - name: UPX
+        if: github.event_name == 'release'
+        uses: crazy-max/ghaction-upx@v3.0.0
+        with:
+            version: latest
+            files: |
+                rust/target/*/*.dll
+            args: --best
+
       - name: Zip files up
         if: github.event_name == 'release'
         run: |
