@@ -44,6 +44,10 @@ unsafe impl Send for Alloc {}
 unsafe impl Sync for Alloc {}
 
 impl Alloc {
+    pub(crate) fn new(address: *mut c_void) -> Self {
+        Self(address)
+    }
+
     /// Get the address of the allocation. This ptr is valid up to the size of the allocation
     pub fn addr(&self) -> *mut u8 {
         self.0.cast()
