@@ -345,7 +345,7 @@ impl Jit {
         }
 
         unsafe {
-            mem::memory::prot(alloc.addr() as _, self.size as usize, Prot::XR)?;
+            mem::memory::prot(alloc.addr() as _, jmp64.len(), Prot::XR)?;
         }
 
         self.jit_alloc.set(alloc).unwrap();
