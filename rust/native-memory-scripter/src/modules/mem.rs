@@ -6,8 +6,8 @@ pub mod mem {
 
     use mem::{memory::Alloc, Prot};
     use rustpython_vm::{
-        builtins::PyByteArray, convert::ToPyObject as _, prelude::*, pyclass, pymodule, PyPayload,
-        VirtualMachine,
+        builtins::PyByteArray, convert::ToPyObject as _, function::FuncArgs, prelude::*, pyclass,
+        pymodule, PyPayload, VirtualMachine,
     };
     use tracing::{trace, trace_span};
 
@@ -40,13 +40,53 @@ pub mod mem {
         begin: Address,
         end: Address,
         size: usize,
-        align: usize,
-        prot: PyRef<PyProt>,
+        args: FuncArgs,
         vm: &VirtualMachine,
     ) -> PyResult<PyAlloc> {
+        if ![1, 2].contains(&args.args.len()) {
+            return Err(vm.new_runtime_error("incorrect number of args".to_owned()));
+        }
+
+        let (align, prot) = if args.args.len() == 1 {
+            let prot = args
+                .args
+                .first()
+                .unwrap()
+                .downcast_ref::<PyProt>()
+                .ok_or_else(|| {
+                    vm.new_type_error(format!(
+                        "expected Prot, found {}",
+                        args.args[0].class().__name__(vm)
+                    ))
+                })?;
+
+            (0, prot)
+        } else {
+            let align = args.args.first().unwrap().try_to_value::<usize>(vm)?;
+
+            let prot = args
+                .args
+                .get(1)
+                .unwrap()
+                .downcast_ref::<PyProt>()
+                .ok_or_else(|| {
+                    vm.new_type_error(format!(
+                        "expected Prot, found {}",
+                        args.args[0].class().__name__(vm)
+                    ))
+                })?;
+
+            (align, prot)
+        };
+
         mem::memory::alloc_in(begin as _, end as _, size, align, prot.0)
             .map(PyAlloc)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))
+    }
+
+    #[pyfunction]
+    fn alloc_granularity() -> usize {
+        mem::memory::allocation_granularity()
     }
 
     /// Read size bytes of src into byte array

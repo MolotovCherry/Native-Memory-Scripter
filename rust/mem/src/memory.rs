@@ -209,6 +209,22 @@ pub fn alloc(mut size: usize, prot: Prot) -> Result<Alloc, MemError> {
     Ok(alloc)
 }
 
+/// The granularity for the starting address at which virtual memory can be allocated.
+pub fn allocation_granularity() -> usize {
+    static SYSTEM_DATA: OnceLock<usize> = OnceLock::new();
+
+    let &alloc_gran = SYSTEM_DATA.get_or_init(|| {
+        let mut data = SYSTEM_INFO::default();
+        unsafe {
+            GetSystemInfo(&mut data);
+        }
+
+        data.dwAllocationGranularity as usize
+    });
+
+    alloc_gran
+}
+
 /// tries to allocate `size` in a free page somewhere within begin..end address
 /// begin or end may be NULL, in which case it means "there's no limit"
 pub fn alloc_in(
