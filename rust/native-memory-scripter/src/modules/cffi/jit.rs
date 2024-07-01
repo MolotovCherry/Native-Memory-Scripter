@@ -5,11 +5,18 @@ use std::{hint::unreachable_unchecked, sync::OnceLock};
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
+use mem::{
+    memory::{Alloc, MemError},
+    Prot,
+};
 use rustpython_vm::prelude::*;
 use rustpython_vm::vm::thread::ThreadedVirtualMachine;
 use tracing::{info, trace_span};
 
-use crate::{modules::cffi::ret::RetMemory, utils::RawSendable};
+use crate::{
+    modules::{cffi::ret::RetMemory, Address},
+    utils::RawSendable,
+};
 
 use self::{callback::__jit_cb, codegen::ir::ArgumentPurpose};
 use super::{args::ArgLayout, types::Type};
@@ -75,6 +82,7 @@ pub struct Jit {
     _data: DataWrapper,
     address: *const u8,
     size: u32,
+    jit_alloc: OnceLock<Alloc>,
     _ret_mem: Option<RetMemory>,
 }
 
@@ -301,10 +309,53 @@ impl Jit {
             _data: data,
             address: code,
             size: code_size,
+            jit_alloc: OnceLock::new(),
             _ret_mem: ret_mem,
         };
 
         Ok(slf)
+    }
+
+    // try to alloc within ± 2gb of address and jmp to actual jit code
+    // this usually allows us to write only 5 bytes for a jmp
+    pub fn alloc_near(&self, address: Address) -> Result<(), MemError> {
+        if self.jit_alloc.get().is_some() {
+            return Ok(());
+        }
+
+        let gb = 1024 * 1024 * 1024;
+
+        let begin = address.saturating_sub(gb * 2);
+        let end = address.saturating_add(gb * 2);
+
+        #[rustfmt::skip]
+        let mut jmp64 = [
+            // jmp [rip]
+            0xFF, 0x25, 0x00, 0x00, 0x00, 0x00,
+            // addr
+            0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+        ];
+
+        jmp64[6..].copy_from_slice(&(self.address as usize).to_le_bytes());
+
+        let alloc = mem::memory::alloc_in(begin as _, end as _, jmp64.len(), 0, Prot::XRW)?;
+
+        unsafe {
+            mem::memory::write_bytes(&jmp64, alloc.addr());
+        }
+
+        unsafe {
+            mem::memory::prot(alloc.addr() as _, self.size as usize, Prot::XR)?;
+        }
+
+        self.jit_alloc.set(alloc).unwrap();
+
+        Ok(())
+    }
+
+    pub fn alloc_address(&self) -> Option<*const u8> {
+        // must set alloc_jit_near first
+        self.jit_alloc.get().map(|e| e.addr() as *const _)
     }
 
     pub fn address(&self) -> *const u8 {

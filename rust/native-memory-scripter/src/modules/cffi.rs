@@ -231,7 +231,11 @@ pub mod cffi {
     impl PyCallable {
         #[pygetset]
         pub fn address(&self) -> Address {
-            self.jit.address() as _
+            if let Some(address) = self.jit.alloc_address() {
+                address as _
+            } else {
+                self.jit.address() as _
+            }
         }
 
         #[pygetset]
@@ -275,7 +279,15 @@ pub mod cffi {
                 return Err(vm.new_type_error("only supported types are int and Symbol".to_owned()));
             };
 
-            let res = unsafe { mem::hook::hook(address as _, self.jit.address()) };
+            // try to allocate code within ± 2gb of address so we can take advantage of 32 bit relative addressing
+            let alloc = self.jit.alloc_near(address);
+            let jit_address = if alloc.is_ok() {
+                self.jit.alloc_address().unwrap()
+            } else {
+                self.jit.address()
+            };
+
+            let res = unsafe { mem::hook::hook(address as _, jit_address) };
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
             let hook = Hook::Jmp(trampoline);
