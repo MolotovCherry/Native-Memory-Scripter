@@ -46,7 +46,7 @@ If you specified a return type, you MUST always return a value of that type, eve
 ## Methods
 
 ### hook
-`jmp` hook `from` address.
+`jmp` hook `from` address. This will attempt to allocate within ± 2GB of `from` address so it can use a `5` byte `jmp`, but if it's unable to it will use `14` byte `jmp`.
 
 ```admonish danger title=""
 This function is unsafe 🐉
