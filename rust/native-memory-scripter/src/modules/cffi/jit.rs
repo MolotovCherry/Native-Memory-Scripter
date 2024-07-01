@@ -192,7 +192,7 @@ impl Jit {
         // jit function
         //
 
-        let mut ret_mem = if !args.1.is_struct_indirect() {
+        let mut ret_mem = if !args.1.is_struct_indirect() && !args.1.is_void() {
             Some(RetMemory::new())
         } else {
             None
@@ -215,9 +215,12 @@ impl Jit {
             let mut vals = bcx.block_params(ebb).to_vec();
 
             // this special return is an arg. let's place it in the return ptr instead
-            let ret_arg = if args.1.is_struct_indirect() {
+            let ret_addr = if args.1.is_struct_indirect() {
                 // sret return
                 vals.remove(0)
+            } else if args.1.is_void() {
+                // null ptr. we don't use it, so no need to do anything
+                bcx.ins().iconst(types::I64, 0)
             } else {
                 // regular return
                 bcx.ins()
@@ -244,13 +247,6 @@ impl Jit {
                 Some(arg_slot)
             } else {
                 None
-            };
-
-            let ret_addr = if args.1.is_void() {
-                // null ptr. we don't use it, so no need to do anything
-                bcx.ins().iconst(types::I64, 0)
-            } else {
-                ret_arg
             };
 
             let leaked_addr = bcx.ins().iconst(types::I64, leaked_data as *const _ as i64);
