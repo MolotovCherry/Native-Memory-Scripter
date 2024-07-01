@@ -15,6 +15,7 @@ pub mod cffi {
     };
 
     use cranelift::prelude::{isa::CallConv, *};
+    use mutation::hook;
     use rustpython_vm::{
         builtins::PyTypeRef,
         convert::ToPyObject as _,
@@ -287,7 +288,7 @@ pub mod cffi {
                 self.jit.address()
             };
 
-            let res = unsafe { mem::hook::hook(address as _, jit_address) };
+            let res = unsafe { hook::hook(address as _, jit_address) };
             let trampoline = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
             let hook = Hook::Jmp(trampoline);

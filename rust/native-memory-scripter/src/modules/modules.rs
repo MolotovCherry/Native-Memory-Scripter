@@ -4,14 +4,14 @@ use rustpython_vm::pymodule;
 pub mod modules {
     use std::ops::Deref;
 
-    use mem::modules::Module;
+    use mutation::modules::{self, Module};
     use rustpython_vm::{pyclass, PyObjectRef, PyPayload, PyResult, VirtualMachine};
     use tracing::{trace, trace_span};
 
     /// Load a library into the process
     #[pyfunction]
     fn load(path: String, vm: &VirtualMachine) -> PyResult<PyModule> {
-        mem::modules::Module::load(path)
+        Module::load(path)
             .map(PyModule)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))
     }
@@ -23,13 +23,13 @@ pub mod modules {
     /// unsafe fn
     #[pyfunction]
     fn unload(path: String, vm: &VirtualMachine) -> PyResult<()> {
-        let res = unsafe { mem::modules::Module::unload_path(path) };
+        let res = unsafe { Module::unload_path(path) };
         res.map_err(|e| vm.new_runtime_error(format!("{e}")))
     }
 
     #[pyfunction]
     fn find(name: String, vm: &VirtualMachine) -> PyResult<Option<PyModule>> {
-        let module = mem::modules::find_module(&name)
+        let module = modules::find_module(&name)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))?
             .map(PyModule);
 
@@ -38,7 +38,7 @@ pub mod modules {
 
     #[pyfunction(name = "enum")]
     fn enum_(vm: &VirtualMachine) -> PyResult<Vec<PyObjectRef>> {
-        mem::modules::enum_modules()
+        modules::enum_modules()
             .map(|modules| {
                 modules
                     .into_iter()

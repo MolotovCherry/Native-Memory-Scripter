@@ -1,5 +1,6 @@
 use std::{ffi, fmt};
 
+use mutation::memory;
 use rustpython_vm::{
     builtins::PyBytes,
     convert::ToPyObject,
@@ -280,7 +281,7 @@ impl Ret {
 
                         // it's a ptr!
                         _ => unsafe {
-                            mem::memory::write_bytes(bytes, ret.cast());
+                            memory::write_bytes(bytes, ret.cast());
                         },
                     }
 

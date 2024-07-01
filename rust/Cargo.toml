@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["native-memory-scripter", "mem"]
+members = ["native-memory-scripter", "mutation"]
 
 [profile.release]
 lto = true

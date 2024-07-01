@@ -4,6 +4,7 @@ use std::{
     sync::Mutex,
 };
 
+use mutation::memory;
 use rustpython_vm::{
     builtins::PyBytes,
     convert::ToPyObject,
@@ -321,7 +322,7 @@ impl Arg {
                     StructType::I64(i) => i.to_vec(),
                     StructType::Ptr(p) => {
                         // SAFETY: Signature creator asserts arg + size is correct
-                        unsafe { mem::memory::read_bytes(p, size as usize) }
+                        unsafe { memory::read_bytes(p, size as usize) }
                     }
                 };
 
@@ -389,7 +390,7 @@ impl ArgMemory {
     unsafe fn write_bytes(&self, data: &[u8], offset: usize) {
         let ptr = unsafe { self.ptr.as_ptr().add(offset) };
         unsafe {
-            mem::memory::write_bytes(data, ptr);
+            memory::write_bytes(data, ptr);
         }
     }
 

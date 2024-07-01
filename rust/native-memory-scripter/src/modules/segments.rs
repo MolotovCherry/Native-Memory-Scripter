@@ -2,7 +2,7 @@ use rustpython_vm::pymodule;
 
 #[pymodule]
 pub mod segments {
-    use mem::segments::Segment;
+    use mutation::segments::{self, Segment};
     use rustpython_vm::{
         convert::ToPyObject as _, pyclass, PyObjectRef, PyPayload, VirtualMachine,
     };
@@ -11,7 +11,7 @@ pub mod segments {
 
     #[pyfunction(name = "enum")]
     fn enum_(vm: &VirtualMachine) -> Vec<PyObjectRef> {
-        mem::segments::enum_segments()
+        segments::enum_segments()
             .into_iter()
             .map(|segment| PySegment(segment).into_pyobject(vm))
             .collect()
@@ -19,7 +19,7 @@ pub mod segments {
 
     #[pyfunction]
     fn find(address: Address, vm: &VirtualMachine) -> Option<PyObjectRef> {
-        mem::segments::find_segment(address as _).map(|segment| PySegment(segment).to_pyobject(vm))
+        segments::find_segment(address as _).map(|segment| PySegment(segment).to_pyobject(vm))
     }
 
     #[pyattr]

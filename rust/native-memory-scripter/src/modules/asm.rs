@@ -2,7 +2,7 @@ use rustpython_vm::pymodule;
 
 #[pymodule]
 pub mod asm {
-    use mem::asm::Inst;
+    use mutation::asm::{self, Inst};
     use rustpython_vm::{
         builtins::PyByteArray, convert::ToPyObject, function::FuncArgs, pyclass, PyObjectRef,
         PyPayload, PyRef, PyResult, VirtualMachine,
@@ -32,7 +32,7 @@ pub mod asm {
             .ok_or_else(|| vm.new_runtime_error("code argument not found".to_owned()))?;
 
         let obj = match args.args.len() {
-            1 => mem::asm::assemble(&code)
+            1 => asm::assemble(&code)
                 .map(PyInst)
                 .map_err(|e| vm.new_runtime_error(format!("{e}")))?
                 .to_pyobject(vm),
@@ -45,7 +45,7 @@ pub mod asm {
                     .transpose()?
                     .unwrap();
 
-                mem::asm::assemble_ex(&code, addr)
+                asm::assemble_ex(&code, addr)
                     .map(|v| v.into_iter().map(|i| PyInst(i).to_pyobject(vm)))
                     .map_err(|e| vm.new_runtime_error(format!("{e}")))?
                     .collect::<Vec<_>>()
@@ -66,7 +66,7 @@ pub mod asm {
     /// unsafe fn
     #[pyfunction]
     fn code_len(code: Address, min_length: usize, vm: &VirtualMachine) -> PyResult<usize> {
-        let res = unsafe { mem::asm::code_len(code as _, min_length) };
+        let res = unsafe { asm::code_len(code as _, min_length) };
         res.map_err(|e| vm.new_runtime_error(format!("{e}")))
     }
 
@@ -96,7 +96,7 @@ pub mod asm {
         if let Ok(address) = address {
             let obj = match args.args.len() {
                 1 => {
-                    let res = unsafe { mem::asm::disassemble(address as *const _) };
+                    let res = unsafe { asm::disassemble(address as *const _) };
                     let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
                     PyInst(res).to_pyobject(vm)
@@ -119,9 +119,8 @@ pub mod asm {
                         .transpose()?
                         .unwrap();
 
-                    let res = unsafe {
-                        mem::asm::disassemble_ex(address as *const _, size, runtime_addr)
-                    };
+                    let res =
+                        unsafe { asm::disassemble_ex(address as *const _, size, runtime_addr) };
 
                     let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
                     let insts = res
@@ -158,7 +157,7 @@ pub mod asm {
                         .unwrap();
 
                     let res = unsafe {
-                        mem::asm::disassemble_ex_count(
+                        asm::disassemble_ex_count(
                             address as *const _,
                             size,
                             runtime_addr,
@@ -195,7 +194,7 @@ pub mod asm {
 
             let obj = match args.args.len() {
                 1 => {
-                    let res = mem::asm::disassemble_bytes(&bytes);
+                    let res = asm::disassemble_bytes(&bytes);
                     let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
                     let res = res
                         .into_iter()
@@ -214,7 +213,7 @@ pub mod asm {
                         .transpose()?
                         .unwrap();
 
-                    let res = mem::asm::disassemble_bytes_ex(&bytes, runtime_addr);
+                    let res = asm::disassemble_bytes_ex(&bytes, runtime_addr);
                     let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
                     let res = res
                         .into_iter()
@@ -241,8 +240,7 @@ pub mod asm {
                         .transpose()?
                         .unwrap();
 
-                    let res =
-                        mem::asm::disassemble_bytes_ex_count(&bytes, runtime_addr, inst_count);
+                    let res = asm::disassemble_bytes_ex_count(&bytes, runtime_addr, inst_count);
 
                     let res = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
                     let insts = res

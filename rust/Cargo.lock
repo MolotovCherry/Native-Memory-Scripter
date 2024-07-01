@@ -1453,23 +1453,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mem"
-version = "0.1.0"
-dependencies = [
- "arrayvec",
- "capstone",
- "keystone-engine",
- "pelite",
- "strum 0.26.2",
- "symbolic-common",
- "symbolic-demangle",
- "thiserror",
- "tracing",
- "undname",
- "windows 0.57.0",
-]
-
-[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1531,6 +1514,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "mutation"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "capstone",
+ "keystone-engine",
+ "pelite",
+ "strum 0.26.3",
+ "symbolic-common",
+ "symbolic-demangle",
+ "thiserror",
+ "tracing",
+ "undname",
+ "windows 0.57.0",
+]
+
+[[package]]
 name = "native-memory-scripter"
 version = "0.1.0"
 dependencies = [
@@ -1543,7 +1543,7 @@ dependencies = [
  "directories",
  "eyre",
  "konst",
- "mem",
+ "mutation",
  "native-plugin-lib",
  "owo-colors 4.0.0",
  "rustpython",
@@ -2708,9 +2708,9 @@ checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 
 [[package]]
 name = "strum"
-version = "0.26.2"
+version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d8cec3501a5194c432b2b7976db6b7d10ec95c253208b45f83f7136aa985e29"
+checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 dependencies = [
  "strum_macros 0.26.4",
 ]

@@ -4,20 +4,20 @@ use rustpython_vm::pymodule;
 pub mod symbols {
     use std::fmt::Debug;
 
-    use mem::symbols::Symbol;
+    use mutation::symbols::{self, Symbol};
     use rustpython_vm::{pyclass, PyObjectRef, PyPayload, PyRef, PyResult, VirtualMachine};
 
     use crate::modules::{modules::modules::PyModule, Address};
 
     #[pyfunction]
     fn demangle(name: String) -> Option<String> {
-        mem::symbols::demangle_symbol(&name)
+        symbols::demangle_symbol(&name)
     }
 
     /// Return a list of all symbols for a module
     #[pyfunction(name = "enum")]
     fn enum_(module: PyRef<PyModule>, vm: &VirtualMachine) -> PyResult<Vec<PyObjectRef>> {
-        mem::symbols::enum_symbols(&module)
+        symbols::enum_symbols(&module)
             .map(|symbols| {
                 symbols
                     .into_iter()
@@ -30,7 +30,7 @@ pub mod symbols {
     /// Return a list of all demangled symbols for a module
     #[pyfunction]
     fn enum_demangled(module: PyRef<PyModule>, vm: &VirtualMachine) -> PyResult<Vec<PyObjectRef>> {
-        mem::symbols::enum_symbols_demangled(&module)
+        symbols::enum_symbols_demangled(&module)
             .map(|symbols| {
                 symbols
                     .into_iter()
@@ -47,7 +47,7 @@ pub mod symbols {
         name: String,
         vm: &VirtualMachine,
     ) -> PyResult<Option<Address>> {
-        let res = mem::symbols::find_symbol_address(&module, &name)
+        let res = symbols::find_symbol_address(&module, &name)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
         Ok(res.map(|sym| sym.address as _))
@@ -60,7 +60,7 @@ pub mod symbols {
         name: String,
         vm: &VirtualMachine,
     ) -> PyResult<Option<Address>> {
-        let res = mem::symbols::find_symbol_address(&module, &name)
+        let res = symbols::find_symbol_address(&module, &name)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
         Ok(res.map(|sym| sym.address as _))

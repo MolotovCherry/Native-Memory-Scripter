@@ -2,6 +2,8 @@ use rustpython_vm::pymodule;
 
 #[pymodule]
 pub mod scan {
+    use mutation::scan;
+
     use crate::modules::Address;
 
     /// Search for data starting at address
@@ -9,7 +11,7 @@ pub mod scan {
     /// unsafe fn
     #[pyfunction]
     fn data(data: Vec<u8>, address: Address, scan_size: usize) -> Option<Address> {
-        let scan = unsafe { mem::scan::data_scan(&data, address as *const _, scan_size) };
+        let scan = unsafe { scan::data_scan(&data, address as *const _, scan_size) };
         scan.map(|s| s.addr as _)
     }
 
@@ -24,7 +26,7 @@ pub mod scan {
         address: Address,
         scan_size: usize,
     ) -> Option<Address> {
-        let scan = unsafe { mem::scan::pattern_scan(&pattern, &mask, address as _, scan_size) };
+        let scan = unsafe { scan::pattern_scan(&pattern, &mask, address as _, scan_size) };
         scan.map(|s| s.addr as _)
     }
 
@@ -34,7 +36,7 @@ pub mod scan {
     /// unsafe fn
     #[pyfunction]
     fn sig(sig: String, address: Address, scan_size: usize) -> Option<Address> {
-        let res = unsafe { mem::scan::sig_scan(&sig, address as _, scan_size) };
+        let res = unsafe { scan::sig_scan(&sig, address as _, scan_size) };
         res.map(|s| s.addr as _)
     }
 }

@@ -2,14 +2,14 @@ use std::{
     alloc::{self, Layout},
     cell::OnceCell,
     hint::unreachable_unchecked,
-    mem::MaybeUninit,
+    mem::{self, MaybeUninit},
     sync::OnceLock,
 };
 
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
-use mem::{hook::Trampoline, iat::IATSymbol};
+use mutation::{hook::Trampoline, iat::IATSymbol, memory};
 use rustpython_vm::{
     convert::ToPyObject,
     prelude::{PyObjectRef, PyResult, VirtualMachine},
@@ -139,7 +139,7 @@ impl Jitpoline {
             jitpoline(mem.cast());
             _guard = span.enter();
 
-            let data = unsafe { mem::memory::read_bytes(mem.cast(), size as _) };
+            let data = unsafe { memory::read_bytes(mem.cast(), size as _) };
             data.to_pyobject(vm)
         } else {
             let mut ret = MaybeUninit::<Ret>::uninit();
@@ -352,7 +352,7 @@ impl Jitpoline {
 
         // Get a raw pointer to the generated code.
         let code = module.get_finalized_function(func);
-        let _fn = unsafe { std::mem::transmute::<*const u8, extern "fastcall" fn(*mut ())>(code) };
+        let _fn = unsafe { mem::transmute::<*const u8, extern "fastcall" fn(*mut ())>(code) };
 
         info!("defined {jitpoline_name}() ({code:?}) -> {tramp_name}()");
 

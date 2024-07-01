@@ -5,8 +5,8 @@ use std::{hint::unreachable_unchecked, sync::OnceLock};
 use cranelift::prelude::{codegen::ir::UserFuncName, isa::CallConv, *};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{default_libcall_names, Linkage, Module as _};
-use mem::{
-    memory::{Alloc, MemError},
+use mutation::{
+    memory::{self, Alloc, MemError},
     Prot,
 };
 use rustpython_vm::prelude::*;
@@ -331,14 +331,14 @@ impl Jit {
 
         jmp64[6..].copy_from_slice(&(self.address as usize).to_le_bytes());
 
-        let alloc = mem::memory::alloc_in(begin as _, end as _, jmp64.len(), 0, Prot::XRW)?;
+        let alloc = memory::alloc_in(begin as _, end as _, jmp64.len(), 0, Prot::XRW)?;
 
         unsafe {
-            mem::memory::write_bytes(&jmp64, alloc.addr());
+            memory::write_bytes(&jmp64, alloc.addr());
         }
 
         unsafe {
-            mem::memory::prot(alloc.addr() as _, jmp64.len(), Prot::XR)?;
+            memory::prot(alloc.addr() as _, jmp64.len(), Prot::XR)?;
         }
 
         self.jit_alloc.set(alloc).unwrap();

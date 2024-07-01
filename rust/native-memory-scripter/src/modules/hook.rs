@@ -2,7 +2,7 @@ use rustpython_vm::pymodule;
 
 #[pymodule]
 pub mod hook {
-    use mem::hook::Trampoline;
+    use mutation::hook::{self, Trampoline};
     use rustpython_vm::{pyclass, PyObjectRef, PyPayload, PyResult, VirtualMachine};
     use tracing::{trace, trace_span};
 
@@ -10,7 +10,7 @@ pub mod hook {
 
     #[pyfunction]
     fn hook(from: Address, to: Address, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
-        let trampoline = unsafe { mem::hook::hook(from as _, to as _) };
+        let trampoline = unsafe { hook::hook(from as _, to as _) };
         trampoline
             .map(|t| PyTrampoline(t).into_pyobject(vm))
             .map_err(|e| vm.new_runtime_error(format!("{e}")))

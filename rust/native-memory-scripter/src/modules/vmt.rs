@@ -4,7 +4,7 @@ use rustpython_vm::pymodule;
 pub mod vmt {
     use std::{fmt::Debug, ops::Deref};
 
-    use mem::vtable::VTable;
+    use mutation::vtable::VTable;
     use rustpython_vm::{
         builtins::PyTypeRef, pyclass, types::Constructor, PyObjectRef, PyPayload, PyResult,
         VirtualMachine,

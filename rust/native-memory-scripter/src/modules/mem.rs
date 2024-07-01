@@ -4,7 +4,7 @@ use rustpython_vm::pymodule;
 pub mod mem {
     use std::fmt::Debug;
 
-    use mem::{memory::Alloc, Prot};
+    use mutation::{memory, memory::Alloc, Prot};
     use rustpython_vm::{
         builtins::PyByteArray, convert::ToPyObject as _, function::FuncArgs, prelude::*, pyclass,
         pymodule, PyPayload, VirtualMachine,
@@ -18,7 +18,7 @@ pub mod mem {
     /// unsafe fn
     #[pyfunction]
     fn deep_pointer(base: Address, offsets: Vec<usize>, vm: &VirtualMachine) -> PyResult<Address> {
-        let res = unsafe { mem::memory::deep_pointer(base as _, &offsets) };
+        let res = unsafe { memory::deep_pointer(base as _, &offsets) };
         let address = res.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
 
         Ok(address as _)
@@ -27,7 +27,7 @@ pub mod mem {
     /// Allocate memory. Once python object is dropped, memory is automatically deallocated
     #[pyfunction]
     fn alloc(size: usize, prot: PyRef<PyProt>, vm: &VirtualMachine) -> PyResult<PyAlloc> {
-        mem::memory::alloc(size, prot.0)
+        memory::alloc(size, prot.0)
             .map(PyAlloc)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))
     }
@@ -79,14 +79,14 @@ pub mod mem {
             (align, prot)
         };
 
-        mem::memory::alloc_in(begin as _, end as _, size, align, prot.0)
+        memory::alloc_in(begin as _, end as _, size, align, prot.0)
             .map(PyAlloc)
             .map_err(|e| vm.new_runtime_error(format!("{e}")))
     }
 
     #[pyfunction]
     fn alloc_granularity() -> usize {
-        mem::memory::allocation_granularity()
+        memory::allocation_granularity()
     }
 
     /// Read size bytes of src into byte array
@@ -94,7 +94,7 @@ pub mod mem {
     /// unsafe fn
     #[pyfunction]
     fn read(src: Address, size: usize, vm: &VirtualMachine) -> PyObjectRef {
-        let bytes = unsafe { mem::memory::read_bytes(src as _, size) };
+        let bytes = unsafe { memory::read_bytes(src as _, size) };
         let bytes: PyByteArray = bytes.into();
 
         bytes.to_pyobject(vm)
@@ -106,7 +106,7 @@ pub mod mem {
     #[pyfunction]
     fn set(dst: Address, byte: u8, size: usize) {
         unsafe {
-            mem::memory::set(dst as _, byte, size);
+            memory::set(dst as _, byte, size);
         }
     }
 
@@ -116,7 +116,7 @@ pub mod mem {
     #[pyfunction]
     fn write(src: Vec<u8>, dst: Address) {
         unsafe {
-            mem::memory::write_bytes(&src, dst as _);
+            memory::write_bytes(&src, dst as _);
         }
     }
 
@@ -130,7 +130,7 @@ pub mod mem {
         prot: PyRef<PyProt>,
         vm: &VirtualMachine,
     ) -> PyResult<PyProt> {
-        let prot = unsafe { mem::memory::prot(address as _, size, prot.0) };
+        let prot = unsafe { memory::prot(address as _, size, prot.0) };
         let prot = prot.map_err(|e| vm.new_runtime_error(format!("{e}")))?;
         Ok(PyProt(prot))
     }

@@ -1,11 +1,11 @@
 [package]
-name = "mem"
+name = "mutation"
 version = "0.1.0"
 edition = "2021"
 description = "Memory hacking library"
 
 [dependencies]
-strum = { version = "0.26.2", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.61"
 keystone-engine = { version = "0.1.0", features = ["build-from-src"] }
 capstone = "0.12.0"

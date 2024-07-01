@@ -4,7 +4,7 @@ use rustpython_vm::pymodule;
 pub mod iat {
     use std::ops::Deref;
 
-    use mem::iat::{
+    use mutation::iat::{
         enum_iat_symbols, enum_iat_symbols_demangled, find_dll_iat_symbol,
         find_dll_iat_symbol_demangled, find_iat_symbol, find_iat_symbol_demangled, IATSymbol,
         SymbolIdent,
