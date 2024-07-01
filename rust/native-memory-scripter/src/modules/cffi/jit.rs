@@ -192,11 +192,7 @@ impl Jit {
         // jit function
         //
 
-        let mut ret_mem = if !args.1.is_struct_indirect() && !args.1.is_void() {
-            Some(RetMemory::new())
-        } else {
-            None
-        };
+        let mut ret_mem = None;
 
         let func = module
             .declare_function(&name, Linkage::Local, &sig_fn)
@@ -223,6 +219,7 @@ impl Jit {
                 bcx.ins().iconst(types::I64, 0)
             } else {
                 // regular return
+                ret_mem = Some(RetMemory::new());
                 bcx.ins()
                     .iconst(types::I64, ret_mem.as_mut().unwrap().mem() as i64)
             };
