@@ -7,9 +7,6 @@ use std::{
 
 use arrayvec::ArrayVec;
 use tracing::trace;
-use windows::Win32::System::Memory::{
-    VirtualAlloc, VirtualQuery, MEMORY_BASIC_INFORMATION, MEM_COMMIT, MEM_FREE, MEM_RESERVE,
-};
 
 use crate::{
     asm::{self, AsmError},
@@ -252,67 +249,4 @@ pub unsafe fn hook(from: *mut u8, to: *const u8) -> Result<Trampoline, HookError
     };
 
     Ok(trampoline)
-}
-
-// finds the closest free page within -2gb to +2gb of `address` and allocates some memory there
-// if it can't find one within that range, it'll allocate anywhere
-fn allocate_near(address: *const (), size: usize) -> Option<(bool, Alloc)> {
-    let gb: usize = 1024 * 1024 * 1024;
-
-    let mut mem_info = MEMORY_BASIC_INFORMATION::default();
-    let mut target = None;
-
-    // end at origin address + 2gb
-    let end = (address as usize).saturating_add(gb * 2);
-    // start out at origin address - 2gb
-    let mut address = (address as usize).saturating_sub(gb * 2);
-
-    // try to allocate within 2gb of target
-    loop {
-        address = mem_info.BaseAddress as usize + mem_info.RegionSize;
-
-        let written = unsafe {
-            VirtualQuery(
-                Some(address as _),
-                &mut mem_info,
-                mem::size_of::<MEMORY_BASIC_INFORMATION>(),
-            )
-        };
-
-        // virtualquery error'd out
-        if written == 0 {
-            break;
-        }
-
-        // we're no longer within the 2gb range
-        if (mem_info.BaseAddress as usize + size) > end {
-            break;
-        }
-
-        if mem_info.State == MEM_FREE && mem_info.RegionSize >= size {
-            target = Some(mem_info.BaseAddress);
-            break;
-        }
-    }
-
-    // if we could not get an address within 2gb, then find *any* address
-    let Some(target) = target else {
-        let alloc = memory::alloc(size, Prot::XRW).ok()?;
-        return Some((false, alloc));
-    };
-
-    let alloc = unsafe {
-        VirtualAlloc(
-            Some(target),
-            size,
-            MEM_COMMIT | MEM_RESERVE,
-            Prot::XRW.into(),
-        )
-    };
-
-    if alloc.is_null() {
-        return None;
-    }
-
-    Some((true, Alloc::new(alloc)))
 }

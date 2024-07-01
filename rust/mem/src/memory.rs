@@ -1,13 +1,15 @@
 //! This module allows one to read and write underlying system memory
 
-use std::{ffi::c_void, mem, ptr};
+use std::{ffi::c_void, mem, ptr, sync::OnceLock};
 
+use tracing::error;
 use windows::Win32::{
     Foundation::{GetLastError, WIN32_ERROR},
     System::{
         Memory::{
-            VirtualAlloc, VirtualFree, VirtualProtect, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE,
-            PAGE_PROTECTION_FLAGS,
+            MemExtendedParameterAddressRequirements, VirtualAlloc, VirtualAlloc2, VirtualFree,
+            VirtualProtect, MEM_ADDRESS_REQUIREMENTS, MEM_COMMIT, MEM_EXTENDED_PARAMETER,
+            MEM_RELEASE, MEM_RESERVE, PAGE_PROTECTION_FLAGS,
         },
         SystemInformation::{GetSystemInfo, SYSTEM_INFO},
     },
@@ -27,6 +29,21 @@ pub enum MemError {
     /// a windows error
     #[error("{0:?}: {}", .0.to_hresult().message())]
     Win32(windows::Win32::Foundation::WIN32_ERROR),
+    /// failed gran
+    #[error("adjusted allocation granularity address is not within begin..end range")]
+    GranularityNotWithinLimits,
+    /// failed gran
+    #[error("begin address must be less than end address")]
+    EndGranulatityNotWithinLimits,
+    /// param err
+    #[error("align must be 0, or 2 ^ n where n >= 0x10")]
+    IncorrectAlign,
+    /// param err
+    #[error("provided address is not within allowed min..max application address limit")]
+    NotWithinAppAddressLimits,
+    /// param err
+    #[error("{0}")]
+    Custom(String),
 }
 
 impl From<WIN32_ERROR> for MemError {
@@ -44,10 +61,6 @@ unsafe impl Send for Alloc {}
 unsafe impl Sync for Alloc {}
 
 impl Alloc {
-    pub(crate) fn new(address: *mut c_void) -> Self {
-        Self(address)
-    }
-
     /// Get the address of the allocation. This ptr is valid up to the size of the allocation
     pub fn addr(&self) -> *mut u8 {
         self.0.cast()
@@ -194,6 +207,100 @@ pub fn alloc(mut size: usize, prot: Prot) -> Result<Alloc, MemError> {
     let alloc = Alloc(alloc);
 
     Ok(alloc)
+}
+
+/// tries to allocate `size` in a free page somewhere within begin..end address
+/// begin or end may be NULL, in which case it means "there's no limit"
+pub fn alloc_in(
+    begin_addr: *const (),
+    end_addr: *const (),
+    size: usize,
+    // Specifies power-of-2 alignment. Specifying 0 aligns on the system allocation granularity.
+    align: usize,
+    prot: Prot,
+) -> Result<Alloc, MemError> {
+    static SYSTEM_DATA: OnceLock<(usize, usize, usize)> = OnceLock::new();
+
+    let &(min_addr, max_addr, alloc_gran) = SYSTEM_DATA.get_or_init(|| {
+        let mut data = SYSTEM_INFO::default();
+        unsafe {
+            GetSystemInfo(&mut data);
+        }
+
+        (
+            data.lpMinimumApplicationAddress as usize,
+            data.lpMaximumApplicationAddress as usize,
+            data.dwAllocationGranularity as usize,
+        )
+    });
+
+    // validate begin is less than end
+    if begin_addr >= end_addr {
+        return Err(MemError::Custom(
+            "begin address cannot be >= end address".to_owned(),
+        ));
+    }
+
+    // validate align requirements
+    // https://stackoverflow.com/questions/54223343/virtualalloc2-with-memextendedparameteraddressrequirements-always-produces-error
+    if align != 0 && (align < alloc_gran || !align.is_power_of_two()) {
+        return Err(MemError::IncorrectAlign);
+    }
+
+    let range = (begin_addr as usize)..(end_addr as usize);
+    let min_max_range = min_addr..max_addr;
+
+    let begin_addr = (begin_addr as usize).next_multiple_of(alloc_gran) as *mut c_void;
+    if !range.contains(&(begin_addr as usize)) {
+        return Err(MemError::GranularityNotWithinLimits);
+    }
+    if !min_max_range.contains(&(begin_addr as usize)) {
+        return Err(MemError::NotWithinAppAddressLimits);
+    }
+
+    let end_addr = (((end_addr as usize).checked_sub(alloc_gran))
+        .unwrap_or(begin_addr as usize)
+        .next_multiple_of(alloc_gran)
+        // -1 is important
+        // https://stackoverflow.com/questions/54223343/virtualalloc2-with-memextendedparameteraddressrequirements-always-produces-error
+        - 1) as *mut c_void;
+    if !range.contains(&(end_addr as usize)) {
+        return Err(MemError::GranularityNotWithinLimits);
+    }
+    if !min_max_range.contains(&(end_addr as usize)) {
+        return Err(MemError::NotWithinAppAddressLimits);
+    }
+
+    let prot: PAGE_PROTECTION_FLAGS = prot.into();
+
+    let mut requirements = MEM_ADDRESS_REQUIREMENTS {
+        LowestStartingAddress: begin_addr,
+        HighestEndingAddress: end_addr,
+        Alignment: align,
+    };
+
+    let mut param = MEM_EXTENDED_PARAMETER::default();
+    param.Anonymous1._bitfield = MemExtendedParameterAddressRequirements.0 as u64;
+    param.Anonymous2.Pointer = (&mut requirements as *mut MEM_ADDRESS_REQUIREMENTS).cast();
+
+    let list = &mut [param];
+    let alloc = unsafe {
+        VirtualAlloc2(
+            None,
+            None,
+            size,
+            MEM_COMMIT | MEM_RESERVE,
+            prot.0,
+            Some(list),
+        )
+    };
+
+    if alloc.is_null() {
+        let error = unsafe { GetLastError() };
+        return Err(error.into());
+    }
+
+    Ok(Alloc(alloc))
 }
 
 /// Calculates a deep pointer address by applying a series of

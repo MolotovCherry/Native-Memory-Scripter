@@ -32,6 +32,23 @@ pub mod mem {
             .map_err(|e| vm.new_runtime_error(format!("{e}")))
     }
 
+    /// Tries to allocate `size` in a free page somewhere within begin..end address.
+    /// begin or end may be NULL, in which case it means "there's no limit".
+    /// Once python object is dropped, memory is automatically deallocated
+    #[pyfunction]
+    fn alloc_in(
+        begin: Address,
+        end: Address,
+        size: usize,
+        align: usize,
+        prot: PyRef<PyProt>,
+        vm: &VirtualMachine,
+    ) -> PyResult<PyAlloc> {
+        mem::memory::alloc_in(begin as _, end as _, size, align, prot.0)
+            .map(PyAlloc)
+            .map_err(|e| vm.new_runtime_error(format!("{e}")))
+    }
+
     /// Read size bytes of src into byte array
     ///
     /// unsafe fn
