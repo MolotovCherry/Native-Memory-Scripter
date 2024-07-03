@@ -188,11 +188,13 @@ unsafe extern "system" fn exception_handler(raw_exc: *const EXCEPTION_POINTERS) 
             if let Some(&MonitorCb {
                 base,
                 size,
+                aligned_base,
+                aligned_size,
                 cb: ref f,
                 ..
             }) = monitor_cb
             {
-                let res = unsafe { prot(base, size, Prot::RW) };
+                let res = unsafe { prot(aligned_base, aligned_size, Prot::RW) };
                 if res.is_err() {
                     // we can't do anything else here if it failed except continue the exception
                     return handle();
