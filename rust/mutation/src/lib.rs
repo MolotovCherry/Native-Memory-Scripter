@@ -24,7 +24,7 @@ mod utils;
 pub mod vtable;
 
 use windows::Win32::System::Memory::{
-    PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_WRITECOPY,
+    PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_WRITECOPY, PAGE_NOACCESS,
     PAGE_PROTECTION_FLAGS, PAGE_READONLY, PAGE_READWRITE, PAGE_WRITECOPY,
 };
 
@@ -47,12 +47,14 @@ pub enum Prot {
     RW,
     /// execute + read + right
     XRW,
+    /// Other not listed
+    Other,
 }
 
 impl From<Prot> for PAGE_PROTECTION_FLAGS {
     fn from(value: Prot) -> Self {
         match value {
-            Prot::None => todo!(),
+            Prot::None => PAGE_NOACCESS,
             Prot::R => PAGE_READONLY,
             Prot::W => PAGE_WRITECOPY,
             Prot::X => PAGE_EXECUTE,
@@ -60,6 +62,7 @@ impl From<Prot> for PAGE_PROTECTION_FLAGS {
             Prot::XW => PAGE_EXECUTE_WRITECOPY,
             Prot::RW => PAGE_READWRITE,
             Prot::XRW => PAGE_EXECUTE_READWRITE,
+            _ => unimplemented!("this flag is not valid"),
         }
     }
 }
@@ -74,7 +77,8 @@ impl From<PAGE_PROTECTION_FLAGS> for Prot {
             PAGE_EXECUTE_WRITECOPY => Self::XW,
             PAGE_READWRITE => Self::RW,
             PAGE_EXECUTE_READWRITE => Self::XRW,
-            _ => Prot::None,
+            PAGE_NOACCESS => Self::None,
+            _ => Self::Other,
         }
     }
 }

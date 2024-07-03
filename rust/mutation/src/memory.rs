@@ -1,6 +1,6 @@
 //! This module allows one to read and write underlying system memory
 
-mod write_monitor;
+mod monitor;
 
 use std::{ffi::c_void, mem, ptr, sync::OnceLock};
 
@@ -18,7 +18,7 @@ use windows::Win32::{
 };
 
 use crate::Prot;
-pub use write_monitor::*;
+pub use monitor::*;
 
 /// An error for the [memory](crate::memory) module
 #[derive(Debug, Clone, thiserror::Error)]
