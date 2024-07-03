@@ -1,5 +1,7 @@
 //! This module allows one to read and write underlying system memory
 
+mod write_monitor;
+
 use std::{ffi::c_void, mem, ptr, sync::OnceLock};
 
 use tracing::error;
@@ -16,6 +18,7 @@ use windows::Win32::{
 };
 
 use crate::Prot;
+pub use write_monitor::*;
 
 /// An error for the [memory](crate::memory) module
 #[derive(Debug, Clone, thiserror::Error)]
@@ -41,6 +44,12 @@ pub enum MemError {
     /// param err
     #[error("provided address is not within allowed min..max application address limit")]
     NotWithinAppAddressLimits,
+    /// incorrect size
+    #[error("size must be non-zero")]
+    InvalidSize,
+    /// incorrect size
+    #[error("memory address overlaps another memory address already being watched")]
+    Overlaps,
     /// param err
     #[error("{0}")]
     Custom(String),
@@ -172,7 +181,7 @@ pub unsafe fn set(dst: *mut u8, val: u8, count: usize) {
 /// Change memory protection of a certain region of memory
 ///
 /// # Safety
-/// - address must be valid fpr up to `size` bytes
+/// - address must be valid for up to `size` bytes
 /// - any safety requirements of VirtualProtect
 pub unsafe fn prot(addr: *const (), mut size: usize, prot: Prot) -> Result<Prot, MemError> {
     if addr.is_null() {
@@ -210,7 +219,7 @@ pub fn alloc(mut size: usize, prot: Prot) -> Result<Alloc, MemError> {
 }
 
 /// The granularity for the starting address at which virtual memory can be allocated.
-pub fn allocation_granularity() -> usize {
+pub fn alloc_granularity() -> usize {
     static SYSTEM_DATA: OnceLock<usize> = OnceLock::new();
 
     let &alloc_gran = SYSTEM_DATA.get_or_init(|| {

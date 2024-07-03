@@ -86,7 +86,7 @@ pub mod mem {
 
     #[pyfunction]
     fn alloc_granularity() -> usize {
-        memory::allocation_granularity()
+        memory::alloc_granularity()
     }
 
     /// Read size bytes of src into byte array
